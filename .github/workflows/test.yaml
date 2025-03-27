@@ -1,0 +1,22 @@
+name: Run Tests
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get and cache requirements
+        uses: cached-requirements
+
+      - name: Run unit tests
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
