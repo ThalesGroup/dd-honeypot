@@ -1,0 +1,17 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+### Python Patch ###
+.venv/
+.idea/
+
+do-not-commit/*
+**/.pytest_cache
+aws/**/config
+**/__pycache__/
+host_key
