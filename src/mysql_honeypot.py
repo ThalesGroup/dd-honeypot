@@ -149,7 +149,7 @@ class MySqlHoneypot(BaseHoneypot):
         packets.append(wrap(col_def, packet_id))
         packet_id += 1
 
-        # EOF after column definition
+        # EOF after the column definition
         packets.append(wrap(b'\xfe\x00\x00\x02\x00', packet_id))
         packet_id += 1
 

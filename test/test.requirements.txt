@@ -1,2 +1,1 @@
 pytest
-mysql-connector-python
