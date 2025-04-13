@@ -91,7 +91,7 @@ class MySqlHoneypot(BaseHoneypot):
 
     def _build_handshake_packet(self):
         auth_plugin_data_part_1 = b'abcdefgh'
-        auth_plugin_data_part_2 = b'ijklmnopqrst'  # make sure total = 13 bytes at least
+        auth_plugin_data_part_2 = b'ijklmnopqrst'  # make sure that total = 13 bytes at least
 
         payload = (
                 b'\x0a' +  # Protocol version

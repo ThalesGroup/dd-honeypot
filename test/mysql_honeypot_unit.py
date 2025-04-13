@@ -60,7 +60,7 @@ def honeypot():
 
 
 def test_honeypot_connection_and_query_positive(honeypot):
-    #Test a successful connection and SELECT query against the honeypot.
+    """Test a successful connection and SELECT query against the honeypot"""
     try:
 
         with mysql.connector.connect(

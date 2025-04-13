@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class HoneypotSession:
     """
     Honeypot session info, which holds the session ID and other state-related information,
-    like user context, current working directory, etc.
+    like user context, current working directory.
     """
 
     def __init__(self):
