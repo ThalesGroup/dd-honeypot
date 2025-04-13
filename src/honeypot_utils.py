@@ -11,3 +11,4 @@ def allocate_port():
         s.listen(1)
         port = s.getsockname()[1]
     return port
+
