@@ -56,7 +56,7 @@ class MySqlHoneypot(BaseHoneypot):
 
             print(f"[>] Login request: {login_packet.hex()}")
 
-            # Modern MySQL clients expect caching_sha2_password
+            # Modern MySQL clients expect the caching_sha2_password
             ok_packet = (
                     b'\x07\x00\x00\x02' +  # length and packet number
                     b'\x00' +  # OK packet identifier
