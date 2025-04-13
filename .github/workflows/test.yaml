@@ -1,8 +1,22 @@
-name: Run Tests
-on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:5.7
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     permissions:
       contents: read
@@ -15,6 +29,12 @@ jobs:
 
       - name: Get and cache requirements
         uses: ./.github/actions/cached-requirements
+
+      - name: Install MySQL connector manually
+        run: .venv/bin/pip install mysql-connector-python
+
+      - name: Wait for MySQL to initialize
+        run: sleep 15
 
       - name: Run unit tests
         run: |
