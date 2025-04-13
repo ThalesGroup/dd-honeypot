@@ -2,7 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from honeypot_utils import allocate_port
+from src.honeypot_utils import allocate_port
 
 
 class HoneypotSession:
