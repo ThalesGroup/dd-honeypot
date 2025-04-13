@@ -35,7 +35,7 @@ def test_honeypot_should_fail_on_invalid_handshake():
 
 
 def test_real_mysql_positive_connection_and_query():
-    """Test a positive connection and query on real MySQL."""
+    #Test a positive connection and query on real MySQL.
     with mysql.connector.connect(
         host="localhost",
         port=3306,
@@ -60,17 +60,18 @@ def honeypot():
 
 
 def test_honeypot_connection_and_query_positive(honeypot):
-    """Test a successful connection and SELECT query against the honeypot."""
+    #Test a successful connection and SELECT query against the honeypot.
     try:
+
         with mysql.connector.connect(
-            host='localhost',
-            port=honeypot.port,
-            user='test',
-            password='test',
-            database='test_db',
-            ssl_disabled=True,
-            use_pure=True,
-            auth_plugin='mysql_native_password'
+                host='localhost',
+                port=honeypot.port,
+                user='test',
+                password='test',
+                database='test_db',
+                ssl_disabled=True,
+                use_pure=True,
+                auth_plugin='mysql_native_password'
         ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1")
