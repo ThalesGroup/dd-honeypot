@@ -1,46 +1,27 @@
-name: Python Tests
+name: 'Get and cache requirements'
+description: 'Cache and install Python dependencies'
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache virtual environment
+      id: cache-venv
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: ${{ runner.os }}-venv-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-venv-
 
-on: [push, pull_request]
+    - name: Create virtual environment
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: python -m venv .venv
+      shell: bash
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_USER: test
-          MYSQL_PASSWORD: test
-          MYSQL_DATABASE: test_db
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u test -ptest"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-          --default-authentication-plugin=mysql_native_password
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest mysql-connector-python
-
-      - name: Run tests
-        run: |
-          source .venv/bin/activate
-          PYTHONPATH=src python -m pytest test/test_mysql_honeypot_unit.py -v --log-level=INFO
-        env:
-          MYSQL_TEST_PASSWORD: test
+    - name: Install dependencies
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r test/test.requirements.txt
+      shell: bash
