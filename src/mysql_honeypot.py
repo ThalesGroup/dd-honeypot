@@ -1,160 +1,119 @@
+import asyncio
+import threading
 import logging
 import socket
-import threading
-import struct
-
+from mysql_mimic import MysqlServer, IdentityProvider, User
 from src.base_honeypot import BaseHoneypot
+import time
+from typing import List, Tuple, Any
 
 logger = logging.getLogger(__name__)
 
-class MySqlHoneypot(BaseHoneypot):
-    def __init__(self):
-        super().__init__()
-        self.server_socket = None
-        self.running = False
+
+class StaticQueryHandler:
+    """Handles SQL queries with static responses."""
+
+    async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
+        logger.info(f"Received query: {sql}")
+        sql = sql.upper().strip()
+
+        if sql == "SELECT 1":
+            return [(1,)], ["1"]
+        elif sql.startswith("SELECT"):
+            return [("test", 123)], ["col1", "col2"]
+        elif sql.startswith("SHOW"):
+            return [], ["empty_show_result"]
+        return [], ["empty_response"]
+
+
+class AllowAllIdentityProvider(IdentityProvider):
+    """Allows all connections with any credentials."""
+
+    async def get_user(self, username: str) -> User | None:
+        return User(
+            auth_string=None,
+            auth_plugin="mysql_native_password"
+        )
+
+
+class MySqlMimicHoneypot(BaseHoneypot):
+    def __init__(self, port: int = None):
+        super().__init__(port)
+        self.server = None
         self.thread = None
+        self.running = False
+        self.loop = None
+        self.server_task = None
 
     def start(self):
+        """Start the MySQL-Mimic honeypot server."""
         self.running = True
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
+        self._wait_for_server_ready()
         logger.info(f"MySQL Honeypot started on port {self.port}")
 
-    def stop(self):
-        self.running = False
-        if self.server_socket:
+    def _run_server(self):
+        """Run the MySQL-Mimic server in a separate event loop."""
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
+        try:
+            # Log the attempt to start the server
+            logger.info(f"Attempting to start MySQL-Mimic honeypot on port {self.port}")
+
+            self.server = MysqlServer(
+                query_handler=StaticQueryHandler(),
+                identity_provider=AllowAllIdentityProvider()
+            )
+
+            # Log successful server creation
+            logger.info("MysqlServer created successfully")
+
+            # Start the server using asyncio
+            coro = asyncio.start_server(
+                self.server.handle_client,
+                host="127.0.0.1",
+                port=self.port
+            )
+            self.server_task = self.loop.run_until_complete(coro)
+            logger.info(f"Server started on port {self.port}")
+
+            # Keep the server running
+            self.loop.run_forever()
+        except Exception as e:
+            # Log any exceptions that occur during startup
+            logger.error(f"Error starting the server: {e}")
+        finally:
+            if self.server_task:
+                self.server_task.close()
+            self.loop.close()
+
+    def _wait_for_server_ready(self, retries=10, delay=1):
+        """Wait until server is accepting connections."""
+        for i in range(retries):
             try:
-                self.server_socket.close()
-            except Exception as e:
-                logger.warning(f"Error closing socket: {e}")
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(1)
+                    if s.connect_ex(('127.0.0.1', self.port)) == 0:
+                        logger.info(f"Server ready on port {self.port}")
+                        return
+            except socket.error:
+                pass
+            time.sleep(delay)
+        raise RuntimeError(f"Server failed to start on port {self.port}")
+
+    def stop(self):
+        """Stop the honeypot server."""
+        self.running = False
+        if self.loop:
+            self.loop.call_soon_threadsafe(self._stop_server)
+        if self.thread:
+            self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
 
-    def _run_server(self):
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind(("localhost", self.port))
-            self.server_socket.listen(5)
-
-            while self.running:
-                try:
-                    client_socket, addr = self.server_socket.accept()
-                    logger.info(f"Accepted connection from {addr}")
-                    threading.Thread(target=self._handle_client, args=(client_socket,), daemon=True).start()
-                except Exception as e:
-                    if self.running:
-                        logger.error(f"Error accepting connection: {e}")
-        except Exception as e:
-            logger.error(f"Failed to start honeypot server: {e}")
-
-    def _handle_login(self, client_sock):
-        try:
-            login_packet = client_sock.recv(1024)
-            if not login_packet:  # Handle empty packet
-                print("[!] Empty login packet received")
-                return False
-
-            print(f"[>] Login request: {login_packet.hex()}")
-
-            # Modern MySQL clients expect the caching_sha2_password
-            ok_packet = (
-                    b'\x07\x00\x00\x02' +  # length and packet number
-                    b'\x00' +  # OK packet identifier
-                    b'\x00\x00\x00' +  # affected rows
-                    b'\x02\x00\x00\x00'  # server status
-            )
-            client_sock.sendall(ok_packet)
-            return True
-
-        except ConnectionResetError:
-            print("[!] Client reset connection during login")
-            return False
-        except Exception as e:
-            print(f"[!] Login error: {e}")
-            return False
-
-    def _handle_client(self, client_sock):
-        try:
-            if not self._send_handshake(client_sock):
-                return
-
-            if not self._handle_login(client_sock):
-                return
-
-            self._handle_queries(client_sock)
-        except Exception as e:
-            print(f"[!] Client handling error: {e}")
-        finally:
-            client_sock.close()
-
-
-
-    def _build_handshake_packet(self):
-        auth_plugin_data_part_1 = b'abcdefgh'
-        auth_plugin_data_part_2 = b'ijklmnopqrst'  # make sure that total = 13 bytes at least
-
-        payload = (
-                b'\x0a' +  # Protocol version
-                b'5.7.0-honeypot\x00' +  # Server version
-                struct.pack('<I', 1234) +  # Connection ID
-                auth_plugin_data_part_1 + b'\x00' +  # Auth plugin data part 1 + filler
-                struct.pack('<H', 0xffff) +  # Capability flags (lower)
-                b'\x21' +  # Character set
-                struct.pack('<H', 2) +  # Status flags
-                struct.pack('<H', 0xffff) +  # Capability flags (upper)
-                bytes([len(auth_plugin_data_part_1 + auth_plugin_data_part_2)]) +  # Auth plugin data length
-                b'\x00' * 10 +  # Reserved
-                auth_plugin_data_part_2 + b'\x00' +  # Auth plugin data part 2 + null-term
-                b'mysql_native_password\x00'  # Auth plugin name
-        )
-
-        length = struct.pack('<I', len(payload))[:3]
-        return length + b'\x00' + payload
-
-    def _build_ok_packet(self, packet_id):
-        payload = (
-            b'\x00' +               # OK packet header
-            b'\x00' +               # Affected rows
-            b'\x00' +               # Last insert ID
-            b'\x02\x00' +           # Server status (autocommit)
-            b'\x00\x00'             # Warnings
-        )
-        length = struct.pack('<I', len(payload))[:3]
-        return length + struct.pack("B", packet_id) + payload
-
-    def _build_fake_select_response(self, start_packet_id):
-        def wrap(payload, packet_id):
-            return struct.pack('<I', len(payload))[:3] + struct.pack('B', packet_id) + payload
-
-        packets = []
-        packet_id = start_packet_id
-
-        # Column count (1)
-        packets.append(wrap(b'\x01', packet_id))
-        packet_id += 1
-
-        # Column definition
-        col_def = (
-            b'\x03def' + b'\x00'*4 +
-            b'\x01' + b'c' +
-            b'\x01' + b'c' +
-            b'\x0c' +
-            struct.pack('<H', 33) +
-            struct.pack('<I', 1) +
-            b'\x03' +
-            struct.pack('<H', 0) +
-            b'\x00' +
-            b'\x00\x00'
-        )
-        packets.append(wrap(col_def, packet_id))
-        packet_id += 1
-
-        # EOF after the column definition
-        packets.append(wrap(b'\xfe\x00\x00\x02\x00', packet_id))
-        packet_id += 1
-
-        # No row data (empty result set)
-
-        # Final EOF
-        packets.append(wrap(b'\xfe\x00\x00\x02\x00', packet_id))
-        return packets
+    def _stop_server(self):
+        """Cleanup server resources."""
+        if self.server_task:
+            self.server_task.close()
+        self.loop.stop()
