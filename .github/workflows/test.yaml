@@ -10,8 +10,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Get and cache requirements
-        uses: ./.github/actions/cached-requirements
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x' # Specify your required Python version
+      - name: Create virtual environment
+        run: python -m venv .venv
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
       - name: Run unit tests
         run: |
           source .venv/bin/activate
