@@ -22,7 +22,7 @@ def init_env_from_file():
 
 def allocate_port():
     """
-    allocate a dynamic port
+    allocate a dynamic port and
     :return: port number
     """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -30,3 +30,4 @@ def allocate_port():
         s.listen(1)
         port = s.getsockname()[1]
     return port
+

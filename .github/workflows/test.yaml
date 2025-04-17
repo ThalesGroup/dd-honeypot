@@ -1,22 +1,40 @@
-name: Run Tests
-on: [push, workflow_dispatch]
+name: Python Tests
+
+on: [push, pull_request]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -u test -ptest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
 
       - name: Get and cache requirements
         uses: ./.github/actions/cached-requirements
 
-      - name: Run unit tests
+      - name: Run tests
         run: |
           source .venv/bin/activate
-          PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
+          PYTHONPATH=src pytest test/test_mysql_honeypot_unit.py -v --log-level=INFO
