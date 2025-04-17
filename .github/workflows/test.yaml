@@ -1,5 +1,6 @@
 name: Run Tests
 on: [push, workflow_dispatch]
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -7,19 +8,30 @@ jobs:
       contents: read
       actions: read
       id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x' # Specify your required Python version
+          python-version: '3.x'  # or specific version like '3.9'
+
       - name: Create virtual environment
-        run: python -m venv .venv
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+
+      - name: Get and cache requirements
+        uses: ./.github/actions/cached-requirements
+
       - name: Install dependencies
         run: |
           source .venv/bin/activate
           pip install -r requirements.txt
+
       - name: Run unit tests
         run: |
           source .venv/bin/activate
