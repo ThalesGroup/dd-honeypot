@@ -107,6 +107,15 @@ class SSHServerInterface(ServerInterface):
     def __init__(self):
         self.auth_method = None
         self.username = None
+        # Command responses dictionary
+        self.command_responses = {
+            'ls': "file1.txt  file2.log  secret_data\n",
+            'whoami': "root\n",
+            'id': "uid=0(root) gid=0(root) groups=0(root)\n",
+            'uname -a': "Linux honeypot 5.15.0-76-generic #83-Ubuntu SMP Thu Jun 15 19:16:32 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux\n",
+            'ifconfig': "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255\n        ether 00:0c:29:ab:cd:ef  txqueuelen 1000  (Ethernet)\n\nlo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0\n        loop  txqueuelen 1000  (Local Loopback)\n",
+            'help': "Available commands: ls, whoami, id, uname -a, ifconfig, help\n"
+        }
 
     def check_auth_password(self, username, password):
         logging.info(f'Authentication: {username}:{password}')
@@ -117,9 +126,16 @@ class SSHServerInterface(ServerInterface):
         return paramiko.OPEN_SUCCEEDED if kind == 'session' else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_channel_exec_request(self, channel, command):
-        logging.info(f"Command executed: {command.decode()}")
-        channel.send(f"{command.decode()}: command not found\r\n")
-        channel.send_exit_status(1)
+        command_str = command.decode().strip()
+        logging.info(f"Command executed: {command_str}")
+
+        # Check if we have a hardcoded response
+        if command_str in self.command_responses:
+            channel.send(self.command_responses[command_str])
+            channel.send_exit_status(0)  # Success exit code
+        else:
+            channel.send(f"{command_str}: command not found\n")
+            channel.send_exit_status(1)  # Error exit code
         return True
 
     def check_channel_shell_request(self, channel):
@@ -128,7 +144,7 @@ class SSHServerInterface(ServerInterface):
 
     def handle_shell(self, channel):
         try:
-            channel.send("Welcome to SSH Server\r\n")
+            channel.send("Welcome to SSH Server (Type 'help' for available commands)\r\n")
             prompt = f"{self.username}@honeypot:~$ "
 
             while not channel.closed:
@@ -138,13 +154,20 @@ class SSHServerInterface(ServerInterface):
                     break
 
                 command = data.decode().strip()
-                if command.lower() == 'exit':
+                if command.lower() in ['exit', 'quit']:
                     channel.send("Connection closed\r\n")
                     channel.close()
                     break
 
                 logging.info(f"Shell command: {command}")
-                channel.send(f"{command}: command not found\r\n")
+
+                # Check for hardcoded response
+                if command in self.command_responses:
+                    channel.send(self.command_responses[command] + "\r\n")
+                elif command.lower() == 'help':
+                    channel.send("Available commands: " + ", ".join(self.command_responses.keys()) + "\r\n")
+                else:
+                    channel.send(f"{command}: command not found\r\n")
 
         except Exception as e:
             logging.error(f"Shell error: {e}")
