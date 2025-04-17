@@ -29,7 +29,8 @@ class StaticQueryHandler:
 class AllowAllIdentityProvider(IdentityProvider):
     """Allows all connections with any credentials."""
 
-    async def get_user(self, username: str) -> User | None:
+    from typing import Optional
+    async def get_user(self, username: str) -> Optional[User]:
         return User(
             auth_string=None,
             auth_plugin="mysql_native_password"
