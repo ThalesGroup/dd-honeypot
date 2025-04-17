@@ -214,3 +214,20 @@
 2025-04-17 14:05:04,336 [INFO] Shell command: pwd
 2025-04-17 14:05:24,831 [INFO] Disconnect (code 11): disconnected by user
 2025-04-17 14:05:28,927 [INFO] SSH Honeypot stopped
+2025-04-17 14:12:08,690 [INFO] SSH Honeypot running on port 2222
+2025-04-17 14:12:15,461 [INFO] Connected (version 2.0, client OpenSSH_9.7)
+2025-04-17 14:12:15,479 [INFO] Auth rejected (none).
+2025-04-17 14:12:18,280 [INFO] Authentication: test:tst
+2025-04-17 14:12:18,281 [INFO] Auth granted (password).
+2025-04-17 14:12:20,148 [INFO] Shell command: ls
+2025-04-17 14:12:30,280 [INFO] Shell command: ls -a
+2025-04-17 14:12:34,240 [INFO] Disconnect (code 11): disconnected by user
+2025-04-17 14:12:38,752 [INFO] SSH Honeypot stopped
+2025-04-17 14:19:24,630 [INFO] SSH Honeypot running on port 2222
+2025-04-17 14:19:30,065 [INFO] Connected (version 2.0, client OpenSSH_9.7)
+2025-04-17 14:19:30,092 [INFO] Auth rejected (none).
+2025-04-17 14:19:33,755 [INFO] Authentication: test:test
+2025-04-17 14:19:33,755 [INFO] Auth granted (password).
+2025-04-17 14:19:36,348 [INFO] Shell command: ls
+2025-04-17 14:19:46,969 [INFO] Disconnect (code 11): disconnected by user
+2025-04-17 14:19:52,412 [INFO] SSH Honeypot stopped

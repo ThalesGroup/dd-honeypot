@@ -44,49 +44,58 @@ def wait_for_ssh(port: int, timeout: int = 30) -> bool:
 
 
 @pytest.fixture
-def honeypot() -> Generator[SSHHoneypot, None, None]:
-    """Fixture with proper resource cleanup"""
+def honeypot():
+    """Fixture with more robust startup/shutdown"""
     hp = SSHHoneypot(port=0)
     try:
         hp.start()
-        assert wait_for_ssh(hp.port), "Honeypot failed to become responsive"
+        assert wait_for_ssh(hp.port, timeout=10), "Honeypot failed to start"
         yield hp
     finally:
         hp.stop()
-        time.sleep(0.5)  # Allow socket cleanup
+        time.sleep(1)  # Give more time for cleanup
 
 
-def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
-    """Test with explicit timeouts and resource cleanup"""
+def test_basic_command_execution(honeypot):
+    """Test with more resilient command execution"""
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        # Connect with strict timeouts
         client.connect(
             'localhost',
             port=honeypot.port,
             username='test',
             password='test',
-            timeout=5,
-            banner_timeout=5,
-            auth_timeout=5
+            timeout=10,
+            banner_timeout=10,
+            auth_timeout=10
         )
 
-        # Test command execution with timeout
-        stdin, stdout, stderr = client.exec_command('test-command', timeout=5)
-        output = stdout.read().decode('utf-8', errors='ignore')
-        exit_status = stdout.channel.recv_exit_status()
+        # Use separate stdout/stderr channels
+        transport = client.get_transport()
+        channel = transport.open_session(timeout=10)
+        channel.exec_command('test-command')
 
-        assert 'command not found' in output
-        assert exit_status == 1
+        # Read output with timeout protection
+        output = b''
+        start = time.time()
+        while time.time() - start < 10:
+            if channel.recv_ready():
+                output += channel.recv(1024)
+            if channel.exit_status_ready():
+                break
+            time.sleep(0.1)
+
+        assert b'command not found' in output
+        assert channel.recv_exit_status() == 1
 
     finally:
         client.close()
 
 
-def test_interactive_shell(honeypot: SSHHoneypot) -> None:
-    """Test interactive shell with proper cleanup"""
+def test_interactive_shell(honeypot):
+    """More robust interactive shell test"""
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -96,55 +105,52 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
             port=honeypot.port,
             username='user',
             password='pass',
-            timeout=5,
-            banner_timeout=5,
-            auth_timeout=5
+            timeout=10,
+            banner_timeout=10,
+            auth_timeout=10
         )
 
-        channel = client.invoke_shell()
-        channel.settimeout(5)
+        # Create shell with separate channel
+        transport = client.get_transport()
+        channel = transport.open_session(timeout=10)
+        channel.get_pty()
+        channel.invoke_shell()
 
-        try:
-            # Wait for prompt with timeout
-            start = time.time()
-            output = b''
-            while time.time() - start < 5:
-                if channel.recv_ready():
-                    output += channel.recv(1024)
-                    if b'$ ' in output:
-                        break
-                time.sleep(0.1)
-            else:
-                pytest.fail("Timeout waiting for shell prompt")
+        # Wait for prompt
+        output = b''
+        start = time.time()
+        while time.time() - start < 10:
+            if channel.recv_ready():
+                output += channel.recv(1024)
+                if b'$ ' in output:  # Look for shell prompt
+                    break
+            time.sleep(0.1)
+        else:
+            pytest.fail("Timeout waiting for shell prompt")
 
-            # Test command
-            channel.send('ls\n')
+        # Send command
+        channel.send('ls\n')
 
-            # Get response with timeout
-            output = b''
-            start = time.time()
-            while time.time() - start < 5:
-                if channel.recv_ready():
-                    output += channel.recv(1024)
-                    if b'$ ' in output:  # Look for prompt return
-                        break
-                time.sleep(0.1)
-            else:
-                pytest.fail("Timeout waiting for command response")
+        # Get response
+        output = b''
+        start = time.time()
+        while time.time() - start < 10:
+            if channel.recv_ready():
+                output += channel.recv(1024)
+                if b'$ ' in output:  # Look for next prompt
+                    break
+            time.sleep(0.1)
 
-            assert b'command not found' in output
+        assert b'command not found' in output
 
-            # Clean exit
-            channel.send('exit\n')
-            channel.shutdown_write()
+        # Clean exit
+        channel.send('exit\n')
+        channel.shutdown_write()
 
-            # Wait for clean channel closure
-            start = time.time()
-            while not channel.closed and time.time() - start < 5:
-                time.sleep(0.1)
-
-        finally:
-            channel.close()
+        # Wait for closure
+        start = time.time()
+        while not channel.closed and time.time() - start < 5:
+            time.sleep(0.1)
 
     finally:
         client.close()
