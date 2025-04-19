@@ -117,7 +117,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
         raise RuntimeError(f"Server failed to start on port {self.port}")
 
     def stop(self):
-        """Stop the honeypot server """
+        #Stop the honeypot server
         self.running = False
         if self.loop:
             self.loop.call_soon_threadsafe(self._stop_server)
