@@ -65,6 +65,7 @@ def test_real_mysql_connection_and_query():
         pytest.skip(f"Skipping real MySQL test: {str(e)}")
 
 
+
 def test_honeypot_connection_and_query():
     honeypot = MySqlMimicHoneypot()
     honeypot.start()
@@ -94,3 +95,4 @@ def test_honeypot_connection_and_query():
                 time.sleep(1)
     finally:
         honeypot.stop()
+

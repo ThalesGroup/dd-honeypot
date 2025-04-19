@@ -126,7 +126,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
         logger.info("MySQL Honeypot stopped")
 
     def _stop_server(self):
-        """Cleanup server resources."""
+        #Cleanup server resources.
         if self._server:
             self._server.close()  # Close the server
             self.loop.run_until_complete(self._server.wait_closed())  # Ensure the connection is closed
