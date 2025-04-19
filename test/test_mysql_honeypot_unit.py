@@ -77,8 +77,8 @@ def test_honeypot_connection_and_query():
                 conn = pymysql.connect(
                     host="localhost",
                     port=honeypot.port,
-                    user="root",
-                    password="",
+                    user="test",
+                    password="test",
                     connect_timeout=3,
                 )
                 cursor = conn.cursor()
