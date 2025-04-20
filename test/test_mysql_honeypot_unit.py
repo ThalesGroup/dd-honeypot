@@ -48,7 +48,7 @@ def test_honeypot_should_fail_on_invalid_handshake():
 
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
 def test_real_mysql_connection_and_query():
-    #Test a positive connection and query on real MySQL.
+    """Test a positive connection and query on real MySQL.  """
     try:
         with mysql.connector.connect(
             host="localhost",
