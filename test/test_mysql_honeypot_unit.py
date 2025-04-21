@@ -64,3 +64,42 @@ def test_real_mysql_connection_and_query():
     except Exception as e:
         pytest.skip(f"Skipping real MySQL test: {str(e)}")
 
+
+def test_honeypot_connection_and_query():
+    honeypot = MySqlMimicHoneypot()
+    honeypot.start()
+    time.sleep(1)  # Ensure server is fully ready
+
+    try:
+        retries = 5
+        last_exception = None
+
+        for attempt in range(retries):
+            try:
+                # Use context managers to ensure proper connection cleanup
+                with pymysql.connect(
+                        host="localhost",
+                        port=honeypot.port,
+                        user="test",
+                        password="test",
+                        connect_timeout=3,
+                ) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT 1;")
+                        result = cursor.fetchone()
+                        logger.info(f"Received result: {result}")
+                        assert result == (1,), f"Expected (1,), got {result}"
+                return  # Success - exit the retry loop
+
+            except pymysql.MySQLError as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                last_exception = e
+                if attempt == retries - 1:
+                    pytest.fail(f"Failed after {retries} attempts: {last_exception}")
+                time.sleep(1)
+
+    finally:
+        # Ensure honeypot is stopped even if test fails
+        honeypot.stop()
+        # Add small delay to allow cleanup
+        time.sleep(0.5)
