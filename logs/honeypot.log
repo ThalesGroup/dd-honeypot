@@ -275,3 +275,27 @@
 2025-04-17 15:57:28,726 [INFO] Shell command: ifconfig
 2025-04-17 15:57:31,883 [INFO] Shell command: help
 2025-04-17 15:57:39,044 [INFO] SSH Honeypot stopped
+2025-04-21 10:01:16,295 [INFO] SSH Honeypot running on port 2222
+2025-04-21 10:02:36,997 [INFO] SSH Honeypot stopped
+2025-04-21 10:08:27,081 [INFO] SSH Honeypot running on port 2222
+2025-04-21 10:08:39,579 [INFO] SSH Honeypot stopped
+2025-04-21 10:08:47,738 [INFO] SSH Honeypot running on port 2222
+2025-04-21 10:08:55,756 [INFO] Connected (version 2.0, client OpenSSH_9.7)
+2025-04-21 10:08:55,783 [INFO] Auth rejected (none).
+2025-04-21 10:09:21,189 [INFO] Authentication: user:pass
+2025-04-21 10:09:21,189 [INFO] Auth granted (password).
+2025-04-21 10:09:22,920 [INFO] Shell command: l
+2025-04-21 10:09:23,144 [INFO] Shell command: s
+2025-04-21 10:09:23,378 [INFO] Shell command: 
+2025-04-21 10:09:24,894 [INFO] Shell command: l
+2025-04-21 10:09:25,055 [INFO] Shell command: s
+2025-04-21 10:09:41,977 [INFO] SSH Honeypot stopped
+2025-04-21 10:09:42,318 [INFO] SSH Honeypot running on port 2222
+2025-04-21 10:09:47,949 [INFO] Connected (version 2.0, client OpenSSH_9.7)
+2025-04-21 10:09:47,970 [INFO] Auth rejected (none).
+2025-04-21 10:09:50,079 [INFO] Authentication: user:pass
+2025-04-21 10:09:50,080 [INFO] Auth granted (password).
+2025-04-21 10:09:51,685 [INFO] Shell command: ls
+2025-04-21 10:10:01,573 [INFO] Shell command: whoami
+2025-04-21 10:10:04,379 [INFO] Disconnect (code 11): disconnected by user
+2025-04-21 10:19:32,899 [INFO] SSH Honeypot stopped
