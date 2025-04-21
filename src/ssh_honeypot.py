@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler('../logs/honeypot.log'),
+        logging.FileHandler('/Users/mohamed.faheem/dd-honeypot/logs/honeypot.log'),
         logging.StreamHandler()
     ]
 )
