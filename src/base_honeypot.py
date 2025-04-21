@@ -1,3 +1,4 @@
+import json
 import logging
 import threading
 import uuid
@@ -14,22 +15,14 @@ from src.honeypot_utils import allocate_port
 logger = logging.getLogger(__name__)
 
 
-class HoneypotSession:
-    """
-    Honeypot session info, which holds the session ID and other state-related information.
-    """
-
+class HoneypotSession(dict):
     def __init__(self):
-        self.__session_id = str(uuid.uuid4())
-        self.__info = {}
+        super().__init__()
+        self["session_id"] = str(uuid.uuid4())
 
     @property
     def session_id(self) -> str:
-        return self.__session_id
-
-    @property
-    def info(self) -> dict:
-        return self.__info
+        return self["session_id"]
 
 
 class BaseHoneypot(ABC):
@@ -93,15 +86,19 @@ class BaseHoneypot(ABC):
                 control=LocalControl(),  # You can add more control features if needed
                 server_capabilities=None,  # Set appropriate capabilities
                 identity_provider=None,  # Optional: Implement identity provider if necessary
-                ssl=None  # SSL can be added if required
+                ssl=None,  # SSL can be added if required
             )
 
             # Simulate processing the query (this can be extended as needed)
             # For example, check if the query is a SELECT or an INSERT
             if "SELECT" in query.upper():
-                return [{"column1": "value1", "column2": "value2"}]  # Example result for SELECT query
+                return [
+                    {"column1": "value1", "column2": "value2"}
+                ]  # Example result for SELECT query
             elif "INSERT" in query.upper():
-                return [{"status": "OK", "message": "Query executed successfully"}]  # Example for INSERT
+                return [
+                    {"status": "OK", "message": "Query executed successfully"}
+                ]  # Example for INSERT
 
             # You can handle different queries here as per your need
             return [{"status": "OK", "message": "Query processed"}]
