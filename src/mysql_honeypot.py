@@ -39,6 +39,7 @@ class AllowAllIdentityProvider(IdentityProvider):
 class MySqlMimicHoneypot(BaseHoneypot):
     def __init__(self, port: int = None):
         super().__init__(port)
+        self._server = None
         self.server = None
         self.thread = None
         self.running = False
@@ -107,13 +108,32 @@ class MySqlMimicHoneypot(BaseHoneypot):
         """Stop the honeypot server."""
         self.running = False
         if self.loop:
-            self.loop.call_soon_threadsafe(self._stop_server)
+            try:
+                self.loop.call_soon_threadsafe(self._stop_server)
+            except Exception:
+                pass
         if self.thread:
             self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
 
     def _stop_server(self):
         """Cleanup server resources."""
-        if self.server_task:
-            self.server_task.close()
-        self.loop.stop()
+        if self._server:
+            self._server.close()  # Close the server
+            try:
+                self.loop.run_until_complete(self._server.wait_closed())  # Ensure the connection is closed
+            except Exception:
+                logger.warning("Server already closed.")
+
+        # Cancel all pending tasks
+        tasks = asyncio.all_tasks(loop=self.loop)
+        for task in tasks:
+            task.cancel()
+            try:
+                self.loop.run_until_complete(task)
+            except asyncio.CancelledError:
+                pass
+
+        if self.loop.is_running():
+            self.loop.stop()
+

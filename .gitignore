@@ -16,3 +16,4 @@ aws/**/config
 **/__pycache__/
 host_key
 config/**
+logs

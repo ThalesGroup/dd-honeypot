@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler('honeypot.log'),
+        logging.FileHandler('../logs/honeypot.log'),
         logging.StreamHandler()
     ]
 )
@@ -173,7 +173,6 @@ class SSHServerInterface(ServerInterface):
             logging.error(f"Shell error: {e}")
         finally:
             channel.close()
-
 
 if __name__ == "__main__":
     honeypot = SSHHoneypot(port=2222).start()
