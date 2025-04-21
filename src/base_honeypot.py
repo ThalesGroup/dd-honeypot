@@ -86,15 +86,19 @@ class BaseHoneypot(ABC):
                 control=LocalControl(),  # You can add more control features if needed
                 server_capabilities=None,  # Set appropriate capabilities
                 identity_provider=None,  # Optional: Implement identity provider if necessary
-                ssl=None  # SSL can be added if required
+                ssl=None,  # SSL can be added if required
             )
 
             # Simulate processing the query (this can be extended as needed)
             # For example, check if the query is a SELECT or an INSERT
             if "SELECT" in query.upper():
-                return [{"column1": "value1", "column2": "value2"}]  # Example result for SELECT query
+                return [
+                    {"column1": "value1", "column2": "value2"}
+                ]  # Example result for SELECT query
             elif "INSERT" in query.upper():
-                return [{"status": "OK", "message": "Query executed successfully"}]  # Example for INSERT
+                return [
+                    {"status": "OK", "message": "Query executed successfully"}
+                ]  # Example for INSERT
 
             # You can handle different queries here as per your need
             return [{"status": "OK", "message": "Query processed"}]
