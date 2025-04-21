@@ -205,6 +205,7 @@
 2025-04-13 17:41:01,348 [INFO] Shell command: ls
 2025-04-13 17:41:03,773 [INFO] Disconnect (code 11): disconnected by user
 2025-04-13 17:41:10,384 [INFO] SSH Honeypot stopped
+<<<<<<< HEAD:logs/honeypot.log
 2025-04-17 14:04:35,976 [INFO] SSH Honeypot running on port 2222
 2025-04-17 14:04:55,062 [INFO] Connected (version 2.0, client OpenSSH_9.7)
 2025-04-17 14:04:55,092 [INFO] Auth rejected (none).
@@ -299,3 +300,5 @@
 2025-04-21 10:10:01,573 [INFO] Shell command: whoami
 2025-04-21 10:10:04,379 [INFO] Disconnect (code 11): disconnected by user
 2025-04-21 10:19:32,899 [INFO] SSH Honeypot stopped
+=======
+>>>>>>> b9a444c2fd274752e0651d048cb958196d004ab3:src/honeypot.log
