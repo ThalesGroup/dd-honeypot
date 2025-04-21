@@ -1,3 +1,4 @@
+import json
 import logging
 import threading
 import uuid
@@ -14,22 +15,14 @@ from src.honeypot_utils import allocate_port
 logger = logging.getLogger(__name__)
 
 
-class HoneypotSession:
-    """
-    Honeypot session info, which holds the session ID and other state-related information.
-    """
-
+class HoneypotSession(dict):
     def __init__(self):
-        self.__session_id = str(uuid.uuid4())
-        self.__info = {}
+        super().__init__()
+        self["session_id"] = str(uuid.uuid4())
 
     @property
     def session_id(self) -> str:
-        return self.__session_id
-
-    @property
-    def info(self) -> dict:
-        return self.__info
+        return self["session_id"]
 
 
 class BaseHoneypot(ABC):
