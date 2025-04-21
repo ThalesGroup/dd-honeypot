@@ -88,21 +88,9 @@ class MySqlMimicHoneypot(BaseHoneypot):
         finally:
             if self.server_task:
                 self.server_task.close()
-                self.loop.run_until_complete(self.server_task.wait_closed())
-
-            # Cancel all pending tasks
-            pending = asyncio.all_tasks(self.loop)
-            for task in pending:
-                task.cancel()
-                try:
-                    self.loop.run_until_complete(task)
-                except asyncio.CancelledError:
-                    pass
-            if self.loop.is_running():
-                self.loop.stop()
             self.loop.close()
 
-    def _wait_for_server_ready(self, retries=10, delay=2):
+    def _wait_for_server_ready(self, retries=10, delay=1):
         """Wait until server is accepting connections."""
         for i in range(retries):
             try:
@@ -111,26 +99,33 @@ class MySqlMimicHoneypot(BaseHoneypot):
                     if s.connect_ex(('127.0.0.1', self.port)) == 0:
                         logger.info(f"Server ready on port {self.port}")
                         return
-            except socket.error as e:
-                logger.warning(f"Attempt {i + 1} failed to connect: {e}")
+            except socket.error:
+                pass
             time.sleep(delay)
         raise RuntimeError(f"Server failed to start on port {self.port}")
 
     def stop(self):
-        #Stop the honeypot server
+        """Stop the honeypot server."""
         self.running = False
         if self.loop:
-            self.loop.call_soon_threadsafe(self._stop_server)
+            try:
+                self.loop.call_soon_threadsafe(self._stop_server)
+            except Exception:
+                pass
         if self.thread:
             self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
 
     def _stop_server(self):
-        #Cleanup server resources.
+        """Cleanup server resources."""
         if self._server:
             self._server.close()  # Close the server
-            self.loop.run_until_complete(self._server.wait_closed())  # Ensure the connection is closed
+            try:
+                self.loop.run_until_complete(self._server.wait_closed())  # Ensure the connection is closed
+            except Exception:
+                logger.warning("Server already closed.")
 
+        # Cancel all pending tasks
         tasks = asyncio.all_tasks(loop=self.loop)
         for task in tasks:
             task.cancel()
