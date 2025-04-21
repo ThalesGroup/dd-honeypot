@@ -20,7 +20,7 @@ def test_honeypot_should_fail_on_invalid_handshake():
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:
             with mysql.connector.connect(
-                host="localhost",
+                host="127.0.0.1",
                 port=honeypot.port,
                 user="test",
                 password="test",
@@ -51,7 +51,7 @@ def test_real_mysql_connection_and_query():
     """Test a positive connection and query on real MySQL."""
     try:
         with mysql.connector.connect(
-            host="localhost",
+            host="127.0.0.1",
             port=3306,
             user="test",
             password="test",
@@ -68,38 +68,22 @@ def test_real_mysql_connection_and_query():
 def test_honeypot_connection_and_query():
     honeypot = MySqlMimicHoneypot()
     honeypot.start()
-    time.sleep(1)  # Ensure server is fully ready
+    time.sleep(1)  # Ensure server is ready
 
     try:
-        retries = 5
-        last_exception = None
-
-        for attempt in range(retries):
-            try:
-                # Use context managers to ensure proper connection cleanup
-                with pymysql.connect(
-                        host="localhost",
-                        port=honeypot.port,
-                        user="test",
-                        password="test",
-                        connect_timeout=3,
-                ) as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute("SELECT 1;")
-                        result = cursor.fetchone()
-                        logger.info(f"Received result: {result}")
-                        assert result == (1,), f"Expected (1,), got {result}"
-                return  # Success - exit the retry loop
-
-            except pymysql.MySQLError as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                last_exception = e
-                if attempt == retries - 1:
-                    pytest.fail(f"Failed after {retries} attempts: {last_exception}")
-                time.sleep(1)
-
+        with pymysql.connect(
+            host="127.0.0.1",
+            port=honeypot.port,
+            user="test",
+            password="test",
+            connect_timeout=3,
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1;")
+                result = cursor.fetchone()
+                assert result == (1,), f"Expected (1,), got {result}"
+    except pymysql.MySQLError as e:
+        pytest.fail(f"Connection failed: {e}")
     finally:
-        # Ensure honeypot is stopped even if test fails
         honeypot.stop()
-        # Add small delay to allow cleanup
-        time.sleep(0.5)
+        time.sleep(0.5)  # Allow cleanup

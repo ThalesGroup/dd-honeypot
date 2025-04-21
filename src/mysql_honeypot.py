@@ -56,6 +56,8 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     def _run_server(self):
         """Run the MySQL-Mimic server in a separate event loop."""
+        logger.debug("Starting _run_server")
+
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
@@ -106,6 +108,8 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     def stop(self):
         """Stop the honeypot server."""
+        logger.debug("Beginning stop procedure")
+
         self.running = False
         if self.loop:
             try:

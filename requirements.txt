@@ -6,3 +6,4 @@ mysql-connector-python>=9.2.0
 flask
 requests
 playwright
+pymysql
