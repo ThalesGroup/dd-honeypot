@@ -9,11 +9,18 @@ import time
 from paramiko import Transport, ServerInterface, RSAKey
 from paramiko.ssh_exception import SSHException
 
+from pathlib import Path
+
+# Configure logging with dynamic path handling
+log_dir = Path(__file__).parent.parent / 'logs'
+log_dir.mkdir(exist_ok=True)  # Create directory if it doesn't exist
+log_file = log_dir / 'honeypot.log'
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler('/Users/mohamed.faheem/dd-honeypot/logs/honeypot.log'),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )
