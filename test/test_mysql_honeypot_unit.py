@@ -19,7 +19,7 @@ def suppress_asyncio_connection_errors(monkeypatch):
         try:
             await original_drain(self)
         except ConnectionResetError:
-            pass  # Suppress expected client disconnects
+            pass  # Suppress expected client disconnect
     original_drain = asyncio.StreamWriter.drain
     monkeypatch.setattr(asyncio.StreamWriter, "drain", quiet_drain)
 

@@ -30,7 +30,7 @@ class MySession(Session):
             return [("testdb",)], ["Database"]
         return [], ["empty_response"]
 class AllowAllIdentityProvider(IdentityProvider):
-    """Allows all connections with any credentials."""
+    #Allows all connections with any credentials.
 
     async def get_user(self, username: str) -> User:
         logger.info(f"Allowing connection for user: {username}")
