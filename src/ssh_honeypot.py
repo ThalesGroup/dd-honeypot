@@ -145,6 +145,9 @@ class SSHServerInterface(ServerInterface):
             channel.send_exit_status(1)  # Error exit code
         return True
 
+    def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
+        return True
+
     def check_channel_shell_request(self, channel):
         threading.Thread(target=self.handle_shell, args=(channel,)).start()
         return True
@@ -153,22 +156,34 @@ class SSHServerInterface(ServerInterface):
         try:
             channel.send("Welcome to SSH Server (Type 'help' for available commands)\r\n")
             prompt = f"{self.username}@honeypot:~$ "
+            buffer = ""
 
             while not channel.closed:
                 channel.send(prompt)
-                data = channel.recv(1024)
-                if not data:
-                    break
+                while True:
+                    data = channel.recv(1024)
+                    if not data:
+                        break
 
-                command = data.decode().strip()
+                    # Decode input and accumulate
+                    buffer += data.decode()
+
+                    if '\r' in buffer or '\n' in buffer:
+                        break
+
+                command = buffer.strip()
+                buffer = ""  # Clear buffer after reading one command
+
+                if not command:
+                    continue
+
                 if command.lower() in ['exit', 'quit']:
-                    channel.send("Connection closed\r\n")
+                    channel.send("Connection closed. Goodbye!!\r\n")
                     channel.close()
                     break
 
                 logging.info(f"Shell command: {command}")
 
-                # Check for hardcoded response
                 if command in self.command_responses:
                     channel.send(self.command_responses[command] + "\r\n")
                 elif command.lower() == 'help':
@@ -179,7 +194,10 @@ class SSHServerInterface(ServerInterface):
         except Exception as e:
             logging.error(f"Shell error: {e}")
         finally:
-            channel.close()
+            try:
+                channel.close()
+            except:
+                pass
 
 if __name__ == "__main__":
     honeypot = SSHHoneypot(port=2222).start()
