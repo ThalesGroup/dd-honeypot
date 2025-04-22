@@ -3,11 +3,15 @@ import paramiko
 import socket
 import time
 import logging
+import os
 from src.ssh_honeypot import SSHHoneypot
 from typing import Generator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configurable hostname - defaults to localhost but can be overridden by environment
+HOSTNAME = os.getenv('SSH_TEST_HOST', 'localhost')
 
 def wait_for_ssh(port: int, timeout: int = 30) -> bool:
     """Wait until SSH service is fully responsive with better cleanup"""
@@ -19,7 +23,7 @@ def wait_for_ssh(port: int, timeout: int = 30) -> bool:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             client.connect(
-                'localhost',
+                HOSTNAME,
                 port=port,
                 username='test',
                 password='test',
@@ -41,7 +45,6 @@ def wait_for_ssh(port: int, timeout: int = 30) -> bool:
     logger.warning(f"SSH connection failed: {last_exception}")
     return False
 
-
 @pytest.fixture
 def honeypot() -> Generator[SSHHoneypot, None, None]:
     """Fixture with proper resource cleanup"""
@@ -54,16 +57,14 @@ def honeypot() -> Generator[SSHHoneypot, None, None]:
         hp.stop()
         time.sleep(0.5)
 
-
 def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
     """Test with explicit timeouts and resource cleanup"""
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        # Connect with strict timeouts
         client.connect(
-            'localhost',
+            HOSTNAME,
             port=honeypot.port,
             username='test',
             password='test',
@@ -72,7 +73,6 @@ def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
             auth_timeout=5
         )
 
-        # Test command execution with timeout
         stdin, stdout, stderr = client.exec_command('test-command', timeout=5)
         output = stdout.read().decode('utf-8', errors='ignore')
         exit_status = stdout.channel.recv_exit_status()
@@ -83,7 +83,6 @@ def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
     finally:
         client.close()
 
-
 def test_interactive_shell(honeypot: SSHHoneypot) -> None:
     """Test interactive shell with proper cleanup"""
     client = paramiko.SSHClient()
@@ -91,7 +90,7 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
 
     try:
         client.connect(
-            'localhost',
+            HOSTNAME,
             port=honeypot.port,
             username='user',
             password='pass',
@@ -116,16 +115,14 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
             else:
                 pytest.fail("Timeout waiting for shell prompt")
 
-            # Test command
             channel.send('ls\n')
 
-            # Get response with timeout
             output = b''
             start = time.time()
             while time.time() - start < 5:
                 if channel.recv_ready():
                     output += channel.recv(1024)
-                    if b'$ ' in output:  # Look for prompt return
+                    if b'$ ' in output:
                         break
                 time.sleep(0.1)
             else:
@@ -133,11 +130,9 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
 
             assert b'command not found' in output
 
-            # Clean exit
             channel.send('exit\n')
             channel.shutdown_write()
 
-            # Wait for clean channel closure
             start = time.time()
             while not channel.closed and time.time() - start < 5:
                 time.sleep(0.1)
