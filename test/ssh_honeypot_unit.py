@@ -106,7 +106,7 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
 
     try:
         client.connect(
-            HOSTNAME,
+            'localhost',
             port=honeypot.port,
             username='user',
             password='pass',
@@ -117,33 +117,28 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
             allow_agent=False
         )
 
-        # Use a simpler approach for shell testing
         channel = client.invoke_shell()
         channel.settimeout(5)
 
-        # Wait for initial prompt
+        # Wait for welcome message
         output = b''
         start = time.time()
-        while time.time() - start < 5 and not output.strip().endswith(b'$'):
+        while time.time() - start < 5 and b'Welcome' not in output:
             if channel.recv_ready():
                 output += channel.recv(1024)
+
+        assert b'Welcome' in output
 
         # Send command and get response
         channel.send('ls\n')
 
         output = b''
         start = time.time()
-        while time.time() - start < 5 and not output.strip().endswith(b'$'):
+        while time.time() - start < 5 and b'file1.txt' not in output:
             if channel.recv_ready():
                 output += channel.recv(1024)
 
-        decoded_output = output.decode('utf-8', errors='ignore')
-        assert 'command not found' in decoded_output.lower()
+        assert b'file1.txt' in output
 
-    except paramiko.SSHException as e:
-        pytest.fail(f"SSH error occurred: {str(e)}")
     finally:
-        try:
-            client.close()
-        except:
-            pass
+        client.close()
