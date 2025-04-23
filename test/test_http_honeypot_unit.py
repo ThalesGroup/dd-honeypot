@@ -3,7 +3,7 @@ from typing import Generator
 import pytest
 import requests
 
-from HttpHoneypot import HTTPHoneypot
+from http_honeypot import HTTPHoneypot
 from honeypot_utils import allocate_port, init_env_from_file
 from playwright.sync_api import sync_playwright
 
@@ -52,6 +52,7 @@ def test_php_my_admin(php_my_admin):
     assert "Not Found" in response.text
 
 
+@pytest.mark.skip(reason="Playwright is not installed in the CI environment")
 def test_webdriver_http_request(php_my_admin):
     def log_request(request):
         # Filter for types that are usually triggered directly

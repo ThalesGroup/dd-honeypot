@@ -1,6 +1,6 @@
 import os
 
-from HttpHoneypot import DataHTTPHoneypot
+from http_honeypot import DataHTTPHoneypot
 
 
 class PhpMyAdminHoneypot(DataHTTPHoneypot):
