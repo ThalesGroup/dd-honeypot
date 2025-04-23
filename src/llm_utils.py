@@ -49,7 +49,7 @@ def _format_model_body(
                     "content": prompt,
                 }
             ],
-            "max_tokens": 200,
+            "max_tokens": 2000,
             "temperature": 0.0,
         }
     elif "jamba" in model_id:

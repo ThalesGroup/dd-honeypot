@@ -1,15 +1,13 @@
-import json
 import logging
-import threading
 import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from mysql_mimic.server import MysqlServer
 from mysql_mimic.connection import Connection
-from mysql_mimic.session import Session
 from mysql_mimic.control import LocalControl
 from mysql_mimic.packets import make_error
+from mysql_mimic.session import Session
+
 from src.honeypot_utils import allocate_port
 
 logger = logging.getLogger(__name__)
