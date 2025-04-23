@@ -160,44 +160,43 @@ class SSHServerInterface(ServerInterface):
 
             while not channel.closed:
                 channel.send(prompt)
+                buffer = ""
                 while True:
                     data = channel.recv(1024)
                     if not data:
                         break
 
-                    # Decode input and accumulate
-                    buffer += data.decode()
+                    decoded = data.decode("utf-8", errors="ignore")
+                    channel.send(data)  # Echo back the input
 
-                    if '\r' in buffer or '\n' in buffer:
+                    buffer += decoded
+                    if decoded.endswith("\r") or decoded.endswith("\n"):
                         break
 
                 command = buffer.strip()
-                buffer = ""  # Clear buffer after reading one command
-
                 if not command:
                     continue
 
                 if command.lower() in ['exit', 'quit']:
-                    channel.send("Connection closed. Goodbye!!\r\n")
-                    channel.close()
+                    channel.send("\r\nConnection closed. Goodbye!!\r\n")
                     break
 
                 logging.info(f"Shell command: {command}")
 
+                # Process command
                 if command in self.command_responses:
-                    channel.send(self.command_responses[command] + "\r\n")
+                    response = self.command_responses[command]
                 elif command.lower() == 'help':
-                    channel.send("Available commands: " + ", ".join(self.command_responses.keys()) + "\r\n")
+                    response = "Available commands: " + ", ".join(self.command_responses.keys())
                 else:
-                    channel.send(f"{command}: command not found\r\n")
+                    response = f"{command}: command not found"
+
+                channel.send(f"\r\n{response}\r\n")
 
         except Exception as e:
             logging.error(f"Shell error: {e}")
         finally:
-            try:
-                channel.close()
-            except:
-                pass
+            channel.close()
 
 if __name__ == "__main__":
     honeypot = SSHHoneypot(port=2222).start()

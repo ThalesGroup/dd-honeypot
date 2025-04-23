@@ -21,6 +21,7 @@ class StaticQueryHandler:
 
 class MySession(Session):
     async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
+        logger.info(f"Handling query: {sql}")
         sql = sql.upper().strip()
         if sql == "SELECT 1":
             return [("1",)], ["1"]
@@ -28,7 +29,10 @@ class MySession(Session):
             return [("alice",), ("bob",)], ["username"]
         elif sql == "SHOW DATABASES":
             return [("testdb",)], ["Database"]
+        logger.info(f"Unknown query: {sql}")
         return [], ["empty_response"]
+
+
 class AllowAllIdentityProvider(IdentityProvider):
     #Allows all connections with any credentials.
 
@@ -36,7 +40,7 @@ class AllowAllIdentityProvider(IdentityProvider):
         logger.info(f"Allowing connection for user: {username}")
         return User(
             name=username,
-            auth_string=None,  # No authentication required
+            auth_string="",  # No authentication required
             auth_plugin="mysql_native_password"
         )
 
