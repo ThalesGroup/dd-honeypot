@@ -142,3 +142,23 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
 
     finally:
         client.close()
+
+
+def test_invalid_auth_logging(honeypot: SSHHoneypot, caplog: pytest.LogCaptureFixture) -> None:
+    """Test if invalid auth attempts are logged."""
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(
+            HOSTNAME,
+            port=honeypot.port,
+            username='invalid',
+            password='invalid',
+            timeout=5
+        )
+    except Exception:
+        pass  # Expected to fail, but we check logs
+    finally:
+        client.close()
+
+    assert "Authentication: invalid:invalid" in caplog.text
