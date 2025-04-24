@@ -84,8 +84,8 @@ def test_real_mysql_connection_and_query():
         with mysql.connector.connect(
             host="127.0.0.1",
             port=3306,
-            user="test",
-            password="test",
+            user="root",
+            password="root",
             database="test_db"
         ) as connection:
             with connection.cursor() as cursor:
@@ -194,7 +194,7 @@ def test_invalid_query_response():
         pymysql.connect(
             host="127.0.0.1",
             port=honeypot.port,
-            user="root",
+            user="test",
             password="123",
             connect_timeout=5,
             ssl={'disabled': True},
