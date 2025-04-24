@@ -8,6 +8,8 @@ from honeypot_utils import allocate_port, init_env_from_file
 from playwright.sync_api import sync_playwright
 
 from honeypots.php_my_admin.php_my_admin import PhpMyAdminHoneypot
+import time
+import requests
 
 
 @pytest.fixture
@@ -18,6 +20,17 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
         yield honeypot
     finally:
         honeypot.stop()
+
+def wait_for_http_service(port, path="/", timeout=5):
+    url = f"http://localhost:{port}{path}"
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            r = requests.get(url)
+            return r
+        except requests.ConnectionError:
+            time.sleep(0.2)
+    raise RuntimeError(f"Server at {url} did not respond within {timeout} seconds")
 
 
 @pytest.fixture
@@ -46,6 +59,7 @@ def test_basic_http_request(http_honeypot):
 
 def test_php_my_admin(php_my_admin):
     php_my_admin.connect({})
+    wait_for_http_service(php_my_admin.port, "/path")
     requests.get(f"http://localhost:{php_my_admin.port}/path")
     response = requests.get(f"http://localhost:{php_my_admin.port}/path")
     assert response.status_code == 404
