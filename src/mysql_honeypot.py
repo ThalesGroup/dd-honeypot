@@ -1,14 +1,26 @@
 import asyncio
+import hashlib
 import threading
 import logging
 import socket
-from mysql_mimic import MysqlServer, IdentityProvider, User
-from src.base_honeypot import BaseHoneypot
 import time
-from typing import List, Tuple, Any
+from typing import List, Tuple
+
+import pymysql
+from mysql_mimic import MysqlServer, IdentityProvider, User,NativePasswordAuthPlugin
 from mysql_mimic.session import Session
+from src.base_honeypot import BaseHoneypot
+from mysql_mimic.server import MysqlServer
+
+ #Suppress noisy SQL syntax error logs
+logging.getLogger("mysql_mimic.connection").addFilter(
+    lambda record: "You have an error in your SQL syntax" not in record.getMessage()
+)
+
+
 
 logger = logging.getLogger(__name__)
+
 
 class StaticQueryHandler:
     def __init__(self, responses=None):
@@ -19,70 +31,80 @@ class StaticQueryHandler:
         sql = sql.upper().strip()
         return self.responses.get(sql, ([], ["empty_response"]))
 
+
 class MySession(Session):
     async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
         logger.info(f"Handling query: {sql}")
         sql = sql.upper().strip()
+
+        # Simulate access denial for invalid users
+        if attrs.get("user") == "attacker":
+            raise pymysql.MySQLError("Access denied for user 'attacker'@'localhost' (using password: YES)")
+
+        # Handle specific queries
         if sql == "SELECT 1":
             return [("1",)], ["1"]
         elif sql == "SELECT * FROM USERS":
             return [("alice",), ("bob",)], ["username"]
         elif sql == "SHOW DATABASES":
             return [("testdb",)], ["Database"]
+
+        # Handle SET NAMES query (simulating expected behavior)
+        if sql.startswith("SET NAMES"):
+            charset = sql.split()[2]  # Extract the charset from the query (e.g., 'latin1')
+            logger.info(f"Simulating 'SET NAMES {charset}' query")
+            return [], []
+
+        # Handle invalid queries (simulate error behavior)
         logger.info(f"Unknown query: {sql}")
-        return [], ["empty_response"]
+        raise pymysql.MySQLError(f"You have an error in your SQL syntax near '{sql}'")
 
 
 class AllowAllIdentityProvider(IdentityProvider):
-    #Allows all connections with any credentials.
+    def get_plugins(self):
+        return [NativePasswordAuthPlugin()]
+
+    def get_default_plugin(self):
+        return NativePasswordAuthPlugin()
 
     async def get_user(self, username: str) -> User:
         logger.info(f"Allowing connection for user: {username}")
+        password = "123"
+        stage1 = hashlib.sha1(password.encode()).digest()
+        stage2 = hashlib.sha1(stage1).hexdigest()
+
         return User(
             name=username,
-            auth_string="",  # No authentication required
-            auth_plugin="mysql_native_password"
+            auth_string=stage2,
+            auth_plugin="mysql_native_password",
         )
-
-    async def authenticate(self, user: User, password: str) -> bool:
-        # Log the authentication attempt for debugging
-        logger.info(f"Authenticating user {user.name} with password {password}")
-        # Override authentication to always succeed
-        return True  # Always allow the connection, ignoring credentials
 
 class MySqlMimicHoneypot(BaseHoneypot):
     def __init__(self, port: int = None, identity_provider=None):
         super().__init__(port)
         self.identity_provider = identity_provider or AllowAllIdentityProvider()
-        self.server = None
+        self.server = MysqlServer(
+            port=self.port,
+            session_factory=MySession,
+            identity_provider=self.identity_provider,
+            plugins=[NativePasswordAuthPlugin()]  # <-- This is key
+        )
         self.thread = None
-        self.running = False
         self.loop = None
-        self.server_task = None
+        logger.info(f"Using identity provider: {self.identity_provider.__class__.__name__}")
+
 
     def start(self):
-        """Start the MySQL-Mimic honeypot server."""
-        self.running = True
-
-        # Start the server in a separate thread
-        self.thread = threading.Thread(target=self._run_server, daemon=True)
+        """Start honeypot in a background thread and wait for readiness."""
+        self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
-
-        # Wait for the server to be ready
         self._wait_for_server_ready()
 
-        logger.info(f"MySQL Honeypot started on port {self.port}")
-
-    def _run_server(self):
-        """Run the MySQL-Mimic server in a separate event loop."""
-        logger.debug("Starting _run_server")
-
+    def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
         try:
-            logger.info(f"Attempting to start MySQL-Mimic honeypot on port {self.port}")
-
             self.server = MysqlServer(
                 port=self.port,
                 session_factory=MySession,
@@ -93,59 +115,38 @@ class MySqlMimicHoneypot(BaseHoneypot):
                 await self.server.start_server(host="127.0.0.1", port=self.port)
                 logger.info(f"Server started on port {self.port}")
 
-            # Run startup and then loop forever
             self.loop.run_until_complete(start_server())
             self.loop.run_forever()
 
         except Exception as e:
-            logger.error(f"Error starting the server: {e}")
+            logger.error(f"Error starting server: {e}")
         finally:
             self.loop.close()
 
-    def _wait_for_server_ready(self, retries=10, delay=1):
-        """Wait until server is accepting connections."""
-        for i in range(retries):
+    def _wait_for_server_ready(self, retries=10, delay=0.5):
+        for _ in range(retries):
             try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.settimeout(1)
-                    if s.connect_ex(('127.0.0.1', self.port)) == 0:
-                        logger.info(f"Server ready on port {self.port}")
-                        return
-            except socket.error:
-                pass
-            time.sleep(delay)
-        raise RuntimeError(f"Server failed to start on port {self.port}")
+                with socket.create_connection(("127.0.0.1", self.port), timeout=1):
+                    logger.info("Server is ready")
+                    return
+            except (ConnectionRefusedError, OSError):
+                time.sleep(delay)
+        raise TimeoutError("Honeypot did not start within timeout.")
 
     def stop(self):
-        """Stop the honeypot server."""
-        logger.debug("Beginning stop procedure")
-
-        self.running = False
         if self.loop:
-            try:
-                self.loop.call_soon_threadsafe(self._stop_server)
-            except Exception:
-                pass
+            self.loop.call_soon_threadsafe(self._stop_server)
         if self.thread:
             self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
 
     def _stop_server(self):
-        """Cleanup server resources."""
-
         async def shutdown():
             if self.server:
                 await self.server.stop()
-
-            tasks = [t for t in asyncio.all_tasks(loop=self.loop) if not t.done()]
-            for task in tasks:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
+            for task in asyncio.all_tasks(loop=self.loop):
+                if not task.done():
+                    task.cancel()
             self.loop.stop()
 
-        # Run shutdown in thread-safe way
         asyncio.run_coroutine_threadsafe(shutdown(), self.loop)

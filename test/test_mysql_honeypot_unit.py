@@ -1,10 +1,13 @@
 import os
+import socket
+import threading
 import time
 import logging
 import pytest
 import pymysql
 import mysql.connector
 import asyncio
+from pymysql.err import OperationalError
 
 
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
@@ -144,3 +147,58 @@ def test_honeypot_connection_pymysql():
         logger.info(f"mysql-connector attempt failed, falling back to pymysql: {repr(e)}")
     finally:
         honeypot.stop()
+
+
+
+@pytest.fixture(scope="module")
+def run_honeypot():
+    honeypot = MySqlMimicHoneypot()
+    thread = threading.Thread(target=honeypot.run, daemon=True)
+    thread.start()
+    # Wait for the honeypot to be ready
+    timeout = 5  # seconds
+    start = time.time()
+    while True:
+        try:
+            with socket.create_connection(("127.0.0.1", honeypot.port), timeout=0.5):
+                break  # Success: server is ready
+        except (ConnectionRefusedError, OSError):
+            if time.time() - start > timeout:
+                raise TimeoutError("Honeypot did not start within timeout.")
+            time.sleep(0.1)
+    yield honeypot
+    honeypot.stop()
+
+
+
+
+def test_connection_to_honeypot(run_honeypot):
+    host = "127.0.0.1"
+    port = run_honeypot.port
+
+    # Update the expected exception to match the actual error message format
+    with pytest.raises(mysql.connector.errors.ProgrammingError, match=r"1045 \(28000\): Access denied for user attacker"):
+        mysql.connector.connect(
+            host=host, port=port, user="attacker", password="fake", connect_timeout=5
+        )
+
+
+
+def test_invalid_query_response():
+    honeypot = MySqlMimicHoneypot()
+    honeypot.start()
+    time.sleep(1)
+
+    # Attempting an invalid query should raise OperationalError
+    with pytest.raises(pymysql.MySQLError) as excinfo:
+        pymysql.connect(
+            host="127.0.0.1",
+            port=honeypot.port,
+            user="root",
+            password="123",
+            connect_timeout=5,
+            ssl={'disabled': True},
+            charset="latin1"
+        ).cursor().execute("INVALID QUERY")
+
+    assert "You have an error in your SQL syntax" in str(excinfo.value)
