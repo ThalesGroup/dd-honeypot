@@ -21,8 +21,9 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
     finally:
         honeypot.stop()
 
+
 def wait_for_http_service(port, path="/", timeout=5):
-    url = f"http://localhost:{port}{path}"
+    url = f"http://127.0.0.1:{port}{path}"
     start = time.time()
     while time.time() - start < timeout:
         try:
@@ -51,8 +52,8 @@ def set_evn():
 
 def test_basic_http_request(http_honeypot):
     http_honeypot.connect({})
-    requests.get(f"http://localhost:{http_honeypot.port}/path")
-    response = requests.get(f"http://localhost:{http_honeypot.port}/path")
+    requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
+    response = requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
     assert response.status_code == 200
     assert "Request logged" in response.text
 
@@ -60,8 +61,8 @@ def test_basic_http_request(http_honeypot):
 def test_php_my_admin(php_my_admin):
     php_my_admin.connect({})
     wait_for_http_service(php_my_admin.port, "/path")
-    requests.get(f"http://localhost:{php_my_admin.port}/path")
-    response = requests.get(f"http://localhost:{php_my_admin.port}/path")
+    requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
+    response = requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
     assert response.status_code == 404
     assert "Not Found" in response.text
 
@@ -79,7 +80,7 @@ def test_webdriver_http_request(php_my_admin):
         headless=False
     ) as browser, browser.new_page() as page:
         page.on("request", log_request)
-        page.goto(f"http://localhost:{php_my_admin.port}")
+        page.goto(f"http://127.0.0.1:{php_my_admin.port}")
         page.fill('input[name="pma_username"]', "root")
         page.fill('input[name="pma_password"]', "rootpassword")
         page.click("input#input_go")
