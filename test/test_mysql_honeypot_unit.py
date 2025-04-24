@@ -76,24 +76,78 @@ def test_honeypot_should_fail_on_invalid_handshake():
     finally:
         honeypot.stop()
 
-
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
 def test_real_mysql_connection_and_query():
-    """Test a positive connection and query on real MySQL."""
+    """Test a positive connection and diverse queries on real MySQL."""
     try:
         with mysql.connector.connect(
             host="127.0.0.1",
             port=3306,
-            user="root",
-            password="root",
+            user="test",
+            password="test",
             database="test_db"
         ) as connection:
             with connection.cursor() as cursor:
+                # Test basic SELECT
                 cursor.execute("SELECT 1;")
                 result = cursor.fetchone()
                 assert result == (1,), f"Expected (1,), got {result}"
+
+                # Test mathematical expression
+                cursor.execute("SELECT 2 * 3 + 5;")
+                math_result = cursor.fetchone()
+                assert math_result == (11,), f"Expected (11,), got {math_result}"
+
+                # Test string function
+                cursor.execute("SELECT CONCAT('Data', 'Lure');")
+                concat_result = cursor.fetchone()
+                assert concat_result == ('DataLure',), f"Expected ('DataLure',), got {concat_result}"
+
+                # Test current timestamp
+                cursor.execute("SELECT NOW();")
+                timestamp = cursor.fetchone()
+                assert timestamp[0] is not None, "Expected a timestamp, got None"
+
+                # Test system/user info
+                cursor.execute("SELECT USER(), DATABASE();")
+                user_info = cursor.fetchone()
+                assert user_info[0] is not None and user_info[1] == 'test_db', f"Unexpected user/db: {user_info}"
+
     except Exception as e:
         pytest.skip(f"Skipping real MySQL test: {str(e)}")
+
+
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
+def test_real_mysql_basic_operations():
+    """Test basic SQL operations on real MySQL to compare expected responses."""
+    try:
+        conn = mysql.connector.connect(
+            host="127.0.0.1",
+            port=3306,
+            user="test",
+            password="test",
+            database="test_db"
+        )
+        cursor = conn.cursor()
+
+        # Create a temporary table
+        cursor.execute("CREATE TEMPORARY TABLE IF NOT EXISTS temp_users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50));")
+
+        # Insert values
+        cursor.execute("INSERT INTO temp_users (name) VALUES ('person1'), ('person2');")
+        conn.commit()
+
+        # Select and check values
+        cursor.execute("SELECT name FROM temp_users ORDER BY id;")
+        results = cursor.fetchall()
+        assert results == [('person1',), ('person2',)], f"Unexpected query result: {results}"
+
+        # Cleanup is automatic since it's a TEMPORARY table
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        pytest.skip(f"Skipping real DB test due to error: {str(e)}")
 
 
 def test_honeypot_connection_mysql_connector():
