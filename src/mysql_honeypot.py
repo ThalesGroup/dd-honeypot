@@ -6,7 +6,9 @@ import logging
 import socket
 import time
 from typing import List, Tuple
+
 import boto3
+
 
 import pymysql
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Initialize the Bedrock client
-bedrock_client = boto3.client('bedrock-runtime')
+bedrock_client = boto3.client('bedrock-runtime', region_name='us-west-2')  # Specify your AWS region
 
 
 class StaticQueryHandler:
