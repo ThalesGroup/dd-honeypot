@@ -72,3 +72,51 @@ def _get_response_content(response_json: dict, model_id: str) -> str:
         return response_json["choices"][0]["message"]["content"]
     else:
         raise ValueError(f"Unknown model_id: {model_id}")
+
+def is_bedrock_accessible() -> bool:
+    try:
+        client = boto3.client("bedrock-runtime", config=Config(read_timeout=5))
+        # Try listing models or a simple describe call
+        client.list_foundation_models()
+        return True
+    except Exception as e:
+        logging.warning(f"Bedrock not accessible: {e}")
+        return False
+
+import os
+
+RESPONSES_FILE = os.path.join(os.path.dirname(__file__), "responses.json")
+
+def get_or_generate_response(query: str) -> str:
+    # Load existing cache
+    if os.path.exists(RESPONSES_FILE):
+        with open(RESPONSES_FILE, "r") as f:
+            cache = json.load(f)
+    else:
+        cache = {}
+
+    if query in cache:
+        logging.info(f"Cache hit for query: {query}")
+        return cache[query]
+
+    if not is_bedrock_accessible():
+        logging.warning("Bedrock not accessible; returning dummy response")
+        return "Simulated MySQL error or result (Bedrock unavailable)"
+
+    try:
+        response = invoke_llm(
+            system_prompt="You are a MySQL server. Answer the query as if you are responding from a real MySQL database.",
+            user_prompt=query,
+            model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
+        )
+        cache[query] = response
+
+        with open(RESPONSES_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+
+        return response
+    except Exception as e:
+        logging.error(f"LLM generation failed for query '{query}': {e}")
+        return "LLM generation failed; simulated fallback"
+
+
