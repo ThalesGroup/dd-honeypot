@@ -59,7 +59,7 @@ class HTTPHoneypot(BaseHoneypot):
     def start(self):
         def run_app():
             self.app.run(
-                host="0.0.0.0", port=self.port, debug=False, use_reloader=False
+                host="127.0.0.1", port=self.port, debug=False, use_reloader=False
             )
 
         self.thread = threading.Thread(target=run_app)

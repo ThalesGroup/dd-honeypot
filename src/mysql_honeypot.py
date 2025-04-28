@@ -1,25 +1,32 @@
 import asyncio
 import hashlib
+import json
 import threading
 import logging
 import socket
 import time
 from typing import List, Tuple
 
+import boto3
+
+
 import pymysql
-from mysql_mimic import MysqlServer, IdentityProvider, User,NativePasswordAuthPlugin
+from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
 from src.base_honeypot import BaseHoneypot
 from mysql_mimic.server import MysqlServer
+from src.llm_utils import get_or_generate_response
 
- #Suppress noisy SQL syntax error logs
+# Suppress noisy SQL syntax error logs
 logging.getLogger("mysql_mimic.connection").addFilter(
     lambda record: "You have an error in your SQL syntax" not in record.getMessage()
 )
 
-
-
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Initialize the Bedrock client
+bedrock_client = boto3.client('bedrock-runtime', region_name='us-west-2')  # Specify your AWS region
 
 
 class StaticQueryHandler:
@@ -45,7 +52,7 @@ class MySession(Session):
         if sql == "SELECT 1":
             return [("1",)], ["1"]
         elif sql == "SELECT * FROM USERS":
-            return [("alice",), ("bob",)], ["username"]
+            return [("person1",), ("person2",)], ["username"]
         elif sql == "SHOW DATABASES":
             return [("testdb",)], ["Database"]
 
@@ -55,9 +62,46 @@ class MySession(Session):
             logger.info(f"Simulating 'SET NAMES {charset}' query")
             return [], []
 
-        # Handle invalid queries (simulate error behavior)
-        logger.info(f"Unknown query: {sql}")
-        raise pymysql.MySQLError(f"You have an error in your SQL syntax near '{sql}'")
+        # Fallback to LLM response if no predefined query is matched
+        try:
+            rows, columns = await self.get_llm_response(sql)
+            return rows, columns
+        except Exception as e:
+            logger.error(f"Failed to get LLM response: {e}")
+            raise pymysql.MySQLError(f"You have an error in your SQL syntax near '{sql}'")
+
+    # In the method that processes the LLM response (inside `MySession` class):
+    @staticmethod
+    async def get_llm_response(sql: str) -> Tuple[List[Tuple], List[str]]:
+        try:
+            # Get the raw response from the LLM
+            response = await get_or_generate_response(sql)  # Ensure this is awaited if the function is async
+
+            # Log the raw LLM response
+            logger.info(f"LLM response raw data: {response}")
+
+            if not response:  # Check if the response is empty or None
+                logger.error("Empty or invalid response from LLM.")
+                return [], ["Invalid LLM Output"]
+
+            try:
+                # Parse the LLM response
+                parsed = json.loads(response)
+                rows = [tuple(row) for row in parsed.get("rows", [])]
+                columns = parsed.get("columns", [])
+
+                # If no rows or columns returned, handle gracefully
+                if not rows or not columns:
+                    logger.warning("LLM response contains no rows or columns.")
+                    return [], ["No data available"]
+
+                return rows, columns
+            except Exception as e:
+                logger.error(f"Failed to parse LLM response: {e}")
+                return [], ["Invalid LLM Output"]
+        except Exception as e:
+            logger.error(f"Failed to get LLM response: {e}")
+            return [], ["Error in generating response"]
 
 
 class AllowAllIdentityProvider(IdentityProvider):
@@ -79,6 +123,7 @@ class AllowAllIdentityProvider(IdentityProvider):
             auth_plugin="mysql_native_password",
         )
 
+
 class MySqlMimicHoneypot(BaseHoneypot):
     def __init__(self, port: int = None, identity_provider=None):
         super().__init__(port)
@@ -92,7 +137,6 @@ class MySqlMimicHoneypot(BaseHoneypot):
         self.thread = None
         self.loop = None
         logger.info(f"Using identity provider: {self.identity_provider.__class__.__name__}")
-
 
     def start(self):
         """Start honeypot in a background thread and wait for readiness."""
