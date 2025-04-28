@@ -1,7 +1,0 @@
-{"command": "ls", "response": "Desktop\nDocuments\nDownloads\nMusic\nPictures\nPublic\nTemplates\nVideos"}
-{"command": "ls\u007f\u007f\u007f\u007f\u007f\u007f\u007fwhoami", "response": "lswhoami: command not found"}
-{"command": "whoami", "response": "root"}
-{"command": "uname -a", "response": "Linux server01 5.15.0-76-generic #83-Ubuntu SMP Thu Jun 15 19:16:32 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux"}
-{"command": "foobar999", "response": "bash: foobar999: command not found"}
-{"command": "uname -r", "response": "5.15.0-76-generic"}
-{"command": "foobar123", "response": "bash: foobar123: command not found"}
