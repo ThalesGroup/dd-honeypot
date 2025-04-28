@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import paramiko
@@ -8,6 +9,8 @@ import os
 import time
 from paramiko import Transport, ServerInterface, RSAKey
 from paramiko.ssh_exception import SSHException
+
+from llm_utils import invoke_llm
 
 from pathlib import Path
 
@@ -114,15 +117,22 @@ class SSHServerInterface(ServerInterface):
     def __init__(self):
         self.auth_method = None
         self.username = None
-        # Command responses dictionary
-        self.command_responses = {
-            'ls': "file1.txt  file2.log  secret_data\n",
-            'whoami': "root\n",
-            'id': "uid=0(root) gid=0(root) groups=0(root)\n",
-            'uname -a': "Linux honeypot 5.15.0-76-generic #83-Ubuntu SMP Thu Jun 15 19:16:32 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux\n",
-            'ifconfig': "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255\n        ether 00:0c:29:ab:cd:ef  txqueuelen 1000  (Ethernet)\n\nlo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0\n        loop  txqueuelen 1000  (Local Loopback)\n",
-            'help': "Available commands: ls, whoami, id, uname -a, ifconfig, help\n"
-        }
+        self.command_data = []
+
+        self.data_file = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "honeypots", "ssh", "data.jsonl")
+        )
+        self.model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+        self.system_prompt = (
+            "You are a Linux terminal emulator. Respond with only command outputs, no extra text."
+        )
+
+        if os.path.exists(self.data_file):
+            with open(self.data_file, "r") as f:
+                for line in f:
+                    if line.strip():
+                        self.command_data.append(json.loads(line))
+
 
     def check_auth_password(self, username, password):
         logging.info(f'Authentication: {username}:{password}')
@@ -135,14 +145,9 @@ class SSHServerInterface(ServerInterface):
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
-
-        # Check if we have a hardcoded response
-        if command_str in self.command_responses:
-            channel.send(self.command_responses[command_str])
-            channel.send_exit_status(0)  # Success exit code
-        else:
-            channel.send(f"{command_str}: command not found\n")
-            channel.send_exit_status(1)  # Error exit code
+        response = self.lookup_command(command_str)
+        channel.send(response + "\n")
+        channel.send_exit_status(0)
         return True
 
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
@@ -152,46 +157,56 @@ class SSHServerInterface(ServerInterface):
         threading.Thread(target=self.handle_shell, args=(channel,)).start()
         return True
 
+    def lookup_command(self, command: str) -> str:
+        for entry in self.command_data:
+            if entry["command"] == command:
+                return entry["response"]
+
+        # Not found, use LLM
+        logging.info(f"LLM fallback for command: {command}")
+        user_prompt = f"The user entered: {command}"
+        response = invoke_llm(self.system_prompt, user_prompt, self.model_id)
+        self.command_data.append({"command": command, "response": response})
+        self.save_command_data()
+        return response
+
+    def save_command_data(self):
+        with open(self.data_file, "w") as f:
+            for entry in self.command_data:
+                f.write(json.dumps(entry) + "\n")
+
     def handle_shell(self, channel):
         try:
             channel.send("Welcome to SSH Server (Type 'help' for available commands)\r\n")
             prompt = f"{self.username}@honeypot:~$ "
-            buffer = ""
 
             while not channel.closed:
-                channel.send(prompt)
                 buffer = ""
+                channel.send(prompt)
                 while True:
-                    data = channel.recv(1024)
+                    data = channel.recv(1)
                     if not data:
+                        return
+                    char = data.decode("utf-8", errors="ignore")
+                    if char in ("\r", "\n"):
                         break
-
-                    decoded = data.decode("utf-8", errors="ignore")
-                    channel.send(data)  # Echo back the input
-
-                    buffer += decoded
-                    if decoded.endswith("\r") or decoded.endswith("\n"):
-                        break
+                    elif char == "\x7f":
+                        buffer = buffer[:-1]
+                    else:
+                        buffer += char
 
                 command = buffer.strip()
                 if not command:
                     continue
 
-                if command.lower() in ['exit', 'quit']:
-                    channel.send("\r\nConnection closed. Goodbye!!\r\n")
-                    break
-
                 logging.info(f"Shell command: {command}")
 
-                # Process command
-                if command in self.command_responses:
-                    response = self.command_responses[command]
-                elif command.lower() == 'help':
-                    response = "Available commands: " + ", ".join(self.command_responses.keys())
-                else:
-                    response = f"{command}: command not found"
+                if command.lower() in ['exit', 'quit']:
+                    channel.send("Connection closed. Goodbye!!\r\n")
+                    break
 
-                channel.send(f"\r\n{response}\r\n")
+                response = self.lookup_command(command)
+                channel.send(response + "\r\n")
 
         except Exception as e:
             logging.error(f"Shell error: {e}")
