@@ -5,28 +5,39 @@ import threading
 import logging
 import socket
 import time
+from pathlib import Path
 from typing import List, Tuple
-
+import os
 import boto3
-
-
 import pymysql
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
 from src.base_honeypot import BaseHoneypot
-from mysql_mimic.server import MysqlServer
-from src.llm_utils import get_or_generate_response
+from mysql_mimic.errors import MysqlError, ErrorCode
+import json
+import logging
+from pathlib import Path
+
+# Load config
+CONFIG_FILE = os.path.join(os.path.dirname(__file__),"honeypots", "mysql", "config.json")
+with open(CONFIG_FILE, "r") as f:
+    CONFIG = json.load(f)
+
+# Set path to data.jsonl
+DATA_FILE = os.path.join(os.path.dirname(__file__), "honeypots", "mysql", "data.jsonl")
+logging.info(f"Using DATA_FILE path: {DATA_FILE}")
 
 # Suppress noisy SQL syntax error logs
 logging.getLogger("mysql_mimic.connection").addFilter(
     lambda record: "You have an error in your SQL syntax" not in record.getMessage()
 )
 
+# Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Initialize the Bedrock client
-bedrock_client = boto3.client('bedrock-runtime', region_name='us-west-2')  # Specify your AWS region
+# Set up Bedrock client
+bedrock_client = boto3.client('bedrock-runtime', region_name='us-west-2')  # Adjust your region if needed
 
 
 class StaticQueryHandler:
@@ -39,45 +50,82 @@ class StaticQueryHandler:
         return self.responses.get(sql, ([], ["empty_response"]))
 
 
+def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
+    try:
+        parsed = json.loads(response)
+        rows = [tuple(row) for row in parsed.get("rows", [])]
+        columns = parsed.get("columns", [])
+        if not rows or not columns:
+            logger.warning("LLM response contains no rows or columns.")
+            return [], ["No data available"]
+        return rows, columns
+    except Exception as e:
+        logger.error(f"Failed to parse LLM response: {e}")
+        return [], ["Invalid LLM Output"]
+
+
+
 class MySession(Session):
-    async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
-        logger.info(f"Handling query: {sql}")
-        sql = sql.upper().strip()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        # Simulate access denial for invalid users
-        if attrs.get("user") == "attacker":
-            raise pymysql.MySQLError("Access denied for user 'attacker'@'localhost' (using password: YES)")
+        # Load LLM Config from MySQL honeypot config file
+        self.config_file = Path(__file__).parent / "honeypots" / "mysql" / "config.json"
+        self.config = self.load_config(self.config_file)
 
-        # Handle specific queries
-        if sql == "SELECT 1":
-            return [("1",)], ["1"]
-        elif sql == "SELECT * FROM USERS":
-            return [("person1",), ("person2",)], ["username"]
-        elif sql == "SHOW DATABASES":
-            return [("testdb",)], ["Database"]
+        # Set model_id and system_prompt from config file
+        self.model_id = self.config.get("model_id", "default_model_id")
+        self.system_prompt = self.config.get("system_prompt", "You are a MySQL server emulator. Only output valid MySQL query results formatted in JSON.")
 
-        # Handle SET NAMES query (simulating expected behavior)
-        if sql.startswith("SET NAMES"):
-            charset = sql.split()[2]  # Extract the charset from the query (e.g., 'latin1')
-            logger.info(f"Simulating 'SET NAMES {charset}' query")
-            return [], []
+        # Set data.jsonl path
+        self.data_file = Path(__file__).parent / "honeypots" / "mysql" / "data.jsonl"
+        self.data_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Fallback to LLM response if no predefined query is matched
+        # Load cache
+        self.query_response_cache = self.load_existing_data()
+
+    def load_config(self, config_file: Path):
+        """Loads configuration from the given JSON file."""
         try:
-            rows, columns = await self.get_llm_response(sql)
-            return rows, columns
+            with open(config_file, "r") as f:
+                return json.load(f)
         except Exception as e:
-            logger.error(f"Failed to get LLM response: {e}")
-            raise pymysql.MySQLError(f"You have an error in your SQL syntax near '{sql}'")
+            logger.error(f"Failed to load config file {config_file}: {e}")
+            return {}
 
-    # In the method that processes the LLM response (inside `MySession` class):
-    @staticmethod
-    async def get_llm_response(sql: str) -> Tuple[List[Tuple], List[str]]:
+    def load_existing_data(self):
+        if not self.data_file.exists():
+            return {}
+        query_to_response = {}
+        with open(self.data_file, "r") as f:
+            for line in f:
+                try:
+                    record = json.loads(line.strip())
+                    query = record.get("query")
+                    response = record.get("response")
+                    if query and response:
+                        query_to_response[query.strip()] = response
+                except Exception as e:
+                    logger.warning(f"Failed to parse line in {self.data_file}: {e}")
+        return query_to_response
+
+    def save_response_to_data_file(self, query: str, response: dict):
+        record = {
+            "query": query.strip(),
+            "response": response
+        }
+        with open(self.data_file, "a") as f:
+            f.write(json.dumps(record) + "\n")
+        self.query_response_cache[query.strip()] = response
+
+    async def get_llm_response(self, query: str) -> Tuple[List[Tuple], List[str]]:
+        """
+        Returns the LLM-generated response for the SQL query.
+        Parses the response and handles errors gracefully.
+        """
         try:
-            # Get the raw response from the LLM
-            response = await get_or_generate_response(sql)  # Ensure this is awaited if the function is async
-
-            # Log the raw LLM response
+            # Fetch the raw response from the LLM (using the previously created method)
+            response = await self.get_or_generate_response(query)
             logger.info(f"LLM response raw data: {response}")
 
             if not response:  # Check if the response is empty or None
@@ -103,6 +151,63 @@ class MySession(Session):
             logger.error(f"Failed to get LLM response: {e}")
             return [], ["Error in generating response"]
 
+    async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
+        logger.info(f"Handling query: {sql}")
+        sql = sql.strip()
+
+        # Custom hardcoded responses
+        if attrs.get("user") == "attacker":
+            raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
+
+        if sql.upper() == "SELECT 1":
+            return [("1",)], ["1"]
+        elif sql.upper() == "SHOW DATABASES":
+            return [("testdb",)], ["Database"]
+        elif sql.upper() == "INVALID QUERY":
+            raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
+
+        try:
+            response_json = await self.get_or_generate_response(sql)
+            rows, columns = _parse_llm_response(response_json)
+
+            # If LLM returned empty response, raise a parse error
+            if not rows and not columns:
+                logger.warning("LLM response contains no rows or columns.")
+                raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
+
+            return rows, columns
+
+        except Exception as e:
+            logger.error(f"Error handling query: {e}")
+            raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
+
+    async def get_or_generate_response(self, query: str) -> str:
+        from src.llm_utils import invoke_llm, is_bedrock_accessible
+
+        query = query.strip()
+        if query in self.query_response_cache:
+            logger.info(f"Query found in cache: {query}")
+            return json.dumps(self.query_response_cache[query])
+
+        # Check if Bedrock is accessible and raise an exception if it's not
+        if not is_bedrock_accessible():
+            raise Exception("Bedrock is not accessible. Cannot generate LLM response.")
+
+        try:
+            response_text = invoke_llm(
+                system_prompt=self.system_prompt,
+                user_prompt=query,
+                model_id=self.model_id
+            )
+            parsed_response = json.loads(response_text)
+            self.save_response_to_data_file(query, parsed_response)
+            return json.dumps(parsed_response)
+
+        except Exception as e:
+            logger.error(f"LLM generation failed for query '{query}': {e}")
+            fallback_response = {"columns": [], "rows": []}
+            self.save_response_to_data_file(query, fallback_response)
+            return json.dumps(fallback_response)
 
 class AllowAllIdentityProvider(IdentityProvider):
     def get_plugins(self):
@@ -132,7 +237,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
             port=self.port,
             session_factory=MySession,
             identity_provider=self.identity_provider,
-            plugins=[NativePasswordAuthPlugin()]  # <-- This is key
+
         )
         self.thread = None
         self.loop = None
@@ -149,12 +254,6 @@ class MySqlMimicHoneypot(BaseHoneypot):
         asyncio.set_event_loop(self.loop)
 
         try:
-            self.server = MysqlServer(
-                port=self.port,
-                session_factory=MySession,
-                identity_provider=self.identity_provider,
-            )
-
             async def start_server():
                 await self.server.start_server(host="127.0.0.1", port=self.port)
                 logger.info(f"Server started on port {self.port}")

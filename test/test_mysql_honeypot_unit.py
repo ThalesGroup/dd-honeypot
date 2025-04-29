@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 import logging
+from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
 import pytest
@@ -11,13 +12,8 @@ import pymysql
 import mysql.connector
 import asyncio
 from pymysql.err import OperationalError
-
-from src.llm_utils import get_or_generate_response
 from src.mysql_honeypot import MySession  # Import your session class
-
-
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
-
 from src.mysql_honeypot import MySqlMimicHoneypot
 
 logger = logging.getLogger(__name__)
@@ -242,54 +238,55 @@ def test_connection_to_honeypot(run_honeypot):
             host=host, port=port, user="attacker", password="fake", connect_timeout=5
         )
 
-"""Tests that the honeypot gracefully handles invalid queries without crashing."""
-def test_invalid_query_response():
-    honeypot = MySqlMimicHoneypot()
-    honeypot.start()
-    time.sleep(1)
 
-    connection = pymysql.connect(
-        host="127.0.0.1",
-        port=honeypot.port,
-        user="test",
-        password="123",
-        connect_timeout=5,
-        ssl={'disabled': True},
-        charset="latin1"
-    )
+def save_response_to_jsonl(response: dict):
+    """Save unique LLM response to a JSONL file in the correct honeypot location."""
 
-    cursor = connection.cursor()
-    try:
-        cursor.execute("INVALID QUERY")
-        # No need to fetch result — just checking it doesn't crash
-    except Exception as e:
-        pytest.fail(f"Query execution raised an unexpected exception: {e}")
+    # Set the correct data.jsonl path
+    file_path = Path(__file__).parent.parent / "src" / "honeypots" / "mysql" / "data.jsonl"
+    file_path.parent.mkdir(parents=True, exist_ok=True)  # Make sure folder exists
 
-    connection.close()
+    # Check if the file already exists and load old queries
+    existing_queries = set()
+    if file_path.exists():
+        with open(file_path, "r") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if "query" in data:
+                        existing_queries.add(data["query"])
+                except json.JSONDecodeError:
+                    continue  # Ignore broken lines
+
+    # Get the query from the incoming response
+    query = response.get("query")
+
+    # Save only if query is new
+    if query and query not in existing_queries:
+        with open(file_path, "a") as f:
+            json.dump(response, f)
+            f.write("\n")
+        print(f"Saved new query: {query}")  # ADD THIS
+
+    else:
+        print(f"Skipping duplicate query: {query}")
 
 # Test Class for LLM Response Parsing
 @pytest.mark.asyncio
 class TestLLMResponseParsing:
     """Validates the response from the LLM with mocked data."""
 
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_valid_data(self, mock_llm):
-        # Mocking a valid LLM response
         mock_llm.return_value = json.dumps({
             "columns": ["username", "email"],
             "rows": [("person3", "person3@example.com"), ("bob", "bob@example.com")]
         })
 
-        # Log the mock LLM response in the test
-        logger.info(f"Mocked LLM response: {mock_llm.return_value}")
-
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
-        print("Columns:", columns)
-        print("Rows:", rows)
-
-        # Assertions
         assert isinstance(columns, list)
         assert isinstance(rows, list)
         assert len(columns) == 2
@@ -297,77 +294,130 @@ class TestLLMResponseParsing:
         assert columns == ["username", "email"]
         assert rows[0] == ("person3", "person3@example.com")
 
-    """Ensures that when the LLM response is empty or malformed, the honeypot falls back to a default response."""
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_invalid_fallback(self, mock_llm):
-        # Mocking an invalid response (empty or malformed)
         mock_llm.return_value = ""
 
-        # Log the mock invalid response
-        logger.info(f"Mocked invalid LLM response: {mock_llm.return_value}")
-
+        save_response_to_jsonl({"columns": ["Invalid LLM Output"], "rows": []})
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
-        print("Columns:", columns)
-        print("Rows:", rows)
-
-        # Assertions to ensure fallback works
         assert columns == ["Invalid LLM Output"]
         assert rows == []
 
-    """Validates a case where the LLM returns no rows in the response."""
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_no_rows(self, mock_llm):
-        # Mocking a response with no rows
         mock_llm.return_value = json.dumps({
             "columns": ["username", "email"],
             "rows": []
         })
 
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert isinstance(columns, list)
         assert isinstance(rows, list)
-        assert len(rows) == 0  # No rows returned
+        assert len(rows) == 0
 
-    """Tests for malformed LLM responses (e.g., invalid JSON)."""
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_invalid_data(self, mock_llm):
         mock_llm.return_value = "{invalid_json: true, columns: [username], rows: []}"
 
+        save_response_to_jsonl({"columns": ["Invalid LLM Output"], "rows": []})
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
-        assert columns == ['Invalid LLM Output']
+        assert columns == ["Invalid LLM Output"]
         assert rows == []
 
-    """Tests an LLM response with no columns to ensure proper fallback behavior."""
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_empty_columns(self, mock_llm):
         mock_llm.return_value = json.dumps({
             "columns": [],
-            "rows": [["person1", "person1@example.com"], ["person2", "person2@example.com"]]
+            "rows": [("person1", "person1@example.com"), ("person2", "person2@example.com")]
         })
 
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert isinstance(columns, list)
-        assert columns == ['No data available']  # Correct fallback
+        assert columns == ['No data available']
 
-    """Tests a large data set returned by the LLM."""
-    @patch("src.mysql_honeypot.get_or_generate_response", new_callable=AsyncMock)
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_with_large_data(self, mock_llm):
-        # Mocking a large number of rows in LLM response
         mock_llm.return_value = json.dumps({
             "columns": ["username", "email"],
-            "rows": [(f"user{i}" ,f"user{i}@example.com") for i in range(5)]
+            "rows": [(f"user{i}", f"user{i}@example.com") for i in range(5)]
         })
 
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert len(rows) == 5
         assert len(columns) == 2
+
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_select_users(self, mock_llm):
+        mock_llm.return_value = json.dumps({
+            "columns": ["id", "username"],
+            "rows": [(1, "user1"), (2, "user2")]
+        })
+
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
+        my_session = MySession()
+        rows, columns = await my_session.get_llm_response("SELECT * FROM users;")
+
+        assert columns == ["id", "username"]
+        assert rows == [(1, "user1"), (2, "user2")]
+        assert isinstance(columns, list)
+        assert isinstance(rows, list)
+
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_show_databases(self, mock_llm):
+        mock_llm.return_value = json.dumps({
+            "columns": ["Database"],
+            "rows": [("db1",), ("db2",)]
+        })
+
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
+        my_session = MySession()
+        rows, columns = await my_session.get_llm_response("SHOW DATABASES;")
+
+        assert columns == ["Database"]
+        assert rows == [("db1",), ("db2",)]
+
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_select_email(self, mock_llm):
+        mock_llm.return_value = json.dumps({
+            "columns": ["email"],
+            "rows": [("a@example.com",), ("b@example.com",)]
+        })
+
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
+        my_session = MySession()
+        query="SELECT email FROM customers;"
+        rows, columns = await my_session.get_llm_response(query)
+
+        assert columns == ["email"]
+        assert rows == [("a@example.com",), ("b@example.com",)]
+
+
+
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_empty_users(self,mock_llm):
+        mock_llm.return_value = json.dumps({
+            "columns": ["id", "username"],
+            "rows": []
+        })
+
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
+        my_session = MySession()
+        query = "SELECT id, username FROM users WHERE 1=0;"
+        rows, columns = await my_session.get_llm_response(query)
+
+        assert rows == []
+
+
