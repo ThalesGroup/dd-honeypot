@@ -72,13 +72,3 @@ def _get_response_content(response_json: dict, model_id: str) -> str:
         return response_json["choices"][0]["message"]["content"]
     else:
         raise ValueError(f"Unknown model_id: {model_id}")
-
-def is_bedrock_accessible() -> bool:
-    try:
-        client = boto3.client("bedrock-runtime", config=Config(read_timeout=5))
-        # Try listing models or a simple describe call
-        client.list_foundation_models()
-        return True
-    except Exception as e:
-        logging.warning(f"Bedrock not accessible: {e}")
-        return False
