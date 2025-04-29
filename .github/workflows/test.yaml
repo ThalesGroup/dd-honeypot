@@ -24,5 +24,3 @@ jobs:
         run: |
           source .venv/bin/activate
           PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
-        env:
-          AWS_REGION: "us-east-1"
