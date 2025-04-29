@@ -67,6 +67,10 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
 
 class MySession(Session):
     def __init__(self, *args, **kwargs):
+        # Skip the initialization if the environment variable is set
+        if os.environ.get("DISABLE_MYSQL_SESSION") == "1":
+            logger.info("Skipping MySQL session initialization due to environment setting.")
+            return
         super().__init__(*args, **kwargs)
 
         # Load LLM Config from MySQL honeypot config file
