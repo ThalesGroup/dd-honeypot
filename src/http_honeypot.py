@@ -19,7 +19,6 @@ def http_honeypot_request(path: str, r: Request) -> Response:
     logger.info(f"Body: {r.data.decode('utf-8') if r.data else 'No body'}")
     return Response("Request logged", 200)
 
-
 class HTTPHoneypot(BaseHoneypot):
     def __init__(
         self,
@@ -36,14 +35,13 @@ class HTTPHoneypot(BaseHoneypot):
         def handle_session():
             if "h_session" not in session:
                 h_session = HoneypotSession()
-                h_session.client_ip = request.remote_addr
-                session["h_session"] = h_session
-
+                h_session.set_info("client_ip", request.remote_addr)  # Use setter method
+                session["h_session"] = dict(h_session)  # Store session in Flask session
                 logger.info("New session detected")
                 logger.info(f"Session data: {dict(session)}")
             else:
                 h_session = session["h_session"]
-                logger.info(f"Existing session. Id: {h_session['session_id']}")
+                logger.info(f"Existing session. Id: {h_session.get_info('session_id')}")
 
         @self.app.route(
             "/",
@@ -54,8 +52,24 @@ class HTTPHoneypot(BaseHoneypot):
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
         def catch_all(path):
-            return self._request_callback(path, request)
+            try:
+                # Call the request callback (logging request details)
+                return self._request_callback(path, request)
+            except Exception as e:
+                logger.error(f"Error while handling request for path: {path} - {e}")
+                return Response("Internal Server Error", 500)
 
+        @self.app.errorhandler(404)
+        def not_found_error(error):
+            # Handle 404 error for unknown paths
+            logger.warning(f"404 error: Path not found: {request.path}")
+            return Response("Not Found", 404)
+
+        @self.app.errorhandler(500)
+        def internal_server_error(error):
+            # Handle 500 error
+            logger.error(f"500 error: {error}")
+            return Response("Internal Server Error", 500)
     def start(self):
         def run_app():
             self.app.run(

@@ -4,11 +4,10 @@ from typing import Optional
 
 from src.honeypot_utils import allocate_port
 
-
 class HoneypotSession:
     """
-    Honeypot session info, which holds the session id and other information based on past session operations
-    For example it can hold the user info, or the current directory and other state related information
+    Honeypot session info, which holds the session id and other information based on past session operations.
+    For example, it can hold the user info, the current directory, and other state-related information.
     """
 
     def __init__(self):
@@ -22,6 +21,19 @@ class HoneypotSession:
     @property
     def info(self):
         return self.__info
+
+    def set_info(self, key, value):
+        """Method to safely set information in the session."""
+        self.__info[key] = value
+
+    def get_info(self, key):
+        """Method to safely get information from the session."""
+        return self.__info.get(key)
+
+    def __contains__(self, key):
+        """Check if a key exists in the session info."""
+        return key in self.__info
+
 
 
 class BaseHoneypot(ABC):
