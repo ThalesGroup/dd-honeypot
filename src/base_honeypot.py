@@ -23,7 +23,7 @@ class HoneypotSession:
         return self.__info
 
     def set_info(self, key, value):
-        """Method to safely set information in the session."""
+        #Method to safely set information in the session.
         self.__info[key] = value
 
     def get_info(self, key):
