@@ -36,7 +36,7 @@ class HTTPHoneypot(BaseHoneypot):
         def handle_session():
             if "h_session" not in session:
                 h_session = HoneypotSession()
-                h_session["client_ip"] = request.remote_addr
+                h_session.client_ip = request.remote_addr
                 session["h_session"] = h_session
 
                 logger.info("New session detected")

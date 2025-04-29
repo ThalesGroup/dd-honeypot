@@ -25,7 +25,9 @@ def invoke_llm(system_prompt: Optional[str], user_prompt: str, model_id: str) ->
 
 def _invoke_bedrock_model(prompt_body: dict, model_id: str) -> dict:
     bedrock_client = boto3.client(
-        service_name="bedrock-runtime", config=Config(read_timeout=300)
+        service_name="bedrock-runtime",
+        region_name=os.environ.get("AWS_REGION", "us-east-1"),  # Fallback if env not set
+        config=Config(read_timeout=300)
     )
     response = bedrock_client.invoke_model(
         body=json.dumps(prompt_body),
