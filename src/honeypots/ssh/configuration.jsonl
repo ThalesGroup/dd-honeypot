@@ -2,6 +2,7 @@
   "name": "Linux Honeypot",
   "shell-prompt": "honeypot@fakevm:~$ ",
   "model-id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "AWS_REGION": "us-east-1",
   "system-prompt": [
     "You are a Linux shell honeypot.",
     "Always respond like a real Linux shell would.",
