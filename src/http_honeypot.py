@@ -35,8 +35,9 @@ class HTTPHoneypot(BaseHoneypot):
         def handle_session():
             if "h_session" not in session:
                 h_session = HoneypotSession()
-                h_session.set_info("client_ip", request.remote_addr)  # Use setter method
-                session["h_session"] = dict(h_session)  # Store session in Flask session
+                h_session.set_info("client_ip", request.remote_addr)
+                session["h_session"] = h_session.to_dict() if hasattr(h_session, "to_dict") else dict(
+                    h_session.__dict__)
                 logger.info("New session detected")
                 logger.info(f"Session data: {dict(session)}")
             else:
