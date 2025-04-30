@@ -45,7 +45,7 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
 
 
 def load_config(config_file: Path):
-    #Loads configuration from the given JSON file.
+    #Loads configuration from the given JSON file."""
     try:
         with open(config_file, "r") as f:
             return json.load(f)
@@ -108,7 +108,7 @@ class MySession(Session):
         Parses the response and handles errors gracefully.
         """
         try:
-            # Fetch the raw response from the LLM (using the previously created method)
+            # Fetch the raw response from the LLM
             response = await self.get_or_generate_response(query)
             logger.info(f"LLM response raw data: {response}")
 
@@ -122,12 +122,14 @@ class MySession(Session):
                 rows = [tuple(row) for row in parsed.get("rows", [])]
                 columns = parsed.get("columns", [])
 
-                # If no rows or columns returned, handle gracefully
-                if not rows or not columns:
-                    logger.warning("LLM response contains no rows or columns.")
-                    return [], ["No data available"]
+                # Only warn if columns are missing (invalid response)
+                if not columns:
+                    logger.warning("LLM response contains no columns.")
+                    return [], ["Invalid LLM Output"]
 
+                # Empty rows is a valid case (just means no results)
                 return rows, columns
+
             except Exception as e:
                 logger.error(f"Failed to parse LLM response: {e}")
                 return [], ["Invalid LLM Output"]

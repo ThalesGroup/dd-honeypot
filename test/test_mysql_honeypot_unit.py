@@ -295,15 +295,18 @@ class TestLLMResponseParsing:
         assert rows[0] == ("person3", "person3@example.com")
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
-    async def test_llm_response_invalid_fallback(self, mock_llm):
-        mock_llm.return_value = ""
+    @patch('src.mysql_honeypot.logger')  # Mock the logger
+    async def test_llm_response_invalid_fallback(self, mock_logger, mock_llm):
+        mock_llm.return_value = ""  # Simulate bad LLM response
 
-        save_response_to_jsonl({"columns": ["Invalid LLM Output"], "rows": []})
         my_session = MySession()
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert columns == ["Invalid LLM Output"]
         assert rows == []
+
+        # Verify error was logged
+        mock_logger.error.assert_called_with("Empty or invalid response from LLM.")
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_no_rows(self, mock_llm):
@@ -320,8 +323,10 @@ class TestLLMResponseParsing:
         assert isinstance(rows, list)
         assert len(rows) == 0
 
+
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
-    async def test_llm_response_invalid_data(self, mock_llm):
+    @patch('src.mysql_honeypot.logger')  # Mock the logger
+    async def test_llm_response_invalid_data(self, mock_logger, mock_llm):
         mock_llm.return_value = "{invalid_json: true, columns: [username], rows: []}"
 
         save_response_to_jsonl({"columns": ["Invalid LLM Output"], "rows": []})
@@ -330,6 +335,11 @@ class TestLLMResponseParsing:
 
         assert columns == ["Invalid LLM Output"]
         assert rows == []
+
+        # Verify error was logged
+        mock_logger.error.assert_called_with(
+            "Failed to parse LLM response: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+        )
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_empty_columns(self, mock_llm):
@@ -343,7 +353,7 @@ class TestLLMResponseParsing:
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert isinstance(columns, list)
-        assert columns == ['No data available']
+        assert columns == ['Invalid LLM Output']
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_with_large_data(self, mock_llm):
