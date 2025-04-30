@@ -11,7 +11,7 @@ import time
 from paramiko import Transport, ServerInterface, RSAKey
 from paramiko.ssh_exception import SSHException
 
-from llm_utils import invoke_llm
+from src.llm_utils import invoke_llm
 
 from pathlib import Path
 
