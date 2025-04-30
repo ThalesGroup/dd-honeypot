@@ -63,7 +63,7 @@ def honeypot() -> Generator[SSHHoneypot, None, None]:
         time.sleep(1)  # Allow for cleanup
 
 
-@patch("src.ssh_honeypot.SSHServerInterface.invoke_llm", return_value="Mocked LLM response\n")
+@patch("src.ssh_honeypot.invoke_llm", return_value="Mocked LLM response\n")
 def test_basic_command_execution(mock_llm, honeypot: SSHHoneypot) -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
