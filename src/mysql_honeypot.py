@@ -45,7 +45,7 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
 
 
 def load_config(config_file: Path):
-    """Loads configuration from the given JSON file."""
+    #Loads configuration from the given JSON file.
     try:
         with open(config_file, "r") as f:
             return json.load(f)
