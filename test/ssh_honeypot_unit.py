@@ -64,24 +64,32 @@ def honeypot() -> Generator[SSHHoneypot, None, None]:
 
 @patch("src.llm_utils.invoke_llm", return_value="Mocked LLM response\n")
 def test_basic_command_execution(mock_llm, honeypot: SSHHoneypot) -> None:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        client.connect(
-            HOSTNAME,
-            port=honeypot.port,
-            username='test',
-            password='test',
-            timeout=5,
-            banner_timeout=10,
-            auth_timeout=10
-        )
+    client.connect(
+        HOSTNAME,
+        port=honeypot.port,
+        username='test',
+        password='test',
+        timeout=5
+    )
 
-        _, stdout, _ = client.exec_command("test-command", timeout=5)
-        output = stdout.read().decode()  # Get full output
+    # Execute command with reliable output reading
+    _, stdout, _ = client.exec_command("test-command", timeout=5)
 
-        assert "Mocked LLM response" in output
-        client.close()
+    # Read output incrementally with timeout protection
+    output = b''
+    start_time = time.time()
+    while time.time() - start_time < 5:
+        if stdout.channel.recv_ready():
+            output += stdout.channel.recv(4096)
+        if stdout.channel.exit_status_ready():
+            break
+        time.sleep(0.1)
+
+    assert "Mocked LLM response" in output.decode()
+    client.close()
 
 
 def test_interactive_shell(honeypot: SSHHoneypot) -> None:
