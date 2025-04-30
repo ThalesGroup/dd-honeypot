@@ -69,7 +69,7 @@ def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
 
         client.connect(
             HOSTNAME,
-            port=honeypot.port,
+            port=int(honeypot.port),
             username='test',
             password='test',
             timeout=10,
