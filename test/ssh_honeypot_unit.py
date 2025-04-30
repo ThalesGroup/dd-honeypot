@@ -63,13 +63,17 @@ def honeypot() -> Generator[SSHHoneypot, None, None]:
         time.sleep(1)  # Allow for cleanup
 
 
-def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
-    from unittest.mock import patch
+@patch("src.ssh_honeypot.invoke_llm", return_value="Mocked LLM response\n")
+def test_basic_command_execution(mock_llm):
+    # ✅ Patch is already applied before importing or instantiating SSHServerInterface
 
-    with patch("src.ssh_honeypot.invoke_llm", return_value="Mocked LLM response\n"):
+    honeypot = SSHHoneypot(port=0)
+    honeypot.start()
+    try:
+        assert wait_for_ssh(honeypot.port), "SSH honeypot failed to start in time"
+
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
         client.connect(
             HOSTNAME,
             port=honeypot.port,
@@ -86,7 +90,9 @@ def test_basic_command_execution(honeypot: SSHHoneypot) -> None:
         stdout = channel.recv(1024).decode()
 
         assert "Mocked LLM response" in stdout
-
+        client.close()
+    finally:
+        honeypot.stop()
 
 def test_interactive_shell(honeypot: SSHHoneypot) -> None:
     """Test interactive shell with more resilient approach"""
