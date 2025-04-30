@@ -32,8 +32,8 @@ def suppress_asyncio_connection_errors(monkeypatch):
     monkeypatch.setattr(asyncio.StreamWriter, "drain", quiet_drain)
 
     # Suppress asyncio connection error log messages
-    logger = logging.getLogger("asyncio")
-    logger.setLevel(logging.CRITICAL)  # Or logging.ERROR to keep warnings
+    asyncio_logger = logging.getLogger("asyncio")
+    asyncio_logger.setLevel(logging.CRITICAL)
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def test_honeypot_should_fail_on_invalid_handshake():
     time.sleep(1)
 
     try:
-        with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:
+        with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
                 host="127.0.0.1",
                 port=honeypot.port,
@@ -264,7 +264,7 @@ def save_response_to_jsonl(response: dict):
     # Save only if query is new
     if query and query not in existing_queries:
         with open(file_path, "a") as f:
-            json.dump(response, f)
+            json.dump(response, f) #type: ignore
             f.write("\n")
         print(f"Saved new query: {query}")  # ADD THIS
 

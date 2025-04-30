@@ -1,15 +1,10 @@
 import asyncio
 import hashlib
-import json
 import threading
-import logging
 import socket
 import time
-from pathlib import Path
 from typing import List, Tuple
 import os
-import boto3
-import pymysql
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
 from src.base_honeypot import BaseHoneypot
@@ -18,33 +13,18 @@ import json
 import logging
 from pathlib import Path
 
-# Load config
-CONFIG_FILE = os.path.join(os.path.dirname(__file__),"honeypots", "mysql", "config.json")
-with open(CONFIG_FILE, "r") as f:
-    CONFIG = json.load(f)
-
-# Set path to data.jsonl
-DATA_FILE = os.path.join(os.path.dirname(__file__), "honeypots", "mysql", "data.jsonl")
-logging.info(f"Using DATA_FILE path: {DATA_FILE}")
-
-# Suppress noisy SQL syntax error logs
-logging.getLogger("mysql_mimic.connection").addFilter(
-    lambda record: "You have an error in your SQL syntax" not in record.getMessage()
-)
-
+def setup_logging():
+    logging.getLogger("mysql_mimic.connection").addFilter(
+        lambda record: "You have an error in your SQL syntax" not in record.getMessage()
+    )
 # Configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Set up Bedrock client
-bedrock_client = boto3.client('bedrock-runtime', region_name='us-west-2')  # Adjust your region if needed
-
 
 class StaticQueryHandler:
     def __init__(self, responses=None):
         self.responses = responses or {}
 
-    async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
+    async def handle_query(self, sql: str) -> Tuple[List[Tuple], List[str]]:
         logger.info(f"Received query: {sql}")
         sql = sql.upper().strip()
         return self.responses.get(sql, ([], ["empty_response"]))
@@ -64,6 +44,15 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
         return [], ["Invalid LLM Output"]
 
 
+def load_config(config_file: Path):
+    """Loads configuration from the given JSON file."""
+    try:
+        with open(config_file, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load config file {config_file}: {e}")
+        return {}
+
 
 class MySession(Session):
     def __init__(self, *args, **kwargs):
@@ -75,7 +64,7 @@ class MySession(Session):
 
         # Load LLM Config from MySQL honeypot config file
         self.config_file = Path(__file__).parent / "honeypots" / "mysql" / "config.json"
-        self.config = self.load_config(self.config_file)
+        self.config = load_config(self.config_file)
 
         # Set model_id and system_prompt from config file
         self.model_id = self.config.get("model_id", "default_model_id")
@@ -87,15 +76,6 @@ class MySession(Session):
 
         # Load cache
         self.query_response_cache = self.load_existing_data()
-
-    def load_config(self, config_file: Path):
-        """Loads configuration from the given JSON file."""
-        try:
-            with open(config_file, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load config file {config_file}: {e}")
-            return {}
 
     def load_existing_data(self):
         if not self.data_file.exists():
@@ -186,16 +166,13 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
     async def get_or_generate_response(self, query: str) -> str:
-        from src.llm_utils import invoke_llm, is_bedrock_accessible
+        from src.llm_utils import invoke_llm
 
         query = query.strip()
         if query in self.query_response_cache:
             logger.info(f"Query found in cache: {query}")
             return json.dumps(self.query_response_cache[query])
 
-        # Check if Bedrock is accessible and raise an exception if it's not
-        if not is_bedrock_accessible():
-            raise Exception("Bedrock is not accessible. Cannot generate LLM response.")
 
         try:
             response_text = invoke_llm(
@@ -249,6 +226,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     def start(self):
         """Start honeypot in a background thread and wait for readiness."""
+        setup_logging()
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
         self._wait_for_server_ready()
