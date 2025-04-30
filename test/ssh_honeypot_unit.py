@@ -77,8 +77,11 @@ def test_basic_command_execution(mock_llm, honeypot: SSHHoneypot) -> None:
             auth_timeout=10
         )
 
-        _, stdout, _ = client.exec_command("test-command")
-        assert "Mocked LLM response" in stdout.read().decode()
+        _, stdout, _ = client.exec_command("test-command", timeout=5)
+        output = stdout.read().decode()  # Get full output
+
+        assert "Mocked LLM response" in output
+        client.close()
 
 
 def test_interactive_shell(honeypot: SSHHoneypot) -> None:
