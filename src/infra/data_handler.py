@@ -36,23 +36,40 @@ class DataHandler:
                     logger.warning(f"Skipping invalid line in data file: {e}")
         return result
 
-    def get_data(self, input_str: str, user_prompt: str) -> dict:
-        # Check existing data cache
-        response = self.data.get(input_str) or self.cache.get(input_str)
+    def get_data(self, input_str, user_prompt):
+        # Check cache first
+        if input_str in self.cache:
+            return self.cache[input_str]  # Return cached response
 
-        # If no response cached, invoke LLM
-        if not response:
-            response = llm_utils.invoke_llm(self.system_prompt, user_prompt, self.model_id)
-            self.cache[input_str] = response
-            self.data[input_str] = response
-            self._save_data(input_str, response)
-
-        # Ensure consistent return format (for MySQL honeypot)
-        if isinstance(response, dict) and "columns" in response and "rows" in response:
-            return response
+        # If not cached, check if the data exists in the file
+        data = self._read_data_from_file(input_str)
+        if data:
+            response = data.get('response', 'No data available')
         else:
-            return {"columns": ["No data available"], "rows": []}
+            # Fallback to LLM if not found in the file
+            response = llm_utils.invoke_llm(self.system_prompt, user_prompt, self.model_id)
 
+            # Extract the first string from the LLM response (from the 'columns' list)
+            if isinstance(response, dict) and "columns" in response:
+                response = response["columns"][0]  # Assuming the first column holds the actual response string
+
+        # Cache and return the string response
+        self.cache[input_str] = response
+        return response
+
+    def _read_data_from_file(self, input_str):
+        # Read the data file to check for matching command
+        try:
+            with open(self.data_file, 'r') as file:
+                for line in file:
+                    data = json.loads(line)
+                    if data.get("command") == input_str:
+                        return data
+        except FileNotFoundError:
+            return None
+        return None
+
+     # Extract the string from the LLM response
     def _save_data(self, input_str: str, response: str):
         with open(self.data_file, "a") as f:
             f.write(json.dumps({"command": input_str, "response": response}) + "\n")
