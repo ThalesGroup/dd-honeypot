@@ -24,3 +24,8 @@ jobs:
         run: |
           source .venv/bin/activate
           PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
+
+      - name: Run integration tests
+        run: |
+          source .venv/bin/activate
+          PYTHONPATH=src python -m pytest --color=yes test/*_integration.py
