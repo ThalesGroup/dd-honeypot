@@ -1,6 +1,7 @@
 import json
 import os
 import socket
+import tempfile
 import threading
 import time
 import logging
@@ -12,6 +13,7 @@ import pymysql
 import mysql.connector
 import asyncio
 from pymysql.err import OperationalError
+
 from src.mysql_honeypot import MySession  # Import your session class
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
 from src.mysql_honeypot import MySqlMimicHoneypot
@@ -243,7 +245,7 @@ def save_response_to_jsonl(response: dict):
     """Save unique LLM response to a JSONL file in the correct honeypot location."""
 
     # Set the correct data.jsonl path
-    file_path = Path(__file__).parent.parent / "src" / "honeypots" / "mysql" / "data.jsonl"
+    file_path = Path(__file__).parent.parent / "test" / "honeypots" / "mysql" / "data.jsonl"
     file_path.parent.mkdir(parents=True, exist_ok=True)  # Make sure folder exists
 
     # Check if the file already exists and load old queries
@@ -429,5 +431,4 @@ class TestLLMResponseParsing:
         rows, columns = await my_session.get_llm_response(query)
 
         assert rows == []
-
 
