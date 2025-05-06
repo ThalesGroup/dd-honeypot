@@ -42,6 +42,20 @@ PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
 ```
 Unit tests also run automatically on every push using a dedicated workflow.
 
+#### Running integration tests
+To run integration tests locally, you first have to add API keys to your environment. You can do it by creating evn files under the config dir: 
+
+aws.env.list
+```
+AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
+AWS_REGION=YOUR_REGION
+```
+Then, to run all the integration tests locally, use the following command:
+
+```sh
+PYTHONPATH=src python -m pytest --color=yes test/*_integration.py
+```
 
 ### Issues management
 
