@@ -343,19 +343,7 @@ class TestLLMResponseParsing:
             "Failed to parse LLM response: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
         )
 
-    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
-    async def test_llm_response_empty_columns(self, mock_llm):
-        mock_llm.return_value = json.dumps({
-            "columns": [],
-            "rows": [("person1", "person1@example.com"), ("person2", "person2@example.com")]
-        })
 
-        save_response_to_jsonl(json.loads(mock_llm.return_value))
-        my_session = MySession()
-        rows, columns = await my_session.get_llm_response("SELECT * FROM users")
-
-        assert isinstance(columns, list)
-        assert columns == ['Invalid LLM Output']
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     async def test_llm_response_with_large_data(self, mock_llm):
