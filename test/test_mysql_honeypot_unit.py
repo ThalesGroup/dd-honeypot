@@ -384,8 +384,8 @@ class TestLLMResponseParsing:
 
         save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
-        rows, columns = await my_session.get_llm_response("SHOW DATABASES;")
-
+        query="SHOW DATABASES;"
+        rows, columns = await my_session.get_llm_response(query)
         assert columns == ["Database"]
         assert rows == [("db1",), ("db2",)]
 

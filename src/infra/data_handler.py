@@ -1,7 +1,14 @@
 import os
 import json
 from typing import Dict
-from src.llm_utils import invoke_llm
+
+from pip._internal.cli.main import logger
+
+from src import llm_utils
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class DataHandler:
     def __init__(self, data_file: str, system_prompt: str, model_id: str):
@@ -14,21 +21,39 @@ class DataHandler:
     def _load_data(self) -> Dict[str, str]:
         if not os.path.exists(self.data_file):
             return {}
+        result = {}
         with open(self.data_file, "r") as f:
-            return {json.loads(line)["command"]: json.loads(line)["response"] for line in f if line.strip()}
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    item = json.loads(line)
+                    key = item.get("command") or item.get("query")
+                    response = item.get("response")
+                    if key and response:
+                        result[key.strip()] = response
+                except Exception as e:
+                    logger.warning(f"Skipping invalid line in data file: {e}")
+        return result
 
-    def get_data(self, input_str: str, user_prompt: str) -> str:
-        if input_str in self.data:
-            return self.data[input_str]
-        if input_str in self.cache:
-            return self.cache[input_str]
+    def get_data(self, input_str: str, user_prompt: str) -> dict:
+        # Check existing data cache
+        response = self.data.get(input_str) or self.cache.get(input_str)
 
-        response = invoke_llm(self.system_prompt, user_prompt, self.model_id)
-        self.cache[input_str] = response
-        self.data[input_str] = response
-        self._save_data(input_str, response)
-        return response
+        # If no response cached, invoke LLM
+        if not response:
+            response = llm_utils.invoke_llm(self.system_prompt, user_prompt, self.model_id)
+            self.cache[input_str] = response
+            self.data[input_str] = response
+            self._save_data(input_str, response)
+
+        # Ensure consistent return format (for MySQL honeypot)
+        if isinstance(response, dict) and "columns" in response and "rows" in response:
+            return response
+        else:
+            return {"columns": ["No data available"], "rows": []}
 
     def _save_data(self, input_str: str, response: str):
         with open(self.data_file, "a") as f:
             f.write(json.dumps({"command": input_str, "response": response}) + "\n")
+

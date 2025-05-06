@@ -158,10 +158,20 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
         try:
+            # Try getting data from DataHandler first (which may be mocked in tests)
+            result = await self.data_handler.get_data(query=sql)
+
+            if result:
+                columns = result.get("columns", [])
+                rows = result.get("rows", [])
+
+                if columns or rows:
+                    return rows, columns
+
+            # Fallback to LLM or other logic if no cached/mocked data found
             response_json = await self.get_or_generate_response(sql)
             rows, columns = _parse_llm_response(response_json)
 
-            # If LLM returned empty response, raise a parse error
             if not rows and not columns:
                 logger.warning("LLM response contains no rows or columns.")
                 raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
@@ -229,9 +239,9 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
         # Load DataHandler if config is present
         self.data_handler = None
-        if "data_file_path" in self.config:
+        if "data_file" in self.config:
             self.data_handler = DataHandler(
-                data_file=self.config["data_file_path"],
+                data_file=self.config["data_file"],
                 system_prompt=self.config.get("system_prompt", ""),
                 model_id=self.config.get("model_id", "")
             )
