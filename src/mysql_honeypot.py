@@ -3,6 +3,7 @@ import hashlib
 import threading
 import socket
 import time
+from functools import partial
 from typing import List, Tuple
 import os
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
@@ -12,6 +13,10 @@ from mysql_mimic.errors import MysqlError, ErrorCode
 import json
 import logging
 from pathlib import Path
+from src.infra.data_handler import DataHandler
+
+from src.llm_utils import invoke_llm
+
 
 def setup_logging():
     logging.getLogger("mysql_mimic.connection").addFilter(
@@ -45,7 +50,7 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
 
 
 def load_config(config_file: Path):
-    #Loads configuration from the given JSON file."""
+    """Loads configuration from the given JSON file."""
     try:
         with open(config_file, "r") as f:
             return json.load(f)
@@ -55,7 +60,9 @@ def load_config(config_file: Path):
 
 
 class MySession(Session):
-    def __init__(self, *args, **kwargs):
+    def __init__(self,data_handler=None ,*args, **kwargs):
+        self.data_handler = data_handler  # Accept data_handler as part of session init
+
         # Skip the initialization if the environment variable is set
         if os.environ.get("DISABLE_MYSQL_SESSION") == "1":
             logger.info("Skipping MySQL session initialization due to environment setting.")
@@ -108,7 +115,7 @@ class MySession(Session):
         Parses the response and handles errors gracefully.
         """
         try:
-            # Fetch the raw response from the LLM
+            # Fetch the raw response from the LLM (using the previously created method)
             response = await self.get_or_generate_response(query)
             logger.info(f"LLM response raw data: {response}")
 
@@ -122,14 +129,12 @@ class MySession(Session):
                 rows = [tuple(row) for row in parsed.get("rows", [])]
                 columns = parsed.get("columns", [])
 
-                # Only warn if columns are missing (invalid response)
-                if not columns:
-                    logger.warning("LLM response contains no columns.")
-                    return [], ["Invalid LLM Output"]
+                # If no rows or columns returned, handle gracefully
+                if not rows or not columns:
+                    logger.warning("LLM response contains no rows or columns.")
+                    return [], ["No data available"]
 
-                # Empty rows is a valid case (just means no results)
                 return rows, columns
-
             except Exception as e:
                 logger.error(f"Failed to parse LLM response: {e}")
                 return [], ["Invalid LLM Output"]
@@ -168,15 +173,18 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
     async def get_or_generate_response(self, query: str) -> str:
-        from src.llm_utils import invoke_llm
-
         query = query.strip()
         if query in self.query_response_cache:
             logger.info(f"Query found in cache: {query}")
             return json.dumps(self.query_response_cache[query])
 
-
         try:
+            if self.data_handler:
+                result = self.data_handler.get_data(input_str=query, user_prompt=query)
+                self.save_response_to_data_file(query, result)
+                return json.dumps(result)
+
+            # Fallback to direct LLM invocation if data_handler is not used
             response_text = invoke_llm(
                 system_prompt=self.system_prompt,
                 user_prompt=query,
@@ -191,6 +199,7 @@ class MySession(Session):
             fallback_response = {"columns": [], "rows": []}
             self.save_response_to_data_file(query, fallback_response)
             return json.dumps(fallback_response)
+
 
 class AllowAllIdentityProvider(IdentityProvider):
     def get_plugins(self):
@@ -213,18 +222,34 @@ class AllowAllIdentityProvider(IdentityProvider):
 
 
 class MySqlMimicHoneypot(BaseHoneypot):
-    def __init__(self, port: int = None, identity_provider=None):
+    def __init__(self, port: int = None, config=None, identity_provider=None):
         super().__init__(port)
+        self.config = config or {}
         self.identity_provider = identity_provider or AllowAllIdentityProvider()
+
+        # Load DataHandler if config is present
+        self.data_handler = None
+        if "data_file_path" in self.config:
+            self.data_handler = DataHandler(
+                data_file=self.config["data_file_path"],
+                system_prompt=self.config.get("system_prompt", ""),
+                model_id=self.config.get("model_id", "")
+            )
+
+        # Pass the session factory with data_handler if available
+        session_factory = partial(MySession, data_handler=self.data_handler) if self.data_handler else MySession
+
         self.server = MysqlServer(
             port=self.port,
-            session_factory=MySession,
+            session_factory=session_factory,
             identity_provider=self.identity_provider,
-
         )
+
         self.thread = None
         self.loop = None
-        logger.info(f"Using identity provider: {self.identity_provider.__class__.__name__}")
+
+
+
 
     def start(self):
         """Start honeypot in a background thread and wait for readiness."""
@@ -277,3 +302,5 @@ class MySqlMimicHoneypot(BaseHoneypot):
             self.loop.stop()
 
         asyncio.run_coroutine_threadsafe(shutdown(), self.loop)
+
+
