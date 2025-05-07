@@ -158,10 +158,20 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
         try:
+            # Try getting data from DataHandler first (which may be mocked in tests)
+            result = await self.data_handler.get_data(query=sql)
+
+            if result:
+                columns = result.get("columns", [])
+                rows = result.get("rows", [])
+
+                if columns or rows:
+                    return rows, columns
+
+            # Fallback to LLM or other logic if no cached/mocked data found
             response_json = await self.get_or_generate_response(sql)
             rows, columns = _parse_llm_response(response_json)
 
-            # If LLM returned empty response, raise a parse error
             if not rows and not columns:
                 logger.warning("LLM response contains no rows or columns.")
                 raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
@@ -229,9 +239,9 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
         # Load DataHandler if config is present
         self.data_handler = None
-        if "data_file_path" in self.config:
+        if "data_file" in self.config:
             self.data_handler = DataHandler(
-                data_file=self.config["data_file_path"],
+                data_file=self.config["data_file"],
                 system_prompt=self.config.get("system_prompt", ""),
                 model_id=self.config.get("model_id", "")
             )
@@ -248,9 +258,6 @@ class MySqlMimicHoneypot(BaseHoneypot):
         self.thread = None
         self.loop = None
 
-
-
-
     def start(self):
         """Start honeypot in a background thread and wait for readiness."""
         setup_logging()
@@ -259,8 +266,22 @@ class MySqlMimicHoneypot(BaseHoneypot):
         self._wait_for_server_ready()
 
     def run(self):
+        from mysql_mimic.stream import ConnectionClosed  # import inside to avoid global dependency
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+
+        # Patch server._client_connected_cb to handle ConnectionClosed gracefully
+        original_cb = self.server._client_connected_cb
+
+        async def safe_cb(reader, writer):
+            try:
+                await original_cb(reader, writer)
+            except ConnectionClosed:
+                pass  # Silently ignore expected disconnects
+            except Exception as e:
+                logger.exception("Unhandled exception in client_connected_cb")
+
+        self.server._client_connected_cb = safe_cb
 
         try:
             async def start_server():
@@ -296,11 +317,15 @@ class MySqlMimicHoneypot(BaseHoneypot):
         async def shutdown():
             if self.server:
                 await self.server.stop()
-            for task in asyncio.all_tasks(loop=self.loop):
-                if not task.done():
-                    task.cancel()
+
+            current_task = asyncio.current_task(loop=self.loop)
+            pending = [t for t in asyncio.all_tasks(loop=self.loop) if t is not current_task and not t.done()]
+
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+
             self.loop.stop()
 
         asyncio.run_coroutine_threadsafe(shutdown(), self.loop)
-
 
