@@ -18,7 +18,6 @@ from mysql.connector.errors import DatabaseError, OperationalError, InterfaceErr
 from src.mysql_honeypot import MySqlMimicHoneypot
 
 logger = logging.getLogger(__name__)
-# Set up logger
 logging.basicConfig(level=logging.INFO)
 
 
