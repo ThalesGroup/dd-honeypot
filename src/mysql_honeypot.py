@@ -70,7 +70,7 @@ class MySession(Session):
         super().__init__(*args, **kwargs)
 
         # Load LLM Config from MySQL honeypot config file
-        self.config_file = Path(__file__).parent / "honeypots" / "mysql" / "config.json"
+        self.config_file = Path(__file__).parent /".."/"test"/ "honeypots" / "mysql" / "config.json"
         self.config = load_config(self.config_file)
 
         # Set model_id and system_prompt from config file
@@ -78,7 +78,7 @@ class MySession(Session):
         self.system_prompt = self.config.get("system_prompt", "You are a MySQL server emulator. Only output valid MySQL query results formatted in JSON.")
 
         # Set data.jsonl path
-        self.data_file = Path(__file__).parent / "honeypots" / "mysql" / "data.jsonl"
+        self.data_file = Path(__file__).parent /".."/"test"/ "honeypots" / "mysql" / "data.jsonl"
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Load cache
@@ -328,4 +328,3 @@ class MySqlMimicHoneypot(BaseHoneypot):
             self.loop.stop()
 
         asyncio.run_coroutine_threadsafe(shutdown(), self.loop)
-

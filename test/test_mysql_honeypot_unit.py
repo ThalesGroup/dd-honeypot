@@ -13,7 +13,6 @@ import pymysql
 import mysql.connector
 import asyncio
 from pymysql.err import OperationalError
-
 from src.mysql_honeypot import MySession  # Import your session class
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
 from src.mysql_honeypot import MySqlMimicHoneypot
