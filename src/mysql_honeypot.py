@@ -266,19 +266,21 @@ class MySqlMimicHoneypot(BaseHoneypot):
         self._wait_for_server_ready()
 
     def run(self):
-        from mysql_mimic.stream import ConnectionClosed  # import inside to avoid global dependency
+        from mysql_mimic.stream import ConnectionClosed  # avoid global import
+        import socket  # <-- needed to catch socket errors
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-        # Patch server._client_connected_cb to handle ConnectionClosed gracefully
+        # Patch server._client_connected_cb to handle ConnectionClosed or reset errors
         original_cb = self.server._client_connected_cb
 
         async def safe_cb(reader, writer):
             try:
                 await original_cb(reader, writer)
-            except ConnectionClosed:
-                pass  # Silently ignore expected disconnects
-            except Exception as e:
+            except (ConnectionClosed, ConnectionResetError, OSError, socket.error):
+                # These are expected when clients disconnect abruptly
+                logger.debug("Client disconnected (handled gracefully)")
+            except Exception:
                 logger.exception("Unhandled exception in client_connected_cb")
 
         self.server._client_connected_cb = safe_cb
