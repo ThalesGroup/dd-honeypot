@@ -1,18 +1,15 @@
-import json
-import uuid
-import paramiko
-import socket
-import threading
+# src/ssh_honeypot.py
 import logging
 import os
+import socket
+import threading
 import time
+import uuid
+from pathlib import Path
 
+import paramiko
 from paramiko import Transport, RSAKey
 from paramiko.ssh_exception import SSHException
-
-from pathlib import Path
-from src.infra.data_handler import DataHandler
-from src.llm_utils import invoke_llm
 
 # ----------------- Logging Configuration -----------------
 log_dir = Path(__file__).parent.parent / 'logs'
@@ -28,17 +25,12 @@ logging.basicConfig(
     ]
 )
 
-# ----------------- Session Tracking -----------------
-class HoneypotSession:
-    def __init__(self):
-        self.session_id = str(uuid.uuid4())
-        self.info = {}
-
 # ----------------- Server Interface -----------------
 class SSHServerInterface(paramiko.ServerInterface):
-    def __init__(self, data_handler):
-        self.data_handler = data_handler
+    def __init__(self, command_handler=None):
+        self.auth_method = None
         self.username = None
+        self.command_handler = command_handler
 
     def check_auth_password(self, username, password):
         logging.info(f'Authentication: {username}:{password}')
@@ -51,12 +43,8 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
-
-        response = self.lookup_command(command_str)
-        if response is None:
-            response = "command not found\n"
-
-        channel.send(response)
+        response = self.command_handler(command_str) if self.command_handler else "command not found"
+        channel.send(response + "\n")
         channel.send_exit_status(0)
         return True
 
@@ -66,9 +54,6 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_shell_request(self, channel):
         threading.Thread(target=self.handle_shell, args=(channel,)).start()
         return True
-
-    def lookup_command(self, command: str) -> str:
-        return self.data_handler.get_data(command)
 
     def handle_shell(self, channel):
         try:
@@ -100,7 +85,7 @@ class SSHServerInterface(paramiko.ServerInterface):
                     channel.send("Connection closed. Goodbye!!\r\n")
                     break
 
-                response = self.lookup_command(command) or f"{command}: command not found"
+                response = self.command_handler(command) if self.command_handler else f"{command}:command not found"
                 channel.send(response + "\r\n")
 
         except Exception as e:
@@ -110,13 +95,12 @@ class SSHServerInterface(paramiko.ServerInterface):
 
 # ----------------- Honeypot Core -----------------
 class SSHHoneypot:
-    def __init__(self, port: int = 0, data_handler=None):
-        self.data_handler = data_handler
+    def __init__(self, port=0, command_handler=None):
         self.port = port
+        self.command_handler = command_handler
         self.server_socket = None
         self.running = False
         self.host_key = self._load_host_key()
-        self.threads = []
 
     def _load_host_key(self):
         key_path = "host.key"
@@ -134,8 +118,7 @@ class SSHHoneypot:
         self.running = True
 
         logging.info(f"SSH Honeypot running on port {self.port}")
-        main_thread = threading.Thread(target=self._listen, daemon=True)
-        main_thread.start()
+        threading.Thread(target=self._listen, daemon=True).start()
         return self
 
     def _listen(self):
@@ -143,12 +126,11 @@ class SSHHoneypot:
             try:
                 client_socket, addr = self.server_socket.accept()
                 client_socket.settimeout(10)
-                client_thread = threading.Thread(
+                threading.Thread(
                     target=self._handle_client,
                     args=(client_socket, addr),
                     daemon=True
-                )
-                client_thread.start()
+                ).start()
             except Exception as e:
                 if self.running:
                     logging.error(f"Accept error: {e}")
@@ -159,11 +141,8 @@ class SSHHoneypot:
             transport = Transport(client_socket)
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.add_server_key(self.host_key)
+            transport.start_server(server=SSHServerInterface(self.command_handler))
 
-            # Use our custom interface
-            transport.start_server(server=SSHServerInterface(data_handler=self.data_handler))
-
-            # Keep alive for 30 seconds max
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 30):
                 channel = transport.accept(1)
@@ -186,23 +165,3 @@ class SSHHoneypot:
             except:
                 pass
         logging.info("SSH Honeypot stopped")
-
-# ----------------- Entrypoint -----------------
-if __name__ == "__main__":
-    DATA_FILE = "../test/honeypots/ssh/data.jsonl"
-    SYSTEM_PROMPT = "You are a Linux terminal. Respond to shell commands accordingly."
-    MODEL_ID = "anthropic.claude-instant-v1"
-
-    data_handler = DataHandler(
-        data_file=DATA_FILE,
-        system_prompt=SYSTEM_PROMPT,
-        model_id=MODEL_ID,
-        invoke_fn=invoke_llm
-    )
-
-    honeypot = SSHHoneypot(port=2222, data_handler=data_handler).start()
-
-    try:
-        input("Press Enter to stop...\n")
-    finally:
-        honeypot.stop()

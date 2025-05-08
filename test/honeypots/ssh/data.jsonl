@@ -9,3 +9,4 @@
 {"command": "foobar123", "response": "Command not found: foobar123"}
 {"command": "uid", "response": "uid=1000(user) gid=1000(user) groups=1000(user),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),113(lpadmin),128(sambashare)"}
 {"command": "test-command", "response": "command not found"}
+{"command": "definitely-unseen-command-xyz", "response": "Command 'definitely-unseen-command-xyz' not found, did you mean:\n\n  command 'xyz' from deb xyz-package (not installed)\n\nTry: sudo apt install <deb name>"}

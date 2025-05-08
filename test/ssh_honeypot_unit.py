@@ -51,62 +51,63 @@ def wait_for_ssh(port: int, timeout: int = 30) -> bool:
     return False
 
 
+import pytest
+import paramiko
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+from src.infra.honeypot_wrapper import create_honeypot
+
+
 @pytest.fixture
-def honeypot() -> Generator[SSHHoneypot, None, None]:
-    """Fixture with proper resource cleanup"""
-    hp = SSHHoneypot(port=0)
+def ssh_honeypot(tmp_path: Path):
+    """Fixture to create and start SSH honeypot with mock LLM fallback."""
+    data_file = tmp_path / "data.jsonl"
 
-    # ✅ Inject mock data_handler
-    hp.data_handler = MagicMock()
-    hp.data_handler.get_data.return_value = None  # or some default string if needed
+    config = {
+        "type": "ssh",
+        "port": 0,
+        "data_file": str(data_file),
+        "system_prompt": "You are a Linux terminal emulator.",
+        "model_id": "test-model"
+    }
 
-    try:
-        hp.start()
-        assert wait_for_ssh(hp.port), "Honeypot failed to become responsive"
-        yield hp
-    finally:
-        hp.stop()
-        time.sleep(1)  # Allow for cleanup
+    # Patch invoke_llm before creating the honeypot
+    with patch("src.infra.honeypot_wrapper.invoke_llm", return_value="Mocked LLM response\n"):
+        honeypot = create_honeypot(config)
+        honeypot.start()
+        time.sleep(0.1)
+        yield honeypot
+        honeypot.stop()
 
-@patch("src.ssh_honeypot.invoke_llm", return_value="Mocked LLM response\n")
-def test_basic_command_execution(mock_llm, honeypot: SSHHoneypot) -> None:
-    """Test basic command execution using a mocked LLM response"""
+
+def test_basic_command_execution(ssh_honeypot):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    try:
-        client.connect(
-            'localhost',
-            port=honeypot.port,
-            username='test',
-            password='test',
-            timeout=10,
-            banner_timeout=10,
-            auth_timeout=10
-        )
+    client.connect("localhost", port=ssh_honeypot.port, username="test", password="test")
 
-        # Test command execution
-        transport = client.get_transport()
-        channel = transport.open_session()
-        channel.exec_command("test-command")
-        output = b""
-        start = time.time()
-        while time.time() - start < 5:
-            if channel.recv_ready():
-                output += channel.recv(1024)
-            if channel.exit_status_ready():
-                break
-            time.sleep(0.1)
+    transport = client.get_transport()
+    channel = transport.open_session()
+    channel.exec_command("test-command")
 
-        decoded = output.decode()
-        assert 'command not found' in decoded
-        assert channel.recv_exit_status() == 0
+    output = b""
+    start = time.time()
+    while time.time() - start < 5:
+        if channel.recv_ready():
+            output += channel.recv(1024)
+        if channel.exit_status_ready():
+            break
+        time.sleep(0.1)
 
-    finally:
-        client.close()
+    decoded = output.decode()
+    assert "Mocked LLM response" in decoded
+    assert channel.recv_exit_status() == 0
+    client.close()
 
 
-def test_interactive_shell(honeypot: SSHHoneypot) -> None:
+def test_interactive_shell(ssh_honeypot) -> None:
     """Test interactive shell with more resilient approach"""
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -114,7 +115,7 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
     try:
         client.connect(
             'localhost',
-            port=honeypot.port,
+            port=ssh_honeypot.port,
             username='user',
             password='pass',
             timeout=10,
@@ -145,20 +146,20 @@ def test_interactive_shell(honeypot: SSHHoneypot) -> None:
             if channel.recv_ready():
                 output += channel.recv(1024)
 
-        assert b'file1.txt' in output or b'ls: command not found' in output
+        assert b'file1.txt' in output or b'Mocked LLM response\n\r\nuser@honeypot:~$ ' in output
 
     finally:
         client.close()
 
 
-def test_invalid_auth_logging(honeypot: SSHHoneypot, caplog: pytest.LogCaptureFixture) -> None:
+def test_invalid_auth_logging(ssh_honeypot, caplog: pytest.LogCaptureFixture) -> None:
     """Test if invalid auth attempts are logged."""
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(
             HOSTNAME,
-            port=honeypot.port,
+            port=ssh_honeypot.port,
             username='invalid',
             password='invalid',
             timeout=5
@@ -171,7 +172,7 @@ def test_invalid_auth_logging(honeypot: SSHHoneypot, caplog: pytest.LogCaptureFi
     assert "Authentication: invalid:invalid" in caplog.text
 
 
-def test_concurrent_connections(honeypot: SSHHoneypot):
+def test_concurrent_connections(ssh_honeypot):
     """Test 2 simultaneous connections with proper output handling."""
     clients: List[paramiko.SSHClient] = []
 
@@ -181,7 +182,7 @@ def test_concurrent_connections(honeypot: SSHHoneypot):
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(
                 'localhost',
-                port=honeypot.port,
+                port=ssh_honeypot.port,
                 username=f"user_{i}",
                 password="pass",
                 timeout=10,
@@ -209,8 +210,8 @@ def test_concurrent_connections(honeypot: SSHHoneypot):
         ls_output = exec_and_read(clients[1], "ls")
 
         # Verify responses
-        assert "root" in whoami_output or "command not found" in whoami_output
-        assert "file1.txt" in ls_output or "command not found" in ls_output
+        assert "root" in whoami_output or "Mocked LLM response\n\n" in whoami_output
+        assert "file1.txt" in ls_output or "Mocked LLM response\n\n" in ls_output
 
     finally:
         # Forcefully close all connections
