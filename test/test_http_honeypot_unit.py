@@ -6,7 +6,7 @@ from http_honeypot import HTTPHoneypot
 from honeypot_utils import allocate_port, init_env_from_file
 from playwright.sync_api import sync_playwright
 
-from honeypots.php_my_admin.php_my_admin import PhpMyAdminHoneypot
+from test.honeypots.php_my_admin.php_my_admin import PhpMyAdminHoneypot
 import time
 import requests
 
