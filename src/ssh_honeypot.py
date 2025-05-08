@@ -189,7 +189,7 @@ class SSHHoneypot:
 
 # ----------------- Entrypoint -----------------
 if __name__ == "__main__":
-    DATA_FILE = "honeypots/ssh/data.jsonl"
+    DATA_FILE = "../test/honeypots/ssh/data.jsonl"
     SYSTEM_PROMPT = "You are a Linux terminal. Respond to shell commands accordingly."
     MODEL_ID = "anthropic.claude-instant-v1"
 
