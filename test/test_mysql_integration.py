@@ -104,7 +104,6 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
         "model_id": "mock-model"
     }
 
-    # Create a mock data handler object with get_data method
     class MockDataHandler:
         def sync_get(self, query):
             query = query.strip().rstrip(";").upper()
@@ -112,39 +111,22 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
                 return {
                     "columns": ["id", "name", "email"],
                     "rows": [
-                        (1, "person5", "person5@example.com"),
-                        (2, "person6", "person6@example.com")
+                        [1, "person5", "person5@example.com"],
+                        [2, "person6", "person6@example.com"]
                     ]
                 }
-            # Remove the SHOW DATABASES part entirely to avoid error
-            # elif query == "SHOW DATABASES":
-            #     return {
-            #         "columns": ["Database"],
-            #         "rows": [('testdb',), ('information_schema',)]
-            #     }
 
         def handle_query(self, query):
             response = self.sync_get(query)
-
             columns = response.get("columns", [])
             rows = response.get("rows", [])
+            rows = [tuple(r) for r in rows]  # normalize to tuple format
+            return {"columns": columns, "rows": rows}
 
-            # Normalize to list of tuples
-            if isinstance(rows, tuple):
-                rows = [rows]
-            elif isinstance(rows, list):
-                rows = [tuple(r) for r in rows]  # in case they're inner lists
-
-            return {
-                "columns": columns,
-                "rows": rows,
-            }
-
-    # Create and start the honeypot with the mock data handler injected
     honeypot = create_honeypot(config, command_handler=MockDataHandler())
 
     honeypot.start()
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.1)  # Let it initialize
 
     try:
         conn = await aiomysql.connect(
@@ -153,19 +135,16 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
             user="test",
             password="123",
             db="testdb",
-            connect_timeout=5,
+            connect_timeout=5
         )
 
         async with conn.cursor() as cursor:
-            # Test the SELECT query only
             await cursor.execute("SELECT * FROM users")
             result = await cursor.fetchall()
-
-            # Check the result
             assert list(result) == [
                 (1, "person5", "person5@example.com"),
                 (2, "person6", "person6@example.com")
             ]
-
     finally:
+        conn.close()
         honeypot.stop()
