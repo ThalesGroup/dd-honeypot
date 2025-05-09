@@ -2,34 +2,40 @@ import time
 import paramiko
 from pathlib import Path
 from src.infra.honeypot_wrapper import create_honeypot
+from src.infra.data_handler import DataHandler
 
 
 def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
-    # Setup config with temporary data file and mock model
+    # Temporary file for command caching
     data_file = tmp_path / "data.jsonl"
+
+    # Mock function to replace real LLM call
+    def mock_invoke_llm(system_prompt, user_prompt, model_id):
+        return "Mocked SSH response"
+
+    # Create a DataHandler with mock LLM
+    action = DataHandler(
+        data_file=str(data_file),
+        system_prompt="You are a Linux terminal emulator.",
+        model_id="test-model",
+        invoke_fn=mock_invoke_llm  # Inject the mock
+    )
+
+    # Use manual config and injection
     config = {
         "type": "ssh",
         "port": 0,
         "data_file": str(data_file),
         "system_prompt": "You are a Linux terminal emulator.",
-        "model_id": "test-model"  # Will be used by mock later
+        "model_id": "test-model"
     }
 
-    # Patch the actual LLM to return predictable output
-    def mock_invoke_llm(system_prompt, user_prompt, model_id):
-        return "Mocked SSH response"
-
-    # Monkey patch inside wrapper before creating honeypot
-    import src.infra.honeypot_wrapper as wrapper
-    wrapper.invoke_llm = mock_invoke_llm
-
-    # Create honeypot using new wrapper
-    honeypot = create_honeypot(config)
+    # Create honeypot with injected action
+    honeypot = create_honeypot(config, invoke_fn=mock_invoke_llm)
     honeypot.start()
     time.sleep(0.1)
 
     try:
-        # Connect via SSH
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect("localhost", port=honeypot.port, username="testuser", password="testpass")

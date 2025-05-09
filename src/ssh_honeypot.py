@@ -1,40 +1,26 @@
-# src/ssh_honeypot.py
 import logging
 import os
 import socket
 import threading
 import time
-import uuid
-from pathlib import Path
 
 import paramiko
 from paramiko import Transport, RSAKey
 from paramiko.ssh_exception import SSHException
 
-# ----------------- Logging Configuration -----------------
-log_dir = Path(__file__).parent.parent / 'logs'
-log_dir.mkdir(exist_ok=True)
-log_file = log_dir / 'honeypot.log'
+from src.base_honeypot import BaseHoneypot, HoneypotSession
+from src.infra.interfaces import HoneypotAction  # Define this interface
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
-
-# ----------------- Server Interface -----------------
 class SSHServerInterface(paramiko.ServerInterface):
-    def __init__(self, command_handler=None):
-        self.auth_method = None
+    def __init__(self, action: HoneypotAction):
         self.username = None
-        self.command_handler = command_handler
+        self.session = None
+        self.action = action
 
     def check_auth_password(self, username, password):
         logging.info(f'Authentication: {username}:{password}')
         self.username = username
+        self.session = self.action.connect({"username": username, "password": password})
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_request(self, kind, chanid):
@@ -43,8 +29,8 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
-        response = self.command_handler(command_str) if self.command_handler else "command not found"
-        channel.send(response + "\n")
+        response = self.action.query(command_str, self.session)
+        channel.send(str(response) + "\n")
         channel.send_exit_status(0)
         return True
 
@@ -57,7 +43,7 @@ class SSHServerInterface(paramiko.ServerInterface):
 
     def handle_shell(self, channel):
         try:
-            channel.send("Welcome to SSH Server (Type 'help' for available commands)\r\n")
+            channel.send("Welcome to SSH Server\r\n")
             prompt = f"{self.username}@honeypot:~$ "
 
             while not channel.closed:
@@ -82,10 +68,10 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.info(f"Shell command: {command}")
 
                 if command.lower() in ['exit', 'quit']:
-                    channel.send("Connection closed. Goodbye!!\r\n")
+                    channel.send("Connection closed.\r\n")
                     break
 
-                response = self.command_handler(command) if self.command_handler else f"{command}:command not found"
+                response = self.action.query(command, self.session)
                 channel.send(response + "\r\n")
 
         except Exception as e:
@@ -93,11 +79,10 @@ class SSHServerInterface(paramiko.ServerInterface):
         finally:
             channel.close()
 
-# ----------------- Honeypot Core -----------------
-class SSHHoneypot:
-    def __init__(self, port=0, command_handler=None):
-        self.port = port
-        self.command_handler = command_handler
+class SSHHoneypot(BaseHoneypot):
+    def __init__(self, port=0, action: HoneypotAction = None):
+        super().__init__(port)
+        self.action = action
         self.server_socket = None
         self.running = False
         self.host_key = self._load_host_key()
@@ -141,7 +126,7 @@ class SSHHoneypot:
             transport = Transport(client_socket)
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.add_server_key(self.host_key)
-            transport.start_server(server=SSHServerInterface(self.command_handler))
+            transport.start_server(server=SSHServerInterface(self.action))
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 30):
@@ -149,10 +134,8 @@ class SSHHoneypot:
                 if channel:
                     channel.event.wait()
 
-        except SSHException as e:
+        except (SSHException, Exception) as e:
             logging.error(f"SSH error: {e}")
-        except Exception as e:
-            logging.error(f"Connection error: {e}")
         finally:
             if transport:
                 transport.close()
