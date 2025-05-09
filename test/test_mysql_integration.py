@@ -55,7 +55,7 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
                 }
             return None
 
-    honeypot = create_honeypot(config, command_handler=MockDataHandler())
+    honeypot = create_honeypot(config, invoke_fn=MockDataHandler)
     honeypot.start()
     await asyncio.sleep(0.2)
 
