@@ -115,6 +115,18 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
                         [2, "person6", "person6@example.com"]
                     ]
                 }
+            return None  # Ensure we return None if no match
+
+        async def get_data(self, query):
+            # Async interface expected by the honeypot
+            response = self.sync_get(query)
+            if not response:
+                return None
+
+            columns = response.get("columns", [])
+            rows = [tuple(r) for r in response.get("rows", [])]  # normalize
+
+            return {"columns": columns, "rows": rows}
 
         def handle_query(self, query):
             response = self.sync_get(query)
