@@ -21,7 +21,7 @@ def create_honeypot(config: dict, invoke_fn=None, action=None):
     system_prompt = config.get("system_prompt", "You are a server emulator.")
     port = config.get("port", 0)
 
-    # Use provided action if given; otherwise construct default DataHandler
+    #Use provided action if given; otherwise construct default DataHandler
     if action is None:
         action = DataHandler(
             data_file=str(data_file),

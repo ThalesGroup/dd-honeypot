@@ -15,7 +15,6 @@ import asyncio
 from pymysql.err import OperationalError
 from src.mysql_honeypot import MySession  # Import your session class
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
-from src.mysql_honeypot import MySqlMimicHoneypot
 from src.infra.honeypot_wrapper import create_honeypot  # Assuming create_honeypot is in honeypot_wrapper
 
 logger = logging.getLogger(__name__)

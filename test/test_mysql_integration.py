@@ -75,13 +75,13 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
                 "error_message": "No valid handler for query"
             })
 
-    # Use SSH-style honeypot creation
+    #Use SSH-style honeypot creation
     honeypot = create_honeypot(config, invoke_fn=mock_invoke_llm)
     honeypot.start()
     await asyncio.sleep(0.5)  # Increased delay
 
     try:
-        # Establish a connection to the honeypot
+        #Establish a connection to the honeypot
         conn = await aiomysql.connect(
             host="127.0.0.1",
             port=HONEYPOT_PORT,
