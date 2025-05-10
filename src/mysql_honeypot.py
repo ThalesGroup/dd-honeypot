@@ -3,17 +3,20 @@ import hashlib
 import threading
 import socket
 import time
+import uuid
 from functools import partial
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import os
+
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
-from src.base_honeypot import BaseHoneypot
+from src.base_honeypot import BaseHoneypot, HoneypotSession
 from mysql_mimic.errors import MysqlError, ErrorCode
 import json
 import logging
 from pathlib import Path
 from src.llm_utils import invoke_llm
+from src.infra.interfaces import HoneypotAction  # Make sure this is imported
 
 
 def setup_logging():
@@ -62,44 +65,54 @@ def load_config(config_file: Path):
         logger.error(f"Failed to load config file {config_file}: {e}")
         return {}
 
-
 class MySession(Session):
-    def __init__(self, data_handler=None, *args, **kwargs):
-        self.data_handler = data_handler  # Accept data_handler as part of session init
+    def __init__(self, data_handler=None, action: HoneypotAction = None, *args, **kwargs):
+        self.data_handler = data_handler
+        self.action = action
+        self.honeypot_session: Optional[HoneypotSession] = None
+
+        # Generate a unique session ID
+        self.session_id = str(uuid.uuid4())
+
         super().__init__(*args, **kwargs)
 
-        # Load LLM Config from MySQL honeypot config file
+        # Determine client address
+        self.client_address = kwargs.get("address") or (args[1] if len(args) > 1 else "unknown")
+
+        # Log or use session_id if needed
+        logger.info(f"New session created: {self.session_id} from client {self.client_address}")
+
+        if self.action:
+            self.honeypot_session = self.action.connect({"client": str(self.client_address)})
+
         self.config_file = Path(__file__).parent / ".." / "test" / "honeypots" / "mysql" / "config.json"
         self.config = load_config(self.config_file)
 
-        # Set model_id and system_prompt from config file
         self.model_id = self.config.get("model_id", "default_model_id")
         self.system_prompt = self.config.get("system_prompt",
                                              "You are a MySQL server emulator. Only output valid MySQL query results formatted in JSON.")
 
-        # Set data.jsonl path
         self.data_file = Path(__file__).parent / ".." / "test" / "honeypots" / "mysql" / "data.jsonl"
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Load cache
         self.query_response_cache = self.load_existing_data()
 
     async def command_handler(self, sql: str):
-        # Normalize SQL for matching
         normalized = " ".join(sql.strip().rstrip(";").upper().split())
 
-        # First check if it's in the cache
+        # Return cached result if exists
         if normalized in self.query_response_cache:
             return self.query_response_cache[normalized]["rows"], self.query_response_cache[normalized]["columns"]
 
-        # If no cache and no data_handler, raise error
-        if not self.data_handler:
+        # If no data_handler, try using action.query
+        if self.action and self.honeypot_session:
+            response_str = await self.action.query(query=sql, session=self.honeypot_session)
+            response = json.loads(response_str)
+        elif self.data_handler:
+            response = await self.data_handler.get_data(query=sql)
+        else:
             raise MysqlError("No valid handler for query", ErrorCode.UNKNOWN_ERROR)
 
-        # Use DataHandler to get response
-        response = await self.data_handler.get_data(query=sql)
-
-        # Cache the new response
         self.query_response_cache[normalized] = response
         self.save_response_to_data_file(normalized, response)
 
@@ -157,7 +170,9 @@ class MySession(Session):
     # Handle incoming queries
     async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
         logger.info(f"Handling query: {sql}")
-        sql = sql.strip().upper()
+
+        # Normalize the query: trim, remove semicolon, and uppercase
+        sql = sql.strip().rstrip(";").upper()
 
         # Example of hardcoded responses
         if attrs.get("user") == "attacker":
@@ -170,8 +185,14 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
         # Delegate to the command handler for other queries
-        response = await self.command_handler(sql)
-        return response
+        response = await self.action.query(query=sql,session_id=self.honeypot_session)
+        if isinstance(response, str):
+            response = json.loads(response)
+
+        if isinstance(response, dict) and "columns" in response and "rows" in response:
+            return response["rows"], response["columns"]
+
+        raise MysqlError("No valid handler for query")
 
     async def get_or_generate_response(self, query: str) -> str:
         query = query.strip()
@@ -224,13 +245,13 @@ class AllowAllIdentityProvider(IdentityProvider):
 
 
 class MySqlMimicHoneypot(BaseHoneypot):
-    def __init__(self, port: int = None, command_handler=None, identity_provider=None, **kwargs):
+    def __init__(self, port, action=None,command_handler=None, identity_provider=None, **kwargs):
         super().__init__(port)
         self.command_handler = command_handler  # Shared command handler for queries
         self.identity_provider = identity_provider or AllowAllIdentityProvider()
 
         # Session factory is now partial with command_handler
-        session_factory = partial(MySession, data_handler=self.command_handler)
+        session_factory = partial(MySession, data_handler=self.command_handler,action=action)
 
         # Create the MySQL server with the session factory and identity provider
         self.server = MysqlServer(
@@ -244,39 +265,29 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     def start(self):
         """Start honeypot in a background thread and wait for readiness."""
-        setup_logging()
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
         self._wait_for_server_ready()
 
     def run(self):
-        from mysql_mimic.stream import ConnectionClosed  # avoid global import
-        import socket  # <-- needed to catch socket errors
+        """Run the server with asyncio event loop."""
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-        original_cb = self.server._client_connected_cb
-
-        async def safe_cb(reader, writer):
-            try:
-                await original_cb(reader, writer)
-            except (ConnectionClosed, ConnectionResetError, OSError, socket.error):
-                # These are expected when clients disconnect abruptly
-                logger.debug("Client disconnected (handled gracefully)")
-            except Exception:
-                logger.exception("Unhandled exception in client_connected_cb")
-        self.server._client_connected_cb = safe_cb
         try:
             async def start_server():
                 await self.server.start_server(host="127.0.0.1", port=self.port)
                 logger.info(f"Server started on port {self.port}")
+
             self.loop.run_until_complete(start_server())
             self.loop.run_forever()
         except Exception as e:
             logger.error(f"Error starting server: {e}")
         finally:
             self.loop.close()
+
     def _wait_for_server_ready(self, retries=10, delay=0.5):
+        """Wait for the server to be ready by checking the connection."""
         for _ in range(retries):
             try:
                 with socket.create_connection(("127.0.0.1", self.port), timeout=1):
@@ -285,20 +296,28 @@ class MySqlMimicHoneypot(BaseHoneypot):
             except (ConnectionRefusedError, OSError):
                 time.sleep(delay)
         raise TimeoutError("Honeypot did not start within timeout.")
+
     def stop(self):
+        """Stop the honeypot server."""
         if self.loop:
             self.loop.call_soon_threadsafe(self._stop_server)
         if self.thread:
             self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
+
     def _stop_server(self):
+        """Gracefully stop the server."""
         async def shutdown():
             if self.server:
                 await self.server.stop()
+
             current_task = asyncio.current_task(loop=self.loop)
             pending = [t for t in asyncio.all_tasks(loop=self.loop) if t is not current_task and not t.done()]
+
             for task in pending:
                 task.cancel()
+
             await asyncio.gather(*pending, return_exceptions=True)
             self.loop.stop()
+
         asyncio.run_coroutine_threadsafe(shutdown(), self.loop)
