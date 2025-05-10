@@ -155,11 +155,8 @@ def test_real_mysql_basic_operations():
         pytest.skip(f"Skipping real DB test due to error: {str(e)}")
 
 def test_honeypot_connection_mysql_connector():
-    config_path = Path("honeypots/mysql/config.json")  # or the correct relative path
-    with open(config_path) as f:
-        config = json.load(f)
 
-    honeypot = create_honeypot(config=config)
+    honeypot = create_honeypot(config={"type": "mysql"})
     honeypot.start()
     time.sleep(1)
 
