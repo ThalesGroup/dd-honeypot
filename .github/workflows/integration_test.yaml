@@ -48,4 +48,4 @@ jobs:
       - name: Run integration tests
         run: |
           source .venv/bin/activate
-          PYTHONPATH=src python -m pytest --color=yes test/test_honeypot_utils_integration.py
+          PYTHONPATH=src:test python -m pytest --color=yes test/test_honeypot_utils_integration.py
