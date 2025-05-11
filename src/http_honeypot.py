@@ -19,6 +19,7 @@ def http_honeypot_request(path: str, r: Request) -> Response:
     logger.info(f"Body: {r.data.decode('utf-8') if r.data else 'No body'}")
     return Response("Request logged", 200)
 
+
 class HTTPHoneypot(BaseHoneypot):
     def __init__(
         self,
@@ -35,14 +36,13 @@ class HTTPHoneypot(BaseHoneypot):
         def handle_session():
             if "h_session" not in session:
                 h_session = HoneypotSession()
-                h_session.set_info("client_ip", request.remote_addr)
-                session["h_session"] = h_session.to_dict() if hasattr(h_session, "to_dict") else dict(
-                    h_session.__dict__)
+                h_session["client_ip"] = request.remote_addr
+                session["h_session"] = h_session
                 logger.info("New session detected")
                 logger.info(f"Session data: {dict(session)}")
             else:
                 h_session = session["h_session"]
-                logger.info(f"Existing session. Id: {h_session.get_info('session_id')}")
+                logger.info(f"Existing session. Id: {h_session['session_id']}")
 
         @self.app.route(
             "/",
@@ -71,6 +71,7 @@ class HTTPHoneypot(BaseHoneypot):
             # Handle 500 error
             logger.error(f"500 error: {error}")
             return Response("Internal Server Error", 500)
+
     def start(self):
         def run_app():
             self.app.run(

@@ -50,7 +50,6 @@ def set_evn():
 
 
 def test_basic_http_request(http_honeypot):
-    http_honeypot.connect({})
     wait_for_http_service(http_honeypot.port, "/path")
     requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
     response = requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
@@ -59,7 +58,6 @@ def test_basic_http_request(http_honeypot):
 
 
 def test_php_my_admin(php_my_admin):
-    php_my_admin.connect({})
     wait_for_http_service(php_my_admin.port, "/path")
     requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
     response = requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
