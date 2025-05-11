@@ -1,12 +1,13 @@
-name: Run Tests
-on: [push, workflow_dispatch]
+name: Run LLM integration Tests
+on: [workflow_dispatch]
 jobs:
-  test:
+  llm-test:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
+      id-token: write
       actions: read
-      id-token: read
 
     steps:
       - name: Checkout
@@ -38,7 +39,13 @@ jobs:
           pip install -r requirements.txt
           pip install -r test/test.requirements.txt
 
-      - name: Run unit tests
+      - name: Get AWS Permissions
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/dd-honeypot-github-role-for-bedrock-invoke
+          aws-region: us-east-1
+
+      - name: Run integration tests
         run: |
           source .venv/bin/activate
-          PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
+          PYTHONPATH=src python -m pytest --color=yes test/test_honeypot_utils_integration.py
