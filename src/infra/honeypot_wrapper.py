@@ -1,12 +1,12 @@
 import json
 import logging
+import os.path
 from pathlib import Path
 
+from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
-from src.infra.data_handler import DataHandler
-from src.ssh_honeypot import SSHHoneypot
-from src.mysql_honeypot import MySqlMimicHoneypot
+from infra.data_handler import DataHandler
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,12 @@ def create_honeypot(config: dict, invoke_fn=None):
 
     # Build protocol-specific honeypot
     if honeypot_type == "ssh":
+        from ssh_honeypot import SSHHoneypot
+
         return SSHHoneypot(port=port, action=action)
     elif honeypot_type == "mysql":
+        from mysql_honeypot import MySqlMimicHoneypot
+
         return MySqlMimicHoneypot(port=port, action=action)
     elif honeypot_type == "phpMyAdmin":
         return HTTPHoneypot(port=port, action=action)
@@ -50,10 +54,11 @@ def create_honeypot(config: dict, invoke_fn=None):
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
 
-def create_honeypot_from_file(file_path: str):
+def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
     """
-    Load honeypot config from a JSON file and call create_honeypot
+    Load honeypot by a folder containing honeypot configuration and data
     """
-    with open(file_path, "r") as f:
+    with open(os.path.join(folder_path, "config.json")) as f:
         config = json.load(f)
+    config["data_file"] = os.path.join(folder_path, "data.jsonl")
     return create_honeypot(config)

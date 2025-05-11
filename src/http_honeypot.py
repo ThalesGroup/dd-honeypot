@@ -82,6 +82,8 @@ class HTTPHoneypot(BaseHoneypot):
             return Response("Internal Server Error", 500)
 
     def start(self):
+        logger.info(f"Starting honeypot on port {self.port}")
+
         def run_app():
             self.app.run(
                 host="127.0.0.1", port=self.port, debug=False, use_reloader=False
@@ -93,3 +95,4 @@ class HTTPHoneypot(BaseHoneypot):
     def stop(self):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1)
+        logger.info(f"Stopping honeypot on port {self.port}")

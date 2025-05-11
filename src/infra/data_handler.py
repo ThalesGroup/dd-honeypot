@@ -1,10 +1,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Set, Optional
+from typing import List, Optional
 
-from src.infra.interfaces import HoneypotAction, HoneypotSession
-from src.llm_utils import invoke_llm
+from infra.interfaces import HoneypotAction, HoneypotSession
+from llm_utils import invoke_llm
 
 
 class DataHandler(HoneypotAction):

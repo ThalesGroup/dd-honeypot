@@ -1,7 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from src.honeypot_utils import allocate_port
+from honeypot_utils import allocate_port
 
 
 class HoneypotSession(dict):
@@ -45,3 +45,11 @@ class BaseHoneypot(ABC):
         Stop the honeypot and release all resources
         """
         raise NotImplementedError()
+
+    # noinspection PyMethodMayBeStatic
+    def is_running(self) -> bool:
+        """
+
+        :return: True if the honeypot is running, False otherwise
+        """
+        return True
