@@ -23,7 +23,7 @@ class HoneypotAction(ABC):
         """
         raise NotImplementedError()
 
-    def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
+    def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
         """
         execute a request on the honeypot. Request can be for example an HTTP request, or a command to execute
         :param info: request information

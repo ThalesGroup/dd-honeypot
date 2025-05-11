@@ -1,19 +1,28 @@
+import os.path
 from typing import Generator
 
 import pytest
 
+from base_honeypot import HoneypotSession
+from conftest import get_config, get_honeypots_folder
 from http_honeypot import HTTPHoneypot
-from honeypot_utils import allocate_port, init_env_from_file
+from honeypot_utils import init_env_from_file
 from playwright.sync_api import sync_playwright
 
-from test.honeypots.php_my_admin.php_my_admin import PhpMyAdminHoneypot
 import time
 import requests
+
+from infra.honeypot_wrapper import create_honeypot
+from infra.interfaces import HoneypotAction
 
 
 @pytest.fixture
 def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
-    honeypot = HTTPHoneypot(allocate_port())
+    class TestHTTPDataHandler(HoneypotAction):
+        def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
+            return "Request logged"
+
+    honeypot = HTTPHoneypot(action=TestHTTPDataHandler())
     try:
         honeypot.start()
         yield honeypot
@@ -35,7 +44,11 @@ def wait_for_http_service(port, path="/", timeout=5):
 
 @pytest.fixture
 def php_my_admin() -> Generator[HTTPHoneypot, None, None]:
-    honeypot = PhpMyAdminHoneypot(allocate_port())
+    config = get_config("php_my_admin")
+    config["data_file"] = os.path.join(
+        get_honeypots_folder(), "php_my_admin", "data.jsonl"
+    )
+    honeypot = create_honeypot(config)
     try:
         honeypot.start()
         yield honeypot
@@ -43,16 +56,10 @@ def php_my_admin() -> Generator[HTTPHoneypot, None, None]:
         honeypot.stop()
 
 
-@pytest.fixture(autouse=True, scope="module")
-def set_evn():
-    init_env_from_file()
-    yield
-
-
 def test_basic_http_request(http_honeypot):
-    wait_for_http_service(http_honeypot.port, "/path")
-    requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
-    response = requests.get(f"http://127.0.0.1:{http_honeypot.port}/path")
+    response = requests.get(
+        f"http://127.0.0.1:{http_honeypot.port}/path", headers={"Accept": "text/html"}
+    )
     assert response.status_code == 200
     assert "Request logged" in response.text
 
@@ -67,6 +74,8 @@ def test_php_my_admin(php_my_admin):
 
 @pytest.mark.skip(reason="Playwright is not installed in the CI environment")
 def test_webdriver_http_request(php_my_admin):
+    init_env_from_file()
+
     def log_request(request):
         # Filter for types that are usually triggered directly
         if request.resource_type in ["document", "xhr", "fetch"]:

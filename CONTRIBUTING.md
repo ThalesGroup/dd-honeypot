@@ -38,7 +38,7 @@ python -m venv venv && source venv/bin/activate && pip install --upgrade pip && 
 
 To run all the unit tests locally, use the following command:
 ```sh
-PYTHONPATH=src python -m pytest --color=yes test/*_unit.py
+PYTHONPATH=src:test python -m pytest --color=yes test/*_unit.py
 ```
 Unit tests also run automatically on every push using a dedicated workflow.
 
@@ -54,7 +54,7 @@ AWS_REGION=YOUR_REGION
 Then, to run all the integration tests locally, use the following command:
 
 ```sh
-PYTHONPATH=src python -m pytest --color=yes test/*_integration.py
+PYTHONPATH=src:test python -m pytest --color=yes test/*_integration.py
 ```
 
 ### Issues management
