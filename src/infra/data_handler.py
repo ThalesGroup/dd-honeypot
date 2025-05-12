@@ -3,19 +3,19 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from infra.interfaces import HoneypotAction, HoneypotSession
-from llm_utils import invoke_llm
+from src.infra.interfaces import HoneypotAction, HoneypotSession
+from src.llm_utils import invoke_llm
 
 
 class DataHandler(HoneypotAction):
     def __init__(
-        self, data_file: str, system_prompt: str, model_id: str, invoke_fn=invoke_llm
+        self, data_file: str, system_prompt: str, model_id: str
     ):
         self.data_file = Path(data_file)
         self.hints_file = Path(data_file.replace("data", "hints"))
         self.system_prompt = system_prompt
         self.model_id = model_id
-        self.invoke_fn = invoke_fn
+        self.invoke_fn = invoke_llm
 
         self.commands = self._load_data()
         self.hints = self._load_hints()

@@ -1,64 +1,73 @@
 import json
 import logging
-import os.path
+import os
 from pathlib import Path
 
-from base_honeypot import BaseHoneypot
-from http_data_handlers import HTTPDataHandler
-from http_honeypot import HTTPHoneypot
-from infra.data_handler import DataHandler
+from src.base_honeypot import BaseHoneypot
+from src.http_data_handlers import HTTPDataHandler
+from src.http_honeypot import HTTPHoneypot
+from src.infra.data_handler import DataHandler
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL_ID = "anthropic.claude-instant-v1"
 
-
-def create_honeypot(config: dict, invoke_fn=None):
+def create_honeypot(config: dict) -> BaseHoneypot:
     """
     Create a honeypot from a config dictionary.
-    Expected keys: type, data_file, model_id, system_prompt, port
+    Required keys: type, data_file, model_id, system_prompt, port
     """
-    if "type" not in config:
-        raise ValueError("Honeypot 'type' must be specified.")
+
+    required_keys = ["type", "data_file", "model_id", "system_prompt", "port"]
+    for key in required_keys:
+        if key not in config:
+            raise ValueError(f"Missing required config key: {key}")
+
     honeypot_type = config["type"]
-    data_file = Path(config.get("data_file", "/dev/null"))
-    model_id = config.get("model_id", _DEFAULT_MODEL_ID)
-    system_prompt = config.get("system_prompt", "You are a server emulator.")
-    port = config.get("port", 0)
+    data_file = Path(config["data_file"])
+    model_id = config["model_id"]
+    system_prompt = config["system_prompt"]
+    port = config["port"]
+
+    # Ensure data file exists
+    if not data_file.exists():
+        data_file.parent.mkdir(parents=True, exist_ok=True)
+        data_file.touch()
+
+    # Choose appropriate handler
     if honeypot_type == "phpMyAdmin":
-        action = HTTPDataHandler(
-            data_file=str(data_file),
-            system_prompt=system_prompt,
-            model_id=model_id,
-        )
+        action = HTTPDataHandler(data_file=str(data_file), system_prompt=system_prompt, model_id=model_id)
     else:
-        action = DataHandler(
-            data_file=str(data_file),
-            system_prompt=system_prompt,
-            model_id=model_id,
-            invoke_fn=invoke_fn,
-        )
+        action = DataHandler(data_file=str(data_file), system_prompt=system_prompt, model_id=model_id)
 
-    # Build protocol-specific honeypot
+    # Create the appropriate honeypot instance
     if honeypot_type == "ssh":
-        from ssh_honeypot import SSHHoneypot
-
+        from src.ssh_honeypot import SSHHoneypot
         return SSHHoneypot(port=port, action=action)
-    elif honeypot_type == "mysql":
-        from mysql_honeypot import MySqlMimicHoneypot
 
+    elif honeypot_type == "mysql":
+        from src.mysql_honeypot import MySqlMimicHoneypot
         return MySqlMimicHoneypot(port=port, action=action)
+
     elif honeypot_type == "phpMyAdmin":
         return HTTPHoneypot(port=port, action=action)
+
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
 
 def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
     """
-    Load honeypot by a folder containing honeypot configuration and data
+    Load honeypot configuration and data from a folder.
+    Assumes folder contains config.json and data.jsonl
     """
-    with open(os.path.join(folder_path, "config.json")) as f:
+    config_path = os.path.join(folder_path, "config.json")
+    data_file_path = os.path.join(folder_path, "data.jsonl")
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Missing config.json in {folder_path}")
+
+    with open(config_path) as f:
         config = json.load(f)
-    config["data_file"] = os.path.join(folder_path, "data.jsonl")
+
+    config["data_file"] = data_file_path
     return create_honeypot(config)
