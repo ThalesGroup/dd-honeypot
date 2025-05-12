@@ -5,4 +5,4 @@ RUN pip install flask
 WORKDIR /app/
 COPY src/. .
 ENV PYTHONPATH "/app"
-CMD ["python", "-u", "honeypot_main.py"]
+ENTRYPOINT ["python", "-u", "honeypot_main.py"]
