@@ -57,6 +57,15 @@ Then, to run all the integration tests locally, use the following command:
 PYTHONPATH=src:test python -m pytest --color=yes test/*_integration.py
 ```
 
+### Version publication
+
+The versions of the projects are managed using git tags. To publish a new version, make sure the main branch is up-to-date and create a new tag with the version number:
+```sh
+git tag -a v0.1.0 -m "Release 0.1.0"
+git push --tags
+```
+Workflow will automatically publish the new version to the Docker repository under github container registry.
+
 ### Issues management
 
 If you find a bug or have a feature request, please create an issue in the GitHub repository. Provide as much detail as possible to help us understand and address the issue.
