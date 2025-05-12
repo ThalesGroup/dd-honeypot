@@ -38,6 +38,7 @@ jobs:
           pip install -r test/test.requirements.txt
 
       - name: Run unit tests
+        timeout-minutes: 2
         run: |
           source .venv/bin/activate
           PYTHONPATH=src:test python -m pytest --color=yes test/*_unit.py
