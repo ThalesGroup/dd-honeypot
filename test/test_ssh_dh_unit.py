@@ -1,10 +1,12 @@
 import time
+from unittest.mock import patch
+
 import paramiko
 from pathlib import Path
 from src.infra.honeypot_wrapper import create_honeypot
 from src.infra.data_handler import DataHandler
 
-
+@patch("src.infra.data_handler.invoke_llm", return_value="Mocked Response")
 def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
     # Temporary file for command caching
     data_file = tmp_path / "data.jsonl"
@@ -18,7 +20,6 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
         data_file=str(data_file),
         system_prompt="You are a Linux terminal emulator.",
         model_id="test-model",
-        invoke_fn=mock_invoke_llm  # Inject the mock
     )
 
     # Use manual config and injection
@@ -31,7 +32,7 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
     }
 
     # Create honeypot with injected action
-    honeypot = create_honeypot(config, invoke_fn=mock_invoke_llm)
+    honeypot = create_honeypot(config)
     honeypot.start()
     time.sleep(0.1)
 
@@ -53,7 +54,7 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
             time.sleep(0.1)
 
         decoded_output = output.decode().strip()
-        assert decoded_output == "Mocked SSH response"
+        assert decoded_output == "Mocked Response"
 
     finally:
         honeypot.stop()

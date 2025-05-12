@@ -88,7 +88,7 @@ class SSHHoneypot(BaseHoneypot):
         self.host_key = self._load_host_key()
 
     def _load_host_key(self):
-        key_path = "host.key"
+        key_path = "../temp/host.key"
         if not os.path.exists(key_path):
             RSAKey.generate(4096).write_private_key_file(key_path)
         return RSAKey(filename=key_path)

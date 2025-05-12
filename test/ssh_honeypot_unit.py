@@ -24,13 +24,12 @@ def ssh_honeypot(tmp_path: Path):
         "system_prompt": "You are a Linux terminal emulator.",
         "model_id": "test-model"
     }
-
-    mock_llm = MagicMock(return_value="Mocked LLM response")
-    honeypot = create_honeypot(config, invoke_fn=mock_llm)
-    honeypot.start()
-    time.sleep(0.2)
-    yield honeypot
-    honeypot.stop()
+    with patch("src.infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
+        honeypot = create_honeypot(config)
+        honeypot.start()
+        time.sleep(0.2)
+        yield honeypot
+        honeypot.stop()
 
 
 def test_basic_command_execution(ssh_honeypot):
