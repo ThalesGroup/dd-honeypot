@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from src.infra.honeypot_wrapper import create_honeypot
+from infra.honeypot_wrapper import create_honeypot
 
 logging.basicConfig(level=logging.INFO)
 

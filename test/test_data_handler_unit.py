@@ -1,12 +1,11 @@
-import os
 import json
-import pytest
+import os
 from unittest.mock import patch
-from src.infra.data_handler import DataHandler
-from src.llm_utils import invoke_llm
+
+from infra.data_handler import DataHandler
 
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Mocked LLM response")
+@patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response")
 def test_llm_response_when_not_cached(mock_llm):
     data_file = os.path.join("/tmp", "ssh.jsonl")
     handler = DataHandler(data_file, "fake system prompt", "fake_model")
@@ -19,7 +18,7 @@ def test_llm_response_when_not_cached(mock_llm):
     assert mock_llm.called
 
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Mocked Response")
+@patch("infra.data_handler.invoke_llm", return_value="Mocked Response")
 def test_returns_cached_response_first(mock_llm):
     data_file = os.path.join("/tmp", "ssh.jsonl")
 
@@ -34,7 +33,7 @@ def test_returns_cached_response_first(mock_llm):
     mock_llm.assert_not_called()
 
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Cached LLM response")
+@patch("infra.data_handler.invoke_llm", return_value="Cached LLM response")
 def test_memory_cache_is_used(mock_llm):
     data_file = os.path.join("/tmp", "ssh.jsonl")
     handler = DataHandler(data_file, "system", "model")
@@ -52,7 +51,7 @@ def test_memory_cache_is_used(mock_llm):
     assert response2 == "Cached LLM response"
     assert mock_llm.call_count == 1  # Should not call again
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Mocked LLM response for MySQL")
+@patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response for MySQL")
 def test_mysql_llm_response_when_not_cached(mock_llm):
     data_file = os.path.join("/tmp", "mysql.jsonl")
     handler = DataHandler(data_file, "fake mysql prompt", "mysql_model")
@@ -65,7 +64,7 @@ def test_mysql_llm_response_when_not_cached(mock_llm):
     assert mock_llm.called
 
 
-@patch("src.infra.data_handler.invoke_llm", return_value="ShouldNotBeCalled")
+@patch("infra.data_handler.invoke_llm", return_value="ShouldNotBeCalled")
 def test_mysql_returns_file_cache(mock_llm):
     data_file = os.path.join("/tmp", "mysql.jsonl")
 
@@ -78,7 +77,7 @@ def test_mysql_returns_file_cache(mock_llm):
     assert response == "users\norders\n"
     mock_llm.assert_not_called()
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Mocked LLM response for HTTP")
+@patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response for HTTP")
 def test_http_llm_response_when_not_cached(mock_llm):
     data_file = os.path.join("/tmp", "http.jsonl")
     handler = DataHandler(data_file, "fake http prompt", "http_model")
@@ -91,7 +90,7 @@ def test_http_llm_response_when_not_cached(mock_llm):
     assert mock_llm.called
 
 
-@patch("src.infra.data_handler.invoke_llm", return_value="ShouldNotBeCalled")
+@patch("infra.data_handler.invoke_llm", return_value="ShouldNotBeCalled")
 def test_http_returns_file_cache(mock_llm):
     data_file = os.path.join("/tmp", "http.jsonl")
 

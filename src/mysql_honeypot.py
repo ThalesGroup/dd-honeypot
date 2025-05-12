@@ -10,13 +10,13 @@ import os
 
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
-from src.base_honeypot import BaseHoneypot, HoneypotSession
+from base_honeypot import BaseHoneypot, HoneypotSession
 from mysql_mimic.errors import MysqlError, ErrorCode
 import json
 import logging
 from pathlib import Path
-from src.llm_utils import invoke_llm
-from src.infra.interfaces import HoneypotAction  # Make sure this is imported
+from llm_utils import invoke_llm
+from infra.interfaces import HoneypotAction  # Make sure this is imported
 
 
 def setup_logging():

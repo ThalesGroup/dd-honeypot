@@ -1,3 +1,4 @@
+import os
 import time
 import pytest
 import paramiko
@@ -6,8 +7,7 @@ from pathlib import Path
 from typing import List
 from unittest.mock import patch
 
-from src.infra.honeypot_wrapper import create_honeypot
-from unittest.mock import MagicMock
+from infra.honeypot_wrapper import create_honeypot
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def ssh_honeypot(tmp_path: Path):
     data_file = tmp_path / "data.jsonl"
+    key_file = tmp_path / "host.key"
+
+    os.environ["HONEYPOT_HOST_KEY"] = str(key_file)  # Tell honeypot where to write the key
 
     config = {
         "type": "ssh",
@@ -24,12 +27,13 @@ def ssh_honeypot(tmp_path: Path):
         "system_prompt": "You are a Linux terminal emulator.",
         "model_id": "test-model"
     }
-    with patch("src.infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
+    with patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
         honeypot = create_honeypot(config)
         honeypot.start()
         time.sleep(0.2)
         yield honeypot
         honeypot.stop()
+    del os.environ["HONEYPOT_HOST_KEY"]  # Cleanup
 
 
 def test_basic_command_execution(ssh_honeypot):

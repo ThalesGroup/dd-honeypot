@@ -1,21 +1,21 @@
+import asyncio
 import json
+import logging
 import os
 import socket
-import tempfile
 import threading
 import time
-import logging
 from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
-import pytest
-import pymysql
 import mysql.connector
-import asyncio
-from pymysql.err import OperationalError
-from src.mysql_honeypot import MySession  # Import your session class
+import pymysql
+import pytest
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
-from src.infra.honeypot_wrapper import create_honeypot  # Assuming create_honeypot is in honeypot_wrapper
+from pymysql.err import OperationalError
+
+from infra.honeypot_wrapper import create_honeypot  # Assuming create_honeypot is in honeypot_wrapper
+from mysql_honeypot import MySession  # Import your session class
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -44,16 +44,12 @@ def running_honeypot():
 
 """Ensures that the honeypot properly handles invalid handshakes and rejects 
 connections with the expected error messages."""
-def test_honeypot_should_fail_on_invalid_handshake():
-    honeypot = create_honeypot(config={"type": "mysql"})
-    honeypot.start()
-    time.sleep(1)
-
+def test_honeypot_should_fail_on_invalid_handshake(run_honeypot):
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
                 host="127.0.0.1",
-                port=honeypot.port,
+                port=run_honeypot.port,
                 user="test",
                 password="test",
                 database="test_db",
@@ -77,11 +73,11 @@ def test_honeypot_should_fail_on_invalid_handshake():
         ), f"Unexpected error message: {msg}"
 
     finally:
-        honeypot.stop()
+        run_honeypot.stop()
 
 """Tests real MySQL connection and query execution on an actual MySQL server."""
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
-def test_real_mysql_connection_and_query():
+def test_real_mysql_connection_and_query(run_honeypot):
     """Test a positive connection and diverse queries on real MySQL."""
     try:
         with mysql.connector.connect(
@@ -123,7 +119,7 @@ def test_real_mysql_connection_and_query():
 
 """Tests connectivity to the honeypot using both mysql-connector and pymysql libraries."""
 @pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
-def test_real_mysql_basic_operations():
+def test_real_mysql_basic_operations(run_honeypot):
     """Test basic SQL operations on real MySQL to compare expected responses."""
     try:
         conn = mysql.connector.connect(
@@ -154,16 +150,11 @@ def test_real_mysql_basic_operations():
     except Exception as e:
         pytest.skip(f"Skipping real DB test due to error: {str(e)}")
 
-def test_honeypot_connection_mysql_connector():
-
-    honeypot = create_honeypot(config={"type": "mysql"})
-    honeypot.start()
-    time.sleep(1)
-
+def test_honeypot_connection_mysql_connector(run_honeypot):
     try:
         with mysql.connector.connect(
             host="127.0.0.1",
-            port=honeypot.port,
+            port=run_honeypot.port,
             user="test",
             password="test",
             auth_plugin='mysql_native_password',
@@ -178,19 +169,16 @@ def test_honeypot_connection_mysql_connector():
     except Exception as e:
         logger.info(f"mysql-connector attempt failed, falling back to pymysql: {repr(e)}")
     finally:
-        honeypot.stop()
+        run_honeypot.stop()
 
 
 """Tests connectivity to the honeypot using both mysql-connector and pymysql libraries."""
-def test_honeypot_connection_pymysql():
-    honeypot = create_honeypot(config={"type": "mysql"})  # Change "honeypot_type" to "type"
-    honeypot.start()
-    time.sleep(1)  # Ensure server is ready
+def test_honeypot_connection_pymysql(run_honeypot):
 
     try:
         with pymysql.connect(
                 host="127.0.0.1",
-                port=honeypot.port,
+                port=run_honeypot.port,
                 user="test",
                 password="test",
                 connect_timeout=3,
@@ -204,7 +192,7 @@ def test_honeypot_connection_pymysql():
     except Exception as e:
         logger.info(f"mysql-connector attempt failed, falling back to pymysql: {repr(e)}")
     finally:
-        honeypot.stop()
+        run_honeypot.stop()
 
 
 @pytest.fixture(scope="module")
@@ -220,7 +208,7 @@ def run_honeypot():
 
     # Create the honeypot based on the provided config
     honeypot = create_honeypot(config=config)  # Ensure 'type' is always included
-    thread = threading.Thread(target=honeypot.run, daemon=True)
+    thread = threading.Thread(target=honeypot.start(), daemon=True)
     thread.start()
 
     # Wait for the honeypot to be ready
@@ -316,7 +304,7 @@ class TestLLMResponseParsing:
         assert rows[0] == ("person3", "person3@example.com")
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=MagicMock)
-    @patch('src.mysql_honeypot.logger')  # Mock the logger
+    @patch('mysql_honeypot.logger')  # Mock the logger
     async def test_llm_response_invalid_fallback(self, mock_logger, mock_llm):
         # Simulate bad LLM response with an empty string
         future = asyncio.Future()
@@ -353,7 +341,7 @@ class TestLLMResponseParsing:
         assert len(rows) == 0
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
-    @patch('src.mysql_honeypot.logger')  # Mock the logger
+    @patch('mysql_honeypot.logger')  # Mock the logger
     async def test_llm_response_invalid_data(self, mock_logger, mock_llm):
         mock_llm.return_value = "{invalid_json: true, columns: [username], rows: []}"
 
@@ -466,7 +454,7 @@ class TestLLMResponseParsing:
         assert rows[0] == ("person3", "person3@example.com")
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=MagicMock)
-    @patch('src.mysql_honeypot.logger')  # Mock the logger
+    @patch('mysql_honeypot.logger')  # Mock the logger
     async def test_llm_response_invalid_fallback(self, mock_logger, mock_llm):
         mock_llm.return_value = ""  # Simulate bad LLM response
 

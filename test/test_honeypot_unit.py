@@ -5,8 +5,8 @@ import socket
 import pytest
 
 from infra.interfaces import HoneypotAction
-from src.base_honeypot import BaseHoneypot, HoneypotSession
-from src.honeypot_utils import allocate_port
+from base_honeypot import BaseHoneypot, HoneypotSession
+from honeypot_utils import allocate_port
 
 
 logger = logging.getLogger(__name__)

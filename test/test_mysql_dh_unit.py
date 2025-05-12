@@ -1,11 +1,12 @@
+import asyncio
 import json
 import logging
-import pytest
-import aiomysql
-import asyncio
-import time
 from pathlib import Path
-from src.infra.honeypot_wrapper import create_honeypot
+
+import aiomysql
+import pytest
+
+from infra.honeypot_wrapper import create_honeypot
 
 logging.getLogger("mysql_mimic").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -76,7 +77,7 @@ async def test_mysql_honeypot_integration(tmp_path: Path):
             })
 
     #Use SSH-style honeypot creation
-    honeypot = create_honeypot(config, invoke_fn=mock_invoke_llm)
+    honeypot = create_honeypot(config)
     honeypot.start()
     await asyncio.sleep(0.5)  # Increased delay
 

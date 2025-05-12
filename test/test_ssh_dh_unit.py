@@ -3,20 +3,18 @@ from unittest.mock import patch
 
 import paramiko
 from pathlib import Path
-from src.infra.honeypot_wrapper import create_honeypot
-from src.infra.data_handler import DataHandler
+from infra.honeypot_wrapper import create_honeypot
+from infra.data_handler import DataHandler
 
-@patch("src.infra.data_handler.invoke_llm", return_value="Mocked Response")
+@patch("infra.data_handler.invoke_llm", return_value="Mocked Response")
 def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
     # Temporary file for command caching
     data_file = tmp_path / "data.jsonl"
 
     # Mock function to replace real LLM call
-    def mock_invoke_llm(system_prompt, user_prompt, model_id):
-        return "Mocked SSH response"
 
     # Create a DataHandler with mock LLM
-    action = DataHandler(
+    DataHandler(
         data_file=str(data_file),
         system_prompt="You are a Linux terminal emulator.",
         model_id="test-model",

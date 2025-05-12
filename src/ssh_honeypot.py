@@ -3,13 +3,14 @@ import os
 import socket
 import threading
 import time
+from pathlib import Path
 
 import paramiko
 from paramiko import Transport, RSAKey
 from paramiko.ssh_exception import SSHException
 
-from src.base_honeypot import BaseHoneypot, HoneypotSession
-from src.infra.interfaces import HoneypotAction  # Define this interface
+from base_honeypot import BaseHoneypot, HoneypotSession
+from infra.interfaces import HoneypotAction  # Define this interface
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction):
@@ -88,10 +89,17 @@ class SSHHoneypot(BaseHoneypot):
         self.host_key = self._load_host_key()
 
     def _load_host_key(self):
-        key_path = "../temp/host.key"
-        if not os.path.exists(key_path):
-            RSAKey.generate(4096).write_private_key_file(key_path)
-        return RSAKey(filename=key_path)
+        import os
+        from paramiko import RSAKey
+
+        key_path = os.environ.get("HONEYPOT_HOST_KEY", "host.key")
+        key_path = Path(key_path)
+
+        if not key_path.exists():
+            key_path.parent.mkdir(parents=True, exist_ok=True)
+            RSAKey.generate(4096).write_private_key_file(str(key_path))
+
+        return RSAKey(filename=str(key_path))
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

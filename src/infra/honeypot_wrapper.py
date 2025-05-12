@@ -3,10 +3,10 @@ import logging
 import os
 from pathlib import Path
 
-from src.base_honeypot import BaseHoneypot
-from src.http_data_handlers import HTTPDataHandler
-from src.http_honeypot import HTTPHoneypot
-from src.infra.data_handler import DataHandler
+from base_honeypot import BaseHoneypot
+from http_data_handlers import HTTPDataHandler
+from http_honeypot import HTTPHoneypot
+from infra.data_handler import DataHandler
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ def create_honeypot(config: dict) -> BaseHoneypot:
 
     # Create the appropriate honeypot instance
     if honeypot_type == "ssh":
-        from src.ssh_honeypot import SSHHoneypot
+        from ssh_honeypot import SSHHoneypot
         return SSHHoneypot(port=port, action=action)
 
     elif honeypot_type == "mysql":
-        from src.mysql_honeypot import MySqlMimicHoneypot
+        from mysql_honeypot import MySqlMimicHoneypot
         return MySqlMimicHoneypot(port=port, action=action)
 
     elif honeypot_type == "phpMyAdmin":
