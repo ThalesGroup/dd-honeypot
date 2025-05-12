@@ -1,5 +1,9 @@
 name: Run LLM integration Tests
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 jobs:
   llm-test:
     runs-on: ubuntu-latest
@@ -48,4 +52,4 @@ jobs:
       - name: Run integration tests
         run: |
           source .venv/bin/activate
-          PYTHONPATH=src:test python -m pytest --color=yes test/test_honeypot_utils_integration.py
+          PYTHONPATH=src:test python -m pytest --color=yes test/*_integration.py
