@@ -6,14 +6,11 @@ from llm_utils import invoke_llm
 
 class HTTPDataHandler(DataHandler):
 
-    def __init__(
-        self, data_file: str, system_prompt: str, model_id: str, invoke_fn=invoke_llm
-    ):
+    def __init__(self, data_file: str, system_prompt: str, model_id: str):
         super().__init__(
             data_file,
             "\n".join(system_prompt) + "\n".join(self.base_system_prompt()),
             model_id,
-            invoke_fn,
         )
 
     @staticmethod
