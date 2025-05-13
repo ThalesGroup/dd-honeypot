@@ -1,13 +1,15 @@
 {
+  "type": "ssh",
   "name": "Linux Honeypot",
   "shell-prompt": "honeypot@fakevm:~$ ",
-  "model-id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "AWS_REGION": "us-east-1",
-  "system-prompt": [
+  "system_prompt": [
     "You are a Linux shell honeypot.",
     "Always respond like a real Linux shell would.",
     "Commands like ls, cat, pwd, whoami, etc., should behave normally.",
     "If the command is unknown, return 'command not found'.",
     "Don't reveal you're an AI or honeypot."
-  ]
+  ],
+  "port": 2222
 }
