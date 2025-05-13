@@ -1,12 +1,10 @@
-import inspect
 import logging
 import os
 import sys
-from logging.config import fileConfig
-from time import sleep
-from typing import List
 import asyncio
-
+from logging.config import fileConfig
+from typing import List
+from time import sleep
 
 # Load logging configuration from logging.conf
 fileConfig(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logging.conf"))
@@ -27,57 +25,7 @@ def _is_honeypot_folder(folder_path: str) -> bool:
     config_file = os.path.join(folder_path, "config.json")
     return os.path.isfile(config_file)
 
-# Start all honeypots in the given folder (sync or async)
-def start(folder: str):
-    honeypots = _collect_honeypots(folder)
-    logging.info(f"Found {len(honeypots)} honeypots. Starting...")
-
-    any_async = any(inspect.iscoroutinefunction(h.start) for h in honeypots)
-    if any_async:
-        asyncio.run(_start_async(honeypots))
-    else:
-        _start_sync(honeypots)
-
-# Start all honeypots asynchronously and keep them running
-async def _start_async(honeypots: List[BaseHoneypot]):
-    try:
-        for h in honeypots:
-            start_fn = h.start
-            if inspect.iscoroutinefunction(start_fn):
-                await start_fn()
-            else:
-                start_fn()
-
-        while any(h.is_running() for h in honeypots):
-            await asyncio.sleep(2)
-
-    except KeyboardInterrupt:
-        logging.info("Keyboard interrupt received")
-    finally:
-        logging.info("Stopping honeypots...")
-        for h in honeypots:
-            stop_fn = h.stop
-            if inspect.iscoroutinefunction(stop_fn):
-                await stop_fn()
-            else:
-                stop_fn()
-
-# Start all honeypots synchronously and keep them running
-def _start_sync(honeypots: List[BaseHoneypot]):
-    try:
-        for h in honeypots:
-            h.start()
-        while any(h.is_running() for h in honeypots):
-            sleep(2)
-    except KeyboardInterrupt:
-        logging.info("Keyboard interrupt received")
-    finally:
-        logging.info("Stopping honeypots...")
-        for h in honeypots:
-            if h.is_running():
-                h.stop()
-
-# Collect and create honeypot instances from the given folder(s)
+# Collect and create honeypot instances from the given folder
 def _collect_honeypots(folder) -> List[BaseHoneypot]:
     honeypots: List[BaseHoneypot] = []
     if _has_only_subdirectories(folder):
@@ -92,22 +40,56 @@ def _collect_honeypots(folder) -> List[BaseHoneypot]:
         honeypots.append(create_honeypot_by_folder(folder))
     return honeypots
 
+# Start all honeypots asynchronously and keep them running
+async def start_async(folder: str):
+    honeypots = _collect_honeypots(folder)
+    logging.info(f"Found {len(honeypots)} honeypots. Starting...")
+    try:
+        for h in honeypots:
+            if asyncio.iscoroutinefunction(h.start):
+                await h.start()
+            else:
+                h.start()
+        while any(h.is_running() for h in honeypots):
+            await asyncio.sleep(2)
+    except KeyboardInterrupt:
+        logging.info("Keyboard interrupt received")
+    finally:
+        logging.info("Stopping honeypots...")
+        for h in honeypots:
+            if h.is_running():
+                h.stop()
+
+# Start all honeypots in the given folder (sync or async)
+def start(folder: str):
+    honeypots = _collect_honeypots(folder)
+    logging.info(f"Found {len(honeypots)} honeypots. Starting...")
+    try:
+        for h in honeypots:
+            h.start()
+        while any(h.is_running() for h in honeypots):
+            sleep(2)
+    except KeyboardInterrupt:
+        logging.info("Keyboard interrupt received")
+    finally:
+        logging.info("Stopping honeypots...")
+        for h in honeypots:
+            if h.is_running():
+                h.stop()
+
 # Entry point: initialize environment, validate folder, and start honeypots
 if __name__ == "__main__":
     init_env_from_file()
-    honeypot_folder = (
-        sys.argv[1]
-        if len(sys.argv) > 1
-        else os.path.join(os.path.dirname(__file__), "../test/honeypots")
-    )
+    honeypot_folder = sys.argv[1] if len(sys.argv) > 1 else "/data/honeypot"
 
     if not os.path.exists(honeypot_folder):
         logging.error(f"Honeypot folder does not exist: {honeypot_folder}")
         sys.exit(1)
-
     try:
         logging.info(f"Honeypots server started. Folder: {honeypot_folder}")
-        start(honeypot_folder)
+        asyncio.run(start_async(honeypot_folder))
+    except Exception as e:
+        logging.error(f"Error during honeypot startup: {e}")
     finally:
         logging.info("Honeypots server stopped")
         sys.exit(0)
