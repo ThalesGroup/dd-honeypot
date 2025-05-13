@@ -1,13 +1,14 @@
 import logging
 import threading
 import socket
+from time import sleep
 
 import pytest
 
 from infra.interfaces import HoneypotAction
 from base_honeypot import BaseHoneypot, HoneypotSession
 from honeypot_utils import allocate_port
-
+from llm_utils import InvokeLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +110,17 @@ class TestHoneypotUtils:
         port = allocate_port()
         assert isinstance(port, int)
         assert 1024 <= port <= 65535
+
+
+class TestInvokeLimiter:
+    def test_invoke_limit(self):
+        limiter = InvokeLimiter(2, 1)
+        for _ in range(2):
+            assert limiter.can_invoke("v1")
+        for _ in range(2):
+            assert not limiter.can_invoke("v1")
+        for _ in range(2):
+            assert limiter.can_invoke("v2")
+        sleep(2)
+        for _ in range(2):
+            assert limiter.can_invoke("v1")
