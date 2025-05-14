@@ -106,7 +106,7 @@ class MySession(Session):
 
         # If no data_handler, try using action.query
         if self.action and self.honeypot_session:
-            response_str = await self.action.query(query=sql, session=self.honeypot_session)
+            response_str =self.action.query(query=sql, session=self.honeypot_session)
             response = json.loads(response_str)
         elif self.data_handler:
             response = await self.data_handler.get_data(query=sql)
@@ -299,8 +299,6 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     def stop(self):
         """Stop the honeypot server."""
-        if self.loop:
-            self.loop.call_soon_threadsafe(self._stop_server)
         if self.thread:
             self.thread.join(timeout=2)
         logger.info("MySQL Honeypot stopped")
