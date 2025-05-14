@@ -49,6 +49,7 @@ class HoneypotTest(BaseHoneypot):
         while self._running:
             try:
                 client_socket, addr = self._server_socket.accept()
+                client_socket.settimeout(3)
                 logger.info(f"Connection accepted from {addr}")
                 session = self._action.connect({"client_ip": addr[0]})
                 with client_socket:
