@@ -45,6 +45,7 @@ def php_my_admin() -> Generator[BaseHoneypot, None, None]:
     config["data_file"] = os.path.join(
         get_honeypots_folder(), "php_my_admin", "data.jsonl"
     )
+    config["port"] = 8080
     honeypot = create_honeypot(config)
     try:
         honeypot.start()
