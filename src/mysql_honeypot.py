@@ -185,7 +185,7 @@ class MySession(Session):
             raise MysqlError("You have an error in your SQL syntax", ErrorCode.PARSE_ERROR)
 
         #Delegate to the command handler for other queries
-        response = await self.action.query(query=sql,session_id=self.honeypot_session)
+        response = await self.action.query(query=sql,session=self.honeypot_session)
         if isinstance(response, str):
             response = json.loads(response)
 
