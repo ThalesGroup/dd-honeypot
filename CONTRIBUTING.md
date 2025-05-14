@@ -57,6 +57,19 @@ Then, to run all the integration tests locally, use the following command:
 PYTHONPATH=src:test python -m pytest --color=yes test/*_integration.py
 ```
 
+### Building docker image and using it
+To build the docker image, use the following command from the root of the repository:
+```sh
+docker build -t dd-hoenypot .
+```
+To run the docker image, use the following command:
+```sh
+docker run -it --rm --name dd-honeypot -p 5000:80 -v $(pwd)/test/honeypots:/data/honeypot dd-hoenypot
+```
+explanation of the command:
+- `-p 5000:80`: Map port 5000 on the host to port 80 in the container. You add additional ports if needed.
+- `-v $(pwd)/test/honeypots:/data/honeypot`: Mount the local directory `test/honeypots` to `/data/honeypot` in the container. This allows you to access files in the container from your host machine. You can change the path to any other directory you want to mount.
+
 ### Version publication
 
 The versions of the projects are managed using git tags. To publish a new version, make sure the main branch is up-to-date and create a new tag with the version number:
