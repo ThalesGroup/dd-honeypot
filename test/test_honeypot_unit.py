@@ -38,7 +38,7 @@ class HoneypotTest(BaseHoneypot):
     def start(self):
         logger.info(f"Test Honeypot started on port {self.port}")
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.bind(("127.0.0.1", self.port))
+        self._server_socket.bind(("0.0.0.0", self.port))
         self._server_socket.listen(5)
         self._running = True
         self._thread = threading.Thread(target=self._accept_connections, daemon=True)
@@ -91,7 +91,7 @@ class TestBaseHoneypot:
                 data = ["hello", "world"]
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                     client_socket.settimeout(3)
-                    client_socket.connect(("127.0.0.1", honeypot.port))
+                    client_socket.connect(("0.0.0.0", honeypot.port))
                     for data_input in data:
                         # noinspection PyTypeChecker
                         client_socket.sendall(data_input.encode())
