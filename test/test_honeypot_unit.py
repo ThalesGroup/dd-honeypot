@@ -69,7 +69,7 @@ class HoneypotTest(BaseHoneypot):
             self._server_socket.close()
             self._server_socket = None
         if self._thread:
-            self._thread.join()
+            self._thread.join(timeout=3)
         logger.info("Test Honeypot stopped")
 
 
