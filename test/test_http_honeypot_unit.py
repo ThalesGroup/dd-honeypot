@@ -2,16 +2,13 @@ import os.path
 from typing import Generator
 
 import pytest
-
-from base_honeypot import HoneypotSession
-from conftest import get_config, get_honeypots_folder
-from http_honeypot import HTTPHoneypot
-from honeypot_utils import init_env_from_file
+import requests
 from playwright.sync_api import sync_playwright
 
-import time
-import requests
-
+from base_honeypot import HoneypotSession, BaseHoneypot
+from conftest import get_config, get_honeypots_folder
+from honeypot_utils import init_env_from_file
+from http_honeypot import HTTPHoneypot
 from infra.honeypot_wrapper import create_honeypot
 from infra.interfaces import HoneypotAction
 
@@ -30,20 +27,8 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
         honeypot.stop()
 
 
-def wait_for_http_service(port, path="/", timeout=5):
-    url = f"http://127.0.0.1:{port}{path}"
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            r = requests.get(url)
-            return r
-        except requests.ConnectionError:
-            time.sleep(0.2)
-    raise RuntimeError(f"Server at {url} did not respond within {timeout} seconds")
-
-
 @pytest.fixture
-def php_my_admin() -> Generator[HTTPHoneypot, None, None]:
+def php_my_admin() -> Generator[BaseHoneypot, None, None]:
     config = get_config("php_my_admin")
     config["data_file"] = os.path.join(
         get_honeypots_folder(), "php_my_admin", "data.jsonl"
@@ -65,7 +50,6 @@ def test_basic_http_request(http_honeypot):
 
 
 def test_php_my_admin(php_my_admin):
-    wait_for_http_service(php_my_admin.port, "/path")
     requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
     response = requests.get(f"http://127.0.0.1:{php_my_admin.port}/path")
     assert response.status_code == 404
