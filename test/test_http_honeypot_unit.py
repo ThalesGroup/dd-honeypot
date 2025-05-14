@@ -17,7 +17,7 @@ from infra.interfaces import HoneypotAction
 def wait_for_server(port: int, retries=5, delay=1):
     for _ in range(retries):
         try:
-            requests.get(f"http://127.0.0.1:{port}")
+            requests.get(f"http://0.0.0.0:{port}")
             return True
         except requests.ConnectionError:
             time.sleep(delay)
