@@ -1,4 +1,5 @@
 import os.path
+import time
 from typing import Generator
 
 import pytest
@@ -13,6 +14,16 @@ from infra.honeypot_wrapper import create_honeypot
 from infra.interfaces import HoneypotAction
 
 
+def wait_for_server(port: int, retries=5, delay=1):
+    for _ in range(retries):
+        try:
+            requests.get(f"http://127.0.0.1:{port}")
+            return True
+        except requests.ConnectionError:
+            time.sleep(delay)
+    raise RuntimeError(f"Server on port {port} did not start after {retries} retries")
+
+
 @pytest.fixture
 def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
     class TestHTTPDataHandler(HoneypotAction):
@@ -22,6 +33,7 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
     honeypot = HTTPHoneypot(action=TestHTTPDataHandler())
     try:
         honeypot.start()
+        wait_for_server(honeypot.port)
         yield honeypot
     finally:
         honeypot.stop()
@@ -36,6 +48,7 @@ def php_my_admin() -> Generator[BaseHoneypot, None, None]:
     honeypot = create_honeypot(config)
     try:
         honeypot.start()
+        wait_for_server(honeypot.port)
         yield honeypot
     finally:
         honeypot.stop()
