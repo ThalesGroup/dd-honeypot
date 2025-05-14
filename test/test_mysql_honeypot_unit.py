@@ -293,7 +293,6 @@ class TestLLMResponseParsing:
 
         my_session = MySession()
 
-        # Now the await will properly work with the Future object
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         assert isinstance(columns, list)
@@ -312,10 +311,8 @@ class TestLLMResponseParsing:
 
         # Mock get_or_generate_response to return the future (an awaitable)
         mock_llm.return_value = future
-
         my_session = MySession()
 
-        # Now the await will properly work with the Future object
         rows, columns = await my_session.get_llm_response("SELECT * FROM users")
 
         # Test the behavior when an invalid LLM response is returned
@@ -324,21 +321,6 @@ class TestLLMResponseParsing:
 
         # Verify error was logged
         mock_logger.error.assert_called_with("Empty or invalid response from LLM.")
-
-    @patch.object(MySession, 'get_or_generate_response', new_callable=MagicMock)
-    async def test_llm_response_no_rows(self, mock_llm):
-        mock_llm.return_value = json.dumps({
-            "columns": ["username", "email"],
-            "rows": []
-        })
-
-        save_response_to_jsonl(json.loads(mock_llm.return_value))
-        my_session = MySession()
-        rows, columns = await my_session.get_llm_response("SELECT * FROM users")
-
-        assert isinstance(columns, list)
-        assert isinstance(rows, list)
-        assert len(rows) == 0
 
     @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
     @patch('mysql_honeypot.logger')  # Mock the logger
@@ -468,17 +450,31 @@ class TestLLMResponseParsing:
         mock_logger.error.assert_called_with(
             "Failed to get LLM response: object str can't be used in 'await' expression")
 
-    @patch.object(MySession, 'get_or_generate_response', new_callable=MagicMock)
-    async def test_llm_response_no_rows(self, mock_llm):
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_with_null_values(self, mock_llm):
         mock_llm.return_value = json.dumps({
-            "columns": ["username", "email"],
-            "rows": []
+            "columns": ["id", "email"],
+            "rows": [(1, None), (2, "user2@example.com")]
         })
 
         save_response_to_jsonl(json.loads(mock_llm.return_value))
         my_session = MySession()
-        rows, columns = await my_session.get_llm_response("SELECT * FROM users")
+        rows, columns = await my_session.get_llm_response("SELECT id, email FROM users;")
 
-        assert isinstance(columns, list)
-        assert isinstance(rows, list)
-        assert len(rows) == 0
+        assert columns == ["id", "email"]
+        assert rows == [(1, None), (2, "user2@example.com")]
+
+    @patch.object(MySession, 'get_or_generate_response', new_callable=AsyncMock)
+    async def test_llm_response_large_dataset(self, mock_llm):
+        columns = ["id", "value"]
+        rows = [(i, f"value_{i}") for i in range(6)]
+        mock_llm.return_value = json.dumps({"columns": columns, "rows": rows})
+
+        save_response_to_jsonl(json.loads(mock_llm.return_value))
+        my_session = MySession()
+        result_rows, result_columns = await my_session.get_llm_response("SELECT id, value FROM big_table;")
+
+        assert result_columns == columns
+        assert result_rows == rows
+        assert len(result_rows) == 6
+
