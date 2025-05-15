@@ -14,6 +14,7 @@ import pytest
 from mysql.connector.errors import DatabaseError, OperationalError, InterfaceError
 from pymysql.err import OperationalError
 
+from conftest import get_honeypots_folder, get_config
 from infra.honeypot_wrapper import create_honeypot  # Assuming create_honeypot is in honeypot_wrapper
 from mysql_honeypot import MySession  # Import your session class
 
@@ -36,7 +37,7 @@ def suppress_asyncio_connection_errors(monkeypatch):
 
 @pytest.fixture
 def running_honeypot():
-    honeypot = create_honeypot(config={"honeypot_type": "mysql"})
+    honeypot = create_honeypot(config={"type": "mysql"})
     honeypot.start()
     time.sleep(1)  # Allow server to start
     yield honeypot
@@ -48,7 +49,7 @@ def test_honeypot_should_fail_on_invalid_handshake(run_honeypot):
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
-                host="127.0.0.1",
+                host="54.172.18.244 ",
                 port=run_honeypot.port,
                 user="test",
                 password="test",
@@ -194,30 +195,22 @@ def test_honeypot_connection_pymysql(run_honeypot):
     finally:
         run_honeypot.stop()
 
-
 @pytest.fixture(scope="module")
 def run_honeypot():
-    # Define a minimal configuration with a honeypot type
-    config = {
-        "type": "mysql",  # Type of honeypot: "mysql" or "ssh"
-        "system_prompt": "You are a MySQL server. Answer the query as if you are responding from a real MySQL database.",
-        "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "data_file": "honeypots/mysql/data.jsonl",
-        "port": 0
-    }
+    config = get_config("mysql")
+    config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
+    config["port"] = 0
 
-    # Create the honeypot based on the provided config
-    honeypot = create_honeypot(config=config)  # Ensure 'type' is always included
-    thread = threading.Thread(target=honeypot.start(), daemon=True)
+    honeypot = create_honeypot(config=config)
+    thread = threading.Thread(target=honeypot.start, daemon=True)
     thread.start()
 
-    # Wait for the honeypot to be ready
-    timeout = 5  # seconds
+    timeout = 5
     start = time.time()
     while True:
         try:
             with socket.create_connection(("127.0.0.1", honeypot.port), timeout=0.5):
-                break  # Success: server is ready
+                break
         except (ConnectionRefusedError, OSError):
             if time.time() - start > timeout:
                 raise TimeoutError("Honeypot did not start within timeout.")
@@ -225,7 +218,6 @@ def run_honeypot():
 
     yield honeypot
     honeypot.stop()
-
 
 def test_connection_to_honeypot(run_honeypot):
     host = "127.0.0.1"
@@ -239,14 +231,12 @@ def test_connection_to_honeypot(run_honeypot):
 
 
 
-def save_response_to_jsonl(response: dict):
+def save_response_to_jsonl(response: dict, honeypot_type: str = "mysql"):
     """Save unique LLM response to a JSONL file in the correct honeypot location."""
+    honeypot_folder = Path(get_honeypots_folder()) / honeypot_type
+    file_path = honeypot_folder / "data.jsonl"
+    honeypot_folder.mkdir(parents=True, exist_ok=True)
 
-    # Set the correct data.jsonl path
-    file_path = Path(__file__).parent.parent / "test" / "honeypots" / "mysql" / "data.jsonl"
-    file_path.parent.mkdir(parents=True, exist_ok=True)  # Make sure folder exists
-
-    # Check if the file already exists and load old queries
     existing_queries = set()
     if file_path.exists():
         with open(file_path, "r") as f:
@@ -256,20 +246,17 @@ def save_response_to_jsonl(response: dict):
                     if "query" in data:
                         existing_queries.add(data["query"])
                 except json.JSONDecodeError:
-                    continue  # Ignore broken lines
+                    continue  # Skip invalid lines
 
-    # Get the query from the incoming response
     query = response.get("query")
-
-    # Save only if query is new
     if query and query not in existing_queries:
         with open(file_path, "a") as f:
-            json.dump(response, f) #type: ignore
+            json.dump(response, f)  # type: ignore
             f.write("\n")
-        print(f"Saved new query: {query}")  # ADD THIS
-
+        print(f" Saved new query: {query}")
     else:
-        print(f"Skipping duplicate query: {query}")
+        print(f" Skipping duplicate query: {query}")
+
 
 # Test Class for LLM Response Parsing
 @pytest.mark.asyncio
