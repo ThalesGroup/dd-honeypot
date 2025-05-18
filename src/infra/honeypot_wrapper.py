@@ -7,7 +7,6 @@ from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
-from infra.fake_fs.filesystem import FakeFileSystem
 
 logger = logging.getLogger(__name__)
 
