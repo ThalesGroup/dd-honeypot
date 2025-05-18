@@ -7,6 +7,7 @@ from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
+from infra.fake_fs.filesystem import FakeFileSystem
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,18 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         data_file.parent.mkdir(parents=True, exist_ok=True)
         data_file.touch()
 
+    fs_file_path = config.get("fs_file")
+
     # Choose appropriate handler
     if honeypot_type == "phpMyAdmin":
         action = HTTPDataHandler(data_file=str(data_file), system_prompt=system_prompt, model_id=model_id)
     else:
-        action = DataHandler(data_file=str(data_file), system_prompt=system_prompt, model_id=model_id)
+        action = DataHandler(
+            data_file=str(data_file),
+            system_prompt=system_prompt,
+            model_id=model_id,
+            fs_file=fs_file_path  # <- pass fs_file if exists
+        )
 
     # Create the appropriate honeypot instance
     if honeypot_type == "ssh":
