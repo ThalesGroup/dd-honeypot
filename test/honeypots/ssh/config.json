@@ -2,6 +2,8 @@
   "type": "ssh",
   "name": "Linux Honeypot",
   "shell-prompt": "honeypot@fakevm:~$ ",
+  "data_file": "data.jsonl",
+  "fs_file": "alpine_fs_small.json",
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "AWS_REGION": "us-east-1",
   "system_prompt": [
