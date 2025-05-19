@@ -1,3 +1,4 @@
+import json
 import uuid
 from abc import ABC, abstractmethod
 
@@ -12,7 +13,8 @@ class HoneypotSession(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self["session_id"] = str(uuid.uuid4())
+        if "session_id" not in self:
+            self["session_id"] = str(uuid.uuid4())
 
     @property
     def session_id(self):
@@ -53,3 +55,18 @@ class BaseHoneypot(ABC):
         :return: True if the honeypot is running, False otherwise
         """
         return True
+
+    def log_data(self, session: HoneypotSession, data: dict):
+        """
+
+        :param session:
+        :param data:
+        """
+        data_to_log = {
+            "dd-honeypot": True,
+            "session_id": session.get("session_id"),
+            "type": self.__class__.__name__,
+            "port": self.port,
+        }
+        data_to_log.update(data)
+        print(json.dumps(data_to_log))
