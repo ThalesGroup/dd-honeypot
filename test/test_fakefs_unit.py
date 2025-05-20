@@ -1,7 +1,7 @@
 import json
 import os
-from infra.fake_fs.filesystem import FakeFileSystem
-from infra.fake_fs.commands import handle_ls, handle_cd
+from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
+from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir
 
 
 def test_basic_ls_and_cd():
@@ -46,3 +46,21 @@ def test_basic_ls_from_root():
     assert "bin" in result
     assert "etc" in result
     assert "home" in result
+
+
+def test_mkdir_creates_directory():
+    fs = FakeFileSystem(FileSystemNode("/"))
+    session = {"cwd": "/", "fs": fs}
+    output = handle_mkdir(session, "newdir")
+    assert output == ""
+    assert "newdir" in fs.root.list_children()
+
+
+def test_ls_long_format():
+    fs = FakeFileSystem(FileSystemNode("/"))
+    fs.root.add_child(FileSystemNode("bin", is_dir=True))
+    fs.root.add_child(FileSystemNode("file.txt", is_dir=False))
+    session = {"cwd": "/", "fs": fs}
+    result = handle_ls(session, flags="-l")
+    assert "bin" in result
+    assert result.startswith("drwxr")

@@ -1,7 +1,7 @@
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 
-def handle_ls(session: dict) -> str:
+def handle_ls(session: dict, flags: str = "") -> str:
     import logging
 
     fs: FakeFileSystem = session["fs"]
@@ -16,7 +16,14 @@ def handle_ls(session: dict) -> str:
 
     children = node.list_children()
     logging.info(f"[handle_ls] Children: {children}")
-    return "\n".join(children)
+
+    if "-l" in flags:
+        # Simulate a fake "ls -l" output
+        return "\n".join(
+            f"drwxr-xr-x 1 user group 0 Jan 1 00:00 {child}" for child in children
+        )
+    else:
+        return "\n".join(children)
 
 
 def handle_cd(session: dict, path: str) -> str:

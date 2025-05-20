@@ -28,8 +28,11 @@ class FakeFSDataHandler(DataHandler):
         logging.info(f"FakeFSDataHandler.query: {query}")
         query = query.strip()
 
-        if query.startswith("ls"):
-            return handle_ls(session)
+        if "fs" in session:
+            if query.startswith("ls"):
+                parts = query.strip().split()
+                flags = [p for p in parts if p.startswith("-")]
+                return handle_ls(session, flags=" ".join(flags))
         elif query.startswith("cd "):
             parts = query.split(maxsplit=1)
             if len(parts) == 2:

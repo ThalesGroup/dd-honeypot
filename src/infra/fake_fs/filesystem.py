@@ -37,16 +37,32 @@ class FakeFileSystem:
         root_node = build_node("/", root_data)
         return FakeFileSystem(root_node)
 
-    def resolve_path(self, path: str, cwd: str = "/") -> Optional[FileSystemNode]:
+    def resolve_path(
+        self,
+        path: str,
+        cwd: str = "/",
+        create_missing: bool = False,
+        expect_dir: bool = False,
+    ) -> Optional[FileSystemNode]:
         parts = (cwd + "/" + path).strip("/").split("/")
         current = self.root
+
         for part in parts:
             if part in ("", "."):
                 continue
             if part == "..":
-                # No real parent traversal for now
+                # Not implemented: parent traversal
                 continue
-            current = current.get_child(part)
-            if current is None:
-                return None
+            child = current.get_child(part)
+            if child is None:
+                if create_missing:
+                    child = FileSystemNode(part, is_dir=True)
+                    current.add_child(child)
+                else:
+                    return None
+            current = child
+
+        if expect_dir and not current.is_dir:
+            return None
+
         return current
