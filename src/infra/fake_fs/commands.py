@@ -2,12 +2,21 @@ from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 
 def handle_ls(session: dict) -> str:
+    import logging
+
     fs: FakeFileSystem = session["fs"]
     cwd: str = session.get("cwd", "/")
+    logging.info(f"[handle_ls] Resolving path: {cwd}")
+
     node = fs.resolve_path(cwd, "/")
+
+    logging.info(f"[handle_ls] Node resolved: {node}")
     if not node or not node.is_dir:
         return f"ls: cannot access '{cwd}': No such directory"
-    return "\n".join(node.list_children())
+
+    children = node.list_children()
+    logging.info(f"[handle_ls] Children: {children}")
+    return "\n".join(children)
 
 
 def handle_cd(session: dict, path: str) -> str:

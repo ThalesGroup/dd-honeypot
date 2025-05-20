@@ -1,16 +1,15 @@
 import json
 import logging
-import shlex
+
 from pathlib import Path
 from typing import List, Optional
 
-from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir
 from infra.interfaces import HoneypotAction, HoneypotSession
 from llm_utils import invoke_llm, InvokeLimiter
 
 
 class DataHandler(HoneypotAction):
-    def __init__(self, data_file: str, system_prompt: str, model_id: str, fs_file: Optional[str] = None):
+    def __init__(self, data_file: str, system_prompt: str, model_id: str):
         self.data_file = Path(data_file)
         self.hints_file = Path(data_file.replace("data", "hints"))
         self.system_prompt = system_prompt
@@ -18,16 +17,6 @@ class DataHandler(HoneypotAction):
         self.commands = self._load_data()
         self.hints = self._load_hints()
         self._limiter = InvokeLimiter(20, 600)
-
-        # NEW: load the fake file system if fs_file is provided
-        self.fs_file = Path(fs_file) if fs_file else None
-        self.fake_fs = None
-        if self.fs_file and self.fs_file.exists():
-            import json
-            from infra.fake_fs.filesystem import FakeFileSystem
-            with open(self.fs_file) as f:
-                fs_data = json.load(f)
-                self.fake_fs = FakeFileSystem.from_json(fs_data)
 
     def _load_data(self) -> List[dict]:
         if not self.data_file.exists():
@@ -50,9 +39,6 @@ class DataHandler(HoneypotAction):
         # Log the connection (could be extended)
         logging.info(f"DataHandler.connect: {auth_info}")
         session = HoneypotSession()
-        if self.fake_fs:
-            session["fs"] = self.fake_fs
-            session["cwd"] = "/"  # start in root
         for key in auth_info:
             session[key] = auth_info[key]
         return session
@@ -67,21 +53,6 @@ class DataHandler(HoneypotAction):
     def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
         logging.info(f"DataHandler.query: {query}")
 
-        if "fs" in session:
-            parts = shlex.split(query.strip())
-            if not parts:
-                return ""
-
-            cmd, *args = parts
-
-            if cmd == "ls":
-                return handle_ls(session)
-            elif cmd == "cd":
-                return handle_cd(session, *args)
-            elif cmd == "mkdir":
-                return handle_mkdir(session, *args)
-
-        # Check existing data cache
         for entry in self.commands:
             if entry["command"] == query:
                 return entry["response"]

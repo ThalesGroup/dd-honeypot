@@ -1,16 +1,16 @@
 import logging
-import os
 import socket
 import threading
 import time
 from pathlib import Path
 
 import paramiko
-from paramiko import Transport, RSAKey
+from paramiko import Transport
 from paramiko.ssh_exception import SSHException
 
-from base_honeypot import BaseHoneypot, HoneypotSession
+from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction  # Define this interface
+
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction):
@@ -19,23 +19,48 @@ class SSHServerInterface(paramiko.ServerInterface):
         self.action = action
 
     def check_auth_password(self, username, password):
-        logging.info(f'Authentication: {username}:{password}')
+        logging.info(f"Authentication: {username}:{password}")
         self.username = username
         self.session = self.action.connect({"username": username, "password": password})
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_request(self, kind, chanid):
-        return paramiko.OPEN_SUCCEEDED if kind == 'session' else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        return (
+            paramiko.OPEN_SUCCEEDED
+            if kind == "session"
+            else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        )
 
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
+
         response = self.action.query(command_str, self.session)
-        channel.send(str(response) + "\n")
-        channel.send_exit_status(0)
+
+        try:
+            channel.send((response.strip() + "\n").encode())
+            channel.send_exit_status(0)  # Let client know we finished
+        except Exception as e:
+            logging.error(f"Error sending response: {e}")
+        finally:
+            # Defer close a little to ensure client finishes reading
+            def close_channel_later(chan):
+                import time
+
+                time.sleep(0.2)  # small delay
+                chan.close()
+
+            import threading
+
+            threading.Thread(
+                target=close_channel_later, args=(channel,), daemon=True
+            ).start()
+
         return True
 
-    def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
+    def check_channel_pty_request(
+        self, channel, term, width, height, pixelwidth, pixelheight, modes
+    ):
         return True
 
     def check_channel_shell_request(self, channel):
@@ -68,7 +93,7 @@ class SSHServerInterface(paramiko.ServerInterface):
 
                 logging.info(f"Shell command: {command}")
 
-                if command.lower() in ['exit', 'quit']:
+                if command.lower() in ["exit", "quit"]:
                     channel.send("Connection closed.\r\n")
                     break
 
@@ -79,6 +104,7 @@ class SSHServerInterface(paramiko.ServerInterface):
             logging.error(f"Shell error: {e}")
         finally:
             channel.close()
+
 
 class SSHHoneypot(BaseHoneypot):
     def __init__(self, port=0, action: HoneypotAction = None):
@@ -104,7 +130,7 @@ class SSHHoneypot(BaseHoneypot):
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind(('0.0.0.0', self.port))
+        self.server_socket.bind(("0.0.0.0", self.port))
         if self.port == 0:
             self.port = self.server_socket.getsockname()[1]
         self.server_socket.listen(100)
@@ -120,9 +146,7 @@ class SSHHoneypot(BaseHoneypot):
                 client_socket, addr = self.server_socket.accept()
                 client_socket.settimeout(10)
                 threading.Thread(
-                    target=self._handle_client,
-                    args=(client_socket, addr),
-                    daemon=True
+                    target=self._handle_client, args=(client_socket, addr), daemon=True
                 ).start()
             except Exception as e:
                 if self.running:

@@ -8,6 +8,8 @@ from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
 
+from infra.fake_fs_data_handler import FakeFSDataHandler
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,31 +30,39 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     system_prompt = config["system_prompt"]
     port = config["port"]
 
+    fs_file = config.get("fs_file")
+
     # Ensure data file exists
     if not data_file.exists():
         data_file.parent.mkdir(parents=True, exist_ok=True)
         data_file.touch()
 
-    fs_file_path = config.get("fs_file")
-
     # Choose appropriate handler
     if honeypot_type == "phpMyAdmin":
-        action = HTTPDataHandler(data_file=str(data_file), system_prompt=system_prompt, model_id=model_id)
-    else:
-        action = DataHandler(
+        action = HTTPDataHandler(
+            data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+        )
+    elif honeypot_type == "ssh" and fs_file:
+        action = FakeFSDataHandler(
             data_file=str(data_file),
             system_prompt=system_prompt,
             model_id=model_id,
-            fs_file=fs_file_path  # <- pass fs_file if exists
+            fs_file=fs_file,
+        )
+    else:
+        action = DataHandler(
+            data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
         )
 
     # Create the appropriate honeypot instance
     if honeypot_type == "ssh":
         from ssh_honeypot import SSHHoneypot
+
         return SSHHoneypot(port=port, action=action)
 
     elif honeypot_type == "mysql":
         from mysql_honeypot import MySqlMimicHoneypot
+
         return MySqlMimicHoneypot(port=port, action=action)
 
     elif honeypot_type == "phpMyAdmin":
