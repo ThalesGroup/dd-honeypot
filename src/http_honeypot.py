@@ -27,11 +27,7 @@ class HTTPHoneypot(BaseHoneypot):
             if "h_session" not in session:
                 h_session = self._action.connect({"client_ip": request.remote_addr})
                 session["h_session"] = h_session
-                logger.info("New session detected")
-                logger.info(f"Session data: {h_session}")
-            else:
-                h_session = session["h_session"]
-                logger.info(f"Existing session. Id: {h_session['session_id']}")
+                logger.info(f"New session detected: {h_session}")
 
         def get_resource_type(r: Request):
             xrw = r.headers.get("X-Requested-With", "").lower()
@@ -60,8 +56,17 @@ class HTTPHoneypot(BaseHoneypot):
             resource_type = get_resource_type(request)
             if resource_type not in ["document", "xhr", "fetch"]:
                 return not_found_error(None)
-
             try:
+                self.log_data(
+                    session["h_session"],
+                    {
+                        "path": path,
+                        "query_string": request.query_string.decode(),
+                        "method": request.method,
+                        "headers": dict(request.headers),
+                        "body": request.get_data(as_text=True),
+                    },
+                )
                 result = self._action.request(
                     {"request": request, "path": path, "resource_type": resource_type},
                     session.get("h_session"),
