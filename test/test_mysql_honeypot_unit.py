@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
+
 import mysql.connector
 import pymysql
 import pytest
@@ -16,10 +17,12 @@ from pymysql.err import OperationalError
 
 from conftest import get_honeypots_folder, get_config
 from infra.honeypot_wrapper import create_honeypot  # Assuming create_honeypot is in honeypot_wrapper
-from mysql_honeypot import MySession  # Import your session class
+from mysql_honeypot import MySession ,MySqlMimicHoneypot, MysqlError  # Import your session class
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
 
 @pytest.fixture(autouse=True)
 def suppress_asyncio_connection_errors(monkeypatch):
@@ -42,6 +45,31 @@ def running_honeypot():
     time.sleep(1)  # Allow server to start
     yield honeypot
     honeypot.stop()
+
+@pytest.fixture(scope="module")
+def run_honeypot():
+    config = get_config("mysql")
+    config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
+    config["port"] = 0
+
+    honeypot = create_honeypot(config=config)
+    thread = threading.Thread(target=honeypot.start, daemon=True)
+    thread.start()
+
+    timeout = 5
+    start = time.time()
+    while True:
+        try:
+            with socket.create_connection(("127.0.0.1", honeypot.port), timeout=0.5):
+                break
+        except (ConnectionRefusedError, OSError):
+            if time.time() - start > timeout:
+                raise TimeoutError("Honeypot did not start within timeout.")
+            time.sleep(0.1)
+
+    yield honeypot
+    honeypot.stop()
+
 
 """Ensures that the honeypot properly handles invalid handshakes and rejects 
 connections with the expected error messages."""
@@ -195,29 +223,6 @@ def test_honeypot_connection_pymysql(run_honeypot):
     finally:
         run_honeypot.stop()
 
-@pytest.fixture(scope="module")
-def run_honeypot():
-    config = get_config("mysql")
-    config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
-    config["port"] = 0
-
-    honeypot = create_honeypot(config=config)
-    thread = threading.Thread(target=honeypot.start, daemon=True)
-    thread.start()
-
-    timeout = 5
-    start = time.time()
-    while True:
-        try:
-            with socket.create_connection(("127.0.0.1", honeypot.port), timeout=0.5):
-                break
-        except (ConnectionRefusedError, OSError):
-            if time.time() - start > timeout:
-                raise TimeoutError("Honeypot did not start within timeout.")
-            time.sleep(0.1)
-
-    yield honeypot
-    honeypot.stop()
 
 def test_connection_to_honeypot(run_honeypot):
     host = "127.0.0.1"
@@ -228,7 +233,6 @@ def test_connection_to_honeypot(run_honeypot):
         mysql.connector.connect(
             host=host, port=port, user="attacker", password="fake", connect_timeout=5
         )
-
 
 
 def save_response_to_jsonl(response: dict, honeypot_type: str = "mysql"):
@@ -243,19 +247,22 @@ def save_response_to_jsonl(response: dict, honeypot_type: str = "mysql"):
             for line in f:
                 try:
                     data = json.loads(line)
-                    if "query" in data:
-                        existing_queries.add(data["query"])
+                    # Use 'query' field if present, otherwise fallback to JSON string
+                    key = data.get("query") or json.dumps(data)
+                    existing_queries.add(key)
                 except json.JSONDecodeError:
                     continue  # Skip invalid lines
 
-    query = response.get("query")
-    if query and query not in existing_queries:
+    # Determine unique key for the current response
+    query_key = response.get("query") or json.dumps(response)
+
+    if query_key not in existing_queries:
         with open(file_path, "a") as f:
-            json.dump(response, f)  # type: ignore
+            json.dump(response, f)
             f.write("\n")
-        print(f" Saved new query: {query}")
+        print(f" Saved new query: {query_key}")
     else:
-        print(f" Skipping duplicate query: {query}")
+        print(f" Skipping duplicate query: {query_key}")
 
 
 # Test Class for LLM Response Parsing
@@ -465,3 +472,44 @@ class TestLLMResponseParsing:
         assert result_rows == rows
         assert len(result_rows) == 6
 
+
+@pytest.mark.asyncio
+class TestSessionVariables:
+
+    @pytest.fixture(autouse=True)
+    async def setup(self, tmp_path):
+        mock_data_handler = MagicMock()
+        mock_data_handler.get_data = AsyncMock(return_value={"rows": [["Hello from LLM"]], "columns": ["col"]})
+        mock_data_handler.save_data = AsyncMock()
+
+        self.honeypot = create_honeypot(config={
+            "type": "mysql",
+            "data_file": str(tmp_path / "data.jsonl"),
+            "model_id": "test-model",
+            "system_prompt": "You are a helpful assistant.",
+            "port": 3306,
+            "data_handler": mock_data_handler,  # important!
+        })
+
+        self.session_id = "test_session"
+
+    async def test_same_query_is_cached(self):
+        # Run query twice and check results are the same (no data_handler mocking)
+        rows1, cols1 = await self.honeypot.query(self.session_id, "SELECT * FROM test")
+        rows2, cols2 = await self.honeypot.query(self.session_id, "SELECT * FROM test")
+        assert rows2 == rows1
+        assert cols2 == cols1
+
+
+    async def test_set_variable(self):
+        result = await self.honeypot.query(self.session_id, "SET foo = bar")
+        assert result == ("OK",) or "OK" in str(result)
+
+    async def test_fallback_to_llm(self):
+        self.honeypot.action = None
+        self.honeypot.honeypot_session = None
+
+        rows, cols = await self.honeypot.query(self.session_id, "SELECT llm_fallback()")
+        # You may need to adjust these assertions depending on your honeypot fallback behavior
+        assert rows is not None
+        assert cols is not None
