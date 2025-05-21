@@ -13,10 +13,11 @@ from infra.interfaces import HoneypotAction  # Define this interface
 
 
 class SSHServerInterface(paramiko.ServerInterface):
-    def __init__(self, action: HoneypotAction):
+    def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot):
         self.username = None
         self.session = None
         self.action = action
+        self.honeypot = honeypot
 
     def check_auth_password(self, username, password):
         logging.info(f"Authentication: {username}:{password}")
@@ -35,11 +36,23 @@ class SSHServerInterface(paramiko.ServerInterface):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
 
+        # Log the command
+        self.honeypot.log_data(
+            self.session,
+            {
+                "path": "",
+                "query_string": "",
+                "method": "exec",
+                "headers": {},
+                "body": command_str,
+            },
+        )
+
         response = self.action.query(command_str, self.session)
 
         try:
             channel.send((response.strip() + "\n").encode())
-            channel.send_exit_status(0)  # Let client know we finished
+            channel.send_exit_status(0)  # client know we finished
         except Exception as e:
             logging.error(f"Error sending response: {e}")
         finally:
@@ -49,7 +62,9 @@ class SSHServerInterface(paramiko.ServerInterface):
                 try:
                     chan.close()
                 except EOFError:
-                    logging.warning("Channel already closed before close_channel_later could run")
+                    logging.warning(
+                        "Channel already closed before close_channel_later could run"
+                    )
 
             import threading
 
@@ -93,6 +108,18 @@ class SSHServerInterface(paramiko.ServerInterface):
                     continue
 
                 logging.info(f"Shell command: {command}")
+
+                # Log the shell command
+                self.honeypot.log_data(
+                    self.session,
+                    {
+                        "path": "",
+                        "query_string": "",
+                        "method": "shell",
+                        "headers": {},
+                        "body": command,
+                    },
+                )
 
                 if command.lower() in ["exit", "quit"]:
                     channel.send("Connection closed.\r\n")
@@ -159,7 +186,7 @@ class SSHHoneypot(BaseHoneypot):
             transport = Transport(client_socket)
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.add_server_key(self.host_key)
-            transport.start_server(server=SSHServerInterface(self.action))
+            transport.start_server(server=SSHServerInterface(self.action, self))
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 30):
