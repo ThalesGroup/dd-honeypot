@@ -599,7 +599,7 @@ class TestSessionVariables:
         )
         mock_data_handler.save_data = AsyncMock()
 
-        # ✅ Wrap it in a function
+        # Wrap it in a function
         def handler_factory():
             return mock_data_handler
 
@@ -610,7 +610,7 @@ class TestSessionVariables:
                 "model_id": "test-model",
                 "system_prompt": "You are a helpful assistant.",
                 "port": 3306,
-                "data_handler": handler_factory,  # ✅ wrapped in function
+                "data_handler": handler_factory,  #  wrapped in function
             }
         )
 
@@ -635,4 +635,3 @@ class TestSessionVariables:
         # You may need to adjust these assertions depending on your honeypot fallback behavior
         assert rows is not None
         assert cols is not None
-

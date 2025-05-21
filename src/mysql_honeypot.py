@@ -131,7 +131,7 @@ class MySession(Session):
         if parsed.key.upper() == "SHOW":
             # (your SHOW logic here)
             return  # ...
-        # Normalize query
+        #Normalize query
         try:
             normalized = sqlglot.transpile(sql, read="mysql", pretty=True)[0]
         except Exception:
