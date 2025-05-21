@@ -1,6 +1,12 @@
-# DataLure - Data Driven LLM based Honeypot
+# DataTrap - Data Driven LLM based Honeypot
 
-This honeypot system mimics real application behavior for HTTP, HTTPS, SSH, and database access. Unlike traditional honeypots, this solution uses a combination of recorded application payloads, metadata, and a large language model (LLM) to dynamically generate responses that are indistinguishable from real application outputs. This approach not only deceives attackers but also provides actionable intelligence while maintaining high performance and cost efficiency. Additionally, the system is easy to install and supports multiple applications, including multiple application versions. Installation is done using a single container, without spanning additional containers like done in other honeypot systems.
+DataTrap is an innovative and extensible honeypot system that emulates realistic behavior across TCP, HTTP, SSH, and various database protocols. Designed to simulate web applications, IoT devices, and databases, DataTrap goes beyond traditional honeypots by combining recorded payloads, metadata, and a large language model (LLM) to dynamically generate responses that closely mimic genuine application output.
+
+This unique approach not only effectively deceives attackers but also delivers actionable insights—all while maintaining high performance, low cost of ownership, and operational efficiency. The system supports multiple applications and their different versions, and allows selective emulation of application components. Its modular architecture enables seamless extension of the network protocol layer to support additional applications and services over time.
+
+At the heart of DataTrap is a continuously evolving dataset, which powers the LLM-based response generation. This dataset is central to the system’s effectiveness and is actively maintained as part of the framework. LLM-generated responses are automatically integrated into the dataset, ensuring that the system adapts to emerging threats and stays up to date.
+
+DataTrap is open-source, encouraging community contributions to enrich both the dataset and system capabilities. To simplify deployment, it is packaged as a Docker image, allowing users to run the honeypot system as a single container in any environment with minimal setup.
 
 ## Features
 
@@ -50,59 +56,9 @@ The large language model (LLM) enables the generation of realistic responses. Wh
 
 LLM access is done by API, the following LLM
 
-## Configuration File
+## Configuration folder
 
-The configuration file defines the honeypots and port mappings. Each honeypot has an ID, type, and version of the system it mimics.
-
-The ports configuration allows mapping a port to one or more honeypots. Each mapped honeypot has a weight (default is 1). The port mapping changes dynamically according to the weight. For example, if three honeypots are mapped to a single port, each one will be mapped to the port 1/3 of the time.
-
-
-### Example Configuration File
-
-```json
-{
-  "honeypots": [
-    {
-      "id": "ssh1",
-      "type": "ssh",
-      "version": "1.0"
-    },
-    {
-      "id": "mysql5_7",
-      "type": "mysql",
-      "version": "5.7"
-    },
-    {
-      "id": "mysql8_0",
-      "type": "mysql",
-      "version": "8.0"
-    },
-    {
-      "id": "phpMyAdmin5_0_2",
-      "type": "phpMyAdmin",
-      "version": "5.0.2"
-    }
-  ],
-  "ports": [
-    {
-      "port": 22,
-      "honeypots": [
-        {
-          "id": "ssh1"
-        }
-      ]
-    },
-    {
-      "port": 3306,
-      "honeypots": ["mysql5_7", "mysql8_0"]
-    },
-    {
-      "port": 80,
-      "honeypots": ["phpMyAdmin5_0_2"]
-    }
-  ]
-}
-```
+The configuration folder defines the honeypots and port mappings. Each honeypot has an ID, type, port and other configuration details.
 
 ## Installation
 
@@ -113,23 +69,25 @@ For ease of deployment, the tool is provided as a Docker image, allowing users t
 #### Pull the Docker image:
 
 ```sh
-docker pull ghcr.io/thalesgroup/datalure
+docker pull ghcr.io/thalesgroup/dd-honeypot
 ```
 Run the Docker container:
 ```sh
-docker run -d -p 80:80 -p 443:443 -p 2222:2222 ghcr.io/thalesgroup/datalure
+docker run -d -p 80:80 -p 2222:2222 ghcr.io/thalesgroup/dd-honeypot
 ```
 Run the Docker container with a configuration file:
 ```sh
-docker run -d -p 80:80 -p 443:443 -p 2222:2222 -v /host/path/honeypot.conf:/etc/honeypot/honeypot.conf:ro ghcr.io/thalesgroup/datalure
+docker run -d -p 80:80 -p 443:443 -p 2222:2222 -v /host/path/honeypot.conf:/etc/honeypot/honeypot.conf:ro ghcr.io/thalesgroup/dd-honeypot
 ```
 
-### Installation on an AWS EC2 Instance
+### Quick Installation on an AWS EC2 Instance
 
 1. Create an instance role with permissions to write to CloudWatch logs
 2. Create a security group with open ports according to your honeypots configuration
 3. Bring up an EC2 instance with the instance role and the security group
 4. Install docker and run the Docker container as described above. Add the following parameters to the docker run command:
 ```sh
-docker run -it --log-driver=awslogs --log-opt awslogs-region=us-east1 --log-opt awslogs-group=yourLogGroup --log-opt awslogs-create-group=true ghcr.io/thalesgroup/datalure
+docker run -it --log-driver=awslogs --log-opt awslogs-region=us-east1 --log-opt awslogs-group=yourLogGroup --log-opt awslogs-create-group=true ghcr.io/thalesgroup/dd-honeypot
 ```
+
+Other logging options are provided in the configuration file. See the [logging readme](docs/logging-readme.md) for more details.
