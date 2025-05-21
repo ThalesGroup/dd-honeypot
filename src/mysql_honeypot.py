@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import os
 import threading
 import socket
 import time
@@ -54,7 +55,7 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
 
 def load_config(config_file: Path):
     try:
-        with open(config_file, "r") as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Failed to load config file {config_file}: {e}")
@@ -63,20 +64,28 @@ def load_config(config_file: Path):
 
 class MySession(Session):
     def __init__(
-        self, data_handler=None, action: HoneypotAction = None, *args, **kwargs
+        self,
+        base_dir=Path("data"),
+        data_handler=None,
+        action: HoneypotAction = None,
+        *args,
+        **kwargs,
     ):
         self.data_handler = data_handler
         self.action = action
-        self.honeypot_session: Optional[HoneypotSession] = None
+        self.honeypot_session = None
         self.session_id = str(uuid.uuid4())
-        self.session_vars = {}  # Store session variables here
+        self.session_vars = {}
+
         super().__init__(*args, **kwargs)
+
         self.client_address = kwargs.get("address") or (
             args[1] if len(args) > 1 else "unknown"
         )
         logger.info(
             f"New session created: {self.session_id} from client {self.client_address}"
         )
+
         if self.action:
             logger.info(
                 f"[{self.session_id}] Connecting honeypot session for client {self.client_address}"
@@ -88,24 +97,25 @@ class MySession(Session):
                 f"[{self.session_id}] Honeypot session connected: {self.honeypot_session}"
             )
 
-        self.config_file = (
-            Path(__file__).parent
-            / ".."
-            / "test"
-            / "honeypots"
-            / "mysql"
-            / "config.json"
-        )
-        self.config = load_config(self.config_file)
+        base_dir = Path(base_dir)
+        self.config_file = base_dir / "config.json"
+
+        if self.config_file.exists():
+            with open(self.config_file) as f:
+                self.config = json.load(f)
+        else:
+
+            self.config = {}
+
         self.model_id = self.config.get("model_id", "default_model_id")
         self.system_prompt = self.config.get(
             "system_prompt",
             "You are a MySQL server emulator. Only output valid MySQL query results formatted in JSON.",
         )
-        self.data_file = (
-            Path(__file__).parent / ".." / "test" / "honeypots" / "mysql" / "data.jsonl"
-        )
+
+        self.data_file = base_dir / "data.jsonl"
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
+
         self.query_response_cache = self.load_existing_data()
 
     async def command_handler(self, sql: str, session_id: str):
@@ -145,7 +155,7 @@ class MySession(Session):
         if not self.data_file.exists():
             return {}
         query_to_response = {}
-        with open(self.data_file, "r") as f:
+        with open(self.data_file, "r", encoding="utf-8") as f:
             for line in f:
                 try:
                     record = json.loads(line.strip())
