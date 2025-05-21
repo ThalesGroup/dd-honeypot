@@ -44,11 +44,12 @@ class SSHServerInterface(paramiko.ServerInterface):
             logging.error(f"Error sending response: {e}")
         finally:
             # Defer close a little to ensure client finishes reading
-            def close_channel_later(chan):
-                import time
-
-                time.sleep(0.2)  # small delay
-                chan.close()
+            def close_channel_later(chan, delay=0.5):
+                time.sleep(delay)
+                try:
+                    chan.close()
+                except EOFError:
+                    logging.warning("Channel already closed before close_channel_later could run")
 
             import threading
 
