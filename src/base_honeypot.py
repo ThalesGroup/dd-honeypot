@@ -66,7 +66,7 @@ class BaseHoneypot(ABC):
         data_to_log = {
             "dd-honeypot": True,
             "time": datetime.now().isoformat(),
-            "session_id": session.get("session_id"),
+            "session-id": session.get("session_id"),
             "type": self.__class__.__name__,
             "port": self.port,
         }

@@ -60,11 +60,13 @@ class HTTPHoneypot(BaseHoneypot):
                 self.log_data(
                     session["h_session"],
                     {
-                        "path": path,
-                        "query_string": request.query_string.decode(),
-                        "method": request.method,
-                        "headers": dict(request.headers),
-                        "body": request.get_data(as_text=True),
+                        "http-request": {
+                            "path": path,
+                            "query_string": request.query_string.decode(),
+                            "method": request.method,
+                            "headers": dict(request.headers),
+                            "body": request.get_data(as_text=True),
+                        }
                     },
                 )
                 result = self._action.request(
