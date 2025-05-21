@@ -24,7 +24,7 @@ First you have to create a bucket in S3, and then create a configuration file fo
     total_file_size   1M
     upload_timeout    30m
     use_put_object    Off
-    s3_key_format     /logs/day=%Y-%m-%d/hour=%H/data-%H-%M-%S.log.jsonl.gz
+    s3_key_format     /logs/day=%Y-%m-%d/hour=%-H/data-%H-%M-%S.log.jsonl.gz
     compression       gzip
     log_key           log
     static_file_path  On
