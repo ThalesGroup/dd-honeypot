@@ -1,6 +1,7 @@
 import json
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from honeypot_utils import allocate_port
 
@@ -64,6 +65,7 @@ class BaseHoneypot(ABC):
         """
         data_to_log = {
             "dd-honeypot": True,
+            "time": datetime.now().isoformat(),
             "session_id": session.get("session_id"),
             "type": self.__class__.__name__,
             "port": self.port,
