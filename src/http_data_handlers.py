@@ -1,7 +1,6 @@
 from typing import List
 
 from infra.data_handler import DataHandler
-from llm_utils import invoke_llm
 
 
 class HTTPDataHandler(DataHandler):

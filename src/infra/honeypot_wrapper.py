@@ -38,7 +38,7 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         data_file.touch()
 
     # Choose appropriate handler
-    if honeypot_type == "phpMyAdmin":
+    if honeypot_type == "http":
         action = HTTPDataHandler(
             data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
         )
@@ -65,7 +65,7 @@ def create_honeypot(config: dict) -> BaseHoneypot:
 
         return MySqlMimicHoneypot(port=port, action=action)
 
-    elif honeypot_type == "phpMyAdmin":
+    elif honeypot_type == "http":
         return HTTPHoneypot(port=port, action=action)
 
     else:

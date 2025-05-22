@@ -1,0 +1,6 @@
+{
+  "type": "http",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "system_prompt": ["You are a Boa web server. Your job is to respond to requests as if you were Boa web server."],
+  "port": 80
+}
