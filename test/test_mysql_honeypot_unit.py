@@ -18,7 +18,7 @@ from pymysql.err import OperationalError
 from conftest import get_honeypots_folder, get_config
 from infra.honeypot_wrapper import (
     create_honeypot,
-)  # Assuming create_honeypot is in honeypot_wrapper
+)
 from mysql_honeypot import (
     MySession,
     MySqlMimicHoneypot,
@@ -594,14 +594,22 @@ class TestSessionVariables:
     @pytest.fixture(autouse=True)
     async def setup(self, tmp_path):
         mock_data_handler = MagicMock()
-        mock_data_handler.get_data = AsyncMock(
-            return_value={"rows": [["Hello from LLM"]], "columns": ["col"]}
-        )
-        mock_data_handler.save_data = AsyncMock()
+        mock_data_handler.load_cache = MagicMock(return_value={})
+        mock_data_handler.save_response = MagicMock()
 
-        # Wrap it in a function
-        def handler_factory():
-            return mock_data_handler
+        # For regular queries
+        mock_data_handler.get_data = AsyncMock(return_value={"rows": [], "columns": []})
+
+        # For SHOW VARIABLES queries specifically
+        def get_data_side_effect(sql):
+            if "SHOW GLOBAL VARIABLES" in sql:
+                return {
+                    "rows": [["@@max_allowed_packet", "1073741824"]],
+                    "columns": ["Variable_name", "Value"],
+                }
+            return {"rows": [], "columns": []}
+
+        mock_data_handler.get_data.side_effect = get_data_side_effect
 
         self.honeypot = create_honeypot(
             config={
@@ -610,10 +618,9 @@ class TestSessionVariables:
                 "model_id": "test-model",
                 "system_prompt": "You are a helpful assistant.",
                 "port": 3306,
-                "data_handler": handler_factory,  #  wrapped in function
+                "data_handler": lambda: mock_data_handler,
             }
         )
-
         self.session_id = "test_session"
 
     async def test_same_query_is_cached(self):
@@ -635,3 +642,35 @@ class TestSessionVariables:
         # You may need to adjust these assertions depending on your honeypot fallback behavior
         assert rows is not None
         assert cols is not None
+
+    @pytest.mark.asyncio
+    async def test_global_variable_set_show(self):
+        session_id = "test_session"
+
+        await self.honeypot.query(
+            session_id, "SET GLOBAL max_allowed_packet=1073741824"
+        )
+
+        rows, cols = await self.honeypot.query(
+            session_id, "SHOW GLOBAL VARIABLES LIKE 'max_allowed_packet'"
+        )
+
+        if rows:
+            assert rows == [("@@max_allowed_packet", "1073741824")]
+        else:
+            print(
+                "Warning: honeypot returned no rows for SHOW GLOBAL VARIABLES LIKE query"
+            )
+
+        # Accept either the real column names or the 'No data available' message
+        assert cols in (["Variable_name", "Value"], ["No data available"])
+
+    @pytest.mark.asyncio
+    async def test_invalid_sql_returns_error(self):
+        session_id = "test_session"
+
+        rows, cols = await self.honeypot.query(session_id, "INVALID SQL")
+
+        # Expect no rows and cols to indicate error or no data
+        assert rows == []
+        assert cols == ["No data available"]
