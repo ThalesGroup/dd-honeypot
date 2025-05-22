@@ -69,17 +69,20 @@ async def _start_honeypots(folder: str):
         logging.info("Keyboard interrupt received")
 
 
-if __name__ == "__main__":
-    init_env_from_file()
-    honeypot_folder = sys.argv[1] if len(sys.argv) > 1 else "/data/honeypot"
-
-    if not os.path.exists(honeypot_folder):
-        logging.error(f"Honeypot folder does not exist: {honeypot_folder}")
+def start_dd_honeypot(folder: str):
+    if not os.path.exists(folder):
+        logging.error(f"Honeypot folder does not exist: {folder}")
         sys.exit(1)
     try:
-        logging.info(f"Honeypots server started. Folder: {honeypot_folder}")
-        asyncio.run(_start_honeypots(honeypot_folder))
+        logging.info(f"Honeypots server started. Folder: {folder}")
+        asyncio.run(_start_honeypots(folder))
     except Exception as e:
         logging.error(f"Error during honeypot startup: {e}")
     finally:
         logging.info("Honeypots server stopped")
+
+
+if __name__ == "__main__":
+    init_env_from_file()
+    honeypot_folder = sys.argv[1] if len(sys.argv) > 1 else "/data/honeypot"
+    start_dd_honeypot(honeypot_folder)
