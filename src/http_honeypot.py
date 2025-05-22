@@ -60,7 +60,7 @@ class HTTPHoneypot(BaseHoneypot):
                 self.log_data(
                     session["h_session"],
                     {
-                        "http-request": {
+                        "request": {
                             "path": path,
                             "query_string": request.query_string.decode(),
                             "method": request.method,
