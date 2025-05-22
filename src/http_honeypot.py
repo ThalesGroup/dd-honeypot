@@ -64,9 +64,9 @@ class HTTPHoneypot(BaseHoneypot):
                             "path": path,
                             "query_string": request.query_string.decode(),
                             "method": request.method,
-                            "headers": dict(request.headers),
                             "body": request.get_data(as_text=True),
-                        }
+                        },
+                        "request-headers": dict(request.headers),
                     },
                 )
                 result = self._action.request(
