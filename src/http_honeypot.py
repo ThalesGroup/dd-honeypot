@@ -8,8 +8,6 @@ from infra.interfaces import HoneypotAction
 
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
-import flask
-import flask
 
 
 class HTTPHoneypot(BaseHoneypot):
