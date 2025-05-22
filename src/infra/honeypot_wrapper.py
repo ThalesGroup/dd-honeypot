@@ -4,11 +4,8 @@ import os
 from pathlib import Path
 
 from base_honeypot import BaseHoneypot
-from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
-
-from infra.fake_fs_data_handler import FakeFSDataHandler
 
 logger = logging.getLogger(__name__)
 
@@ -29,44 +26,52 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     model_id = config["model_id"]
     system_prompt = config["system_prompt"]
     port = config["port"]
-
     fs_file = config.get("fs_file")
 
-    # Ensure data file exists
     if not data_file.exists():
         data_file.parent.mkdir(parents=True, exist_ok=True)
         data_file.touch()
 
-    # Choose appropriate handler
-    if honeypot_type == "http":
-        action = HTTPDataHandler(
-            data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-        )
-    elif honeypot_type == "ssh" and fs_file:
-        action = FakeFSDataHandler(
-            data_file=str(data_file),
-            system_prompt=system_prompt,
-            model_id=model_id,
-            fs_file=fs_file,
-        )
-    else:
-        action = DataHandler(
-            data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-        )
+    # Default action is LLM-based DataHandler
+    action = DataHandler(
+        data_file=str(data_file),
+        system_prompt=system_prompt,
+        model_id=model_id,
+    )
 
-    # Create the appropriate honeypot instance
+    # For SSH, we optionally chain with fake filesystem
     if honeypot_type == "ssh":
         from ssh_honeypot import SSHHoneypot
+        from infra.fake_fs_data_handler import FakeFSDataHandler
+        from infra.chained_data_handler import ChainedDataHandler
+
+        if fs_file:
+            fs_handler = FakeFSDataHandler(
+                data_file=str(data_file),
+                system_prompt=system_prompt,
+                model_id=model_id,
+                fs_file=fs_file,
+            )
+            llm_handler = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
+            action = ChainedDataHandler(
+                fakefs_handler=fs_handler, llm_handler=llm_handler
+            )
+        else:
+            action = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
 
         return SSHHoneypot(port=port, action=action)
+
+    elif honeypot_type == "http":
+        return HTTPHoneypot(port=port, action=action)
 
     elif honeypot_type == "mysql":
         from mysql_honeypot import MySqlMimicHoneypot
 
         return MySqlMimicHoneypot(port=port, action=action)
-
-    elif honeypot_type == "http":
-        return HTTPHoneypot(port=port, action=action)
 
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
