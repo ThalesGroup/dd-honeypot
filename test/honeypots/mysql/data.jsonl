@@ -12,3 +12,6 @@
 {"query": "SELECT * FROM users WHERE id = 1", "columns": ["id", "username"], "rows": [[1, "user1"]]}
 {"query": "SET NAMES latin1", "response": {"columns": [], "rows": []}}
 {"query": "INVALID QUERY", "response": {"columns": [], "rows": []}}
+{"columns": ["id", "username"], "rows": []}
+{"columns": ["id", "email"], "rows": [[1, null], [2, "user2@example.com"]]}
+{"columns": ["id", "value"], "rows": [[0, "value_0"], [1, "value_1"], [2, "value_2"], [3, "value_3"], [4, "value_4"], [5, "value_5"]]}

@@ -37,16 +37,7 @@ class SSHServerInterface(paramiko.ServerInterface):
         logging.info(f"Command executed: {command_str}")
 
         # Log the command
-        self.honeypot.log_data(
-            self.session,
-            {
-                "path": "",
-                "query_string": "",
-                "method": "exec",
-                "headers": {},
-                "body": command_str,
-            },
-        )
+        self.honeypot.log_data(self.session, {"method": "exec", "command": command_str})
 
         response = self.action.query(command_str, self.session)
 
@@ -110,15 +101,9 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.info(f"Shell command: {command}")
 
                 # Log the shell command
+                command_str = command.strip()
                 self.honeypot.log_data(
-                    self.session,
-                    {
-                        "path": "",
-                        "query_string": "",
-                        "method": "shell",
-                        "headers": {},
-                        "body": command,
-                    },
+                    self.session, {"method": "exec", "command": command_str}
                 )
 
                 if command.lower() in ["exit", "quit"]:

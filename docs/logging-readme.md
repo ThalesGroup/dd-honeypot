@@ -9,15 +9,16 @@ First you have to create a bucket in S3, and then create a configuration file fo
     Name         forward
     Listen       0.0.0.0
     Port         24224
+    TAG          docker.honeypot
 
 [FILTER]
     Name         grep
-    Match        docker.*
+    Match        docker.honeypot
     Regex        log    ^\{\"dd-honeypot\":\s*true
 
 [OUTPUT]
     Name              s3
-    Match             *
+    Match             docker.honeypot
     bucket            your-bucket-name
     region            us-east-1
     store_dir         /tmp/fluentbit/s3
