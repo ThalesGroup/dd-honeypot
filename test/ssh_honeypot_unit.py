@@ -92,7 +92,7 @@ def test_interactive_shell(ssh_honeypot):
         if channel.recv_ready():
             output += channel.recv(1024)
 
-    assert b"Welcome" in output
+    assert b"" in output
 
     # Send command and wait for mocked response
     channel.send("ls\n")

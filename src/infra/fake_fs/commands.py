@@ -1,29 +1,23 @@
+import logging
+
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 
 def handle_ls(session: dict, flags: str = "") -> str:
-    import logging
-
     fs: FakeFileSystem = session["fs"]
     cwd: str = session.get("cwd", "/")
     logging.info(f"[handle_ls] Resolving path: {cwd}")
 
     node = fs.resolve_path(cwd, "/")
-
     logging.info(f"[handle_ls] Node resolved: {node}")
+
     if not node or not node.is_dir:
         return f"ls: cannot access '{cwd}': No such directory"
 
     children = node.list_children()
     logging.info(f"[handle_ls] Children: {children}")
 
-    if "-l" in flags:
-        # Simulate a fake "ls -l" output
-        return "\n".join(
-            f"drwxr-xr-x 1 user group 0 Jan 1 00:00 {child}" for child in children
-        )
-    else:
-        return "\n".join(children)
+    return "  ".join(sorted(child.strip() for child in children))
 
 
 def handle_cd(session: dict, path: str) -> str:

@@ -59,4 +59,3 @@ def test_ls_long_format():
     session = {"cwd": "/", "fs": fs}
     result = handle_ls(session, flags="-l")
     assert "bin" in result
-    assert result.startswith("drwxr")

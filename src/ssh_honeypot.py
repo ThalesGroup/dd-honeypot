@@ -76,7 +76,6 @@ class SSHServerInterface(paramiko.ServerInterface):
 
     def handle_shell(self, channel):
         try:
-            channel.send("Welcome to SSH Server\r\n")
             prompt = f"{self.username}@honeypot:~$ "
 
             while not channel.closed:
@@ -91,27 +90,27 @@ class SSHServerInterface(paramiko.ServerInterface):
                         break
                     elif char == "\x7f":
                         buffer = buffer[:-1]
+                        channel.send("\b \b")
                     else:
                         buffer += char
+                        channel.send(char)
 
                 command = buffer.strip()
                 if not command:
+                    channel.send("\r\n")
                     continue
 
                 logging.info(f"Shell command: {command}")
-
-                # Log the shell command
-                command_str = command.strip()
                 self.honeypot.log_data(
-                    self.session, {"method": "exec", "command": command_str}
+                    self.session, {"method": "shell", "command": command}
                 )
 
                 if command.lower() in ["exit", "quit"]:
-                    channel.send("Connection closed.\r\n")
+                    channel.send("\r\nConnection closed.\r\n")
                     break
 
                 response = self.action.query(command, self.session)
-                channel.send(response + "\r\n")
+                channel.send("\r\n" + response + "\r\n")
 
         except Exception as e:
             logging.error(f"Shell error: {e}")
