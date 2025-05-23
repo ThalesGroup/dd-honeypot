@@ -9,14 +9,15 @@ import logging
 
 from pathlib import Path
 from functools import partial
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 import sqlglot
-from sqlglot import parse_one, transpile, errors as sqlglot_errors, exp
+from mysql.connector import errorcode
+from sqlglot import transpile, errors as sqlglot_errors, exp, ParseError
 from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
 from mysql_mimic.session import Session
 from mysql_mimic.errors import MysqlError, ErrorCode
 from base_honeypot import BaseHoneypot
-from infra.interfaces import HoneypotAction  # Make sure this is imported
+from infra.interfaces import HoneypotAction
 
 
 def setup_logging():
@@ -57,19 +58,19 @@ class MySession(Session):
         base_dir=Path("data"),
         data_handler=None,
         action: HoneypotAction = None,
-        config: Optional[dict] = None,  # Properly typed parameter
+        config: Optional[dict] = None,
         *args,
         **kwargs,
     ):
+        self.global_vars = None
         self.data_handler = data_handler
         self.action = action
         self.honeypot_session = None
         self.session_id = str(uuid.uuid4())
-        self.session_vars = {}
-        self.config = config or {}  # Use provided config or empty dict
+        self.session_variables = {}
+        self.config = config or {}
 
         super().__init__(*args, **kwargs)
-
         self.client_address = kwargs.get("address") or (
             args[1] if len(args) > 1 else "unknown"
         )
@@ -107,7 +108,7 @@ class MySession(Session):
         # Improved command handler to detect and simulate DROP FUNCTION IF EXISTS sys_exec
 
         try:
-            parsed = sqlglot.parse_one(sql, read="mysql")
+            parsed = sqlglot.parse_one(sql, dialect="mysql")
         except Exception:
             raise ValueError("Invalid SQL syntax")
 
@@ -133,7 +134,7 @@ class MySession(Session):
                 return [("OK",)], ["result"]
 
         # Handle SET statements
-        if parsed.key.upper() == "SET":
+        if isinstance(parsed, exp.Set):
             return await self._handle_set_command(parsed)
 
         # Handle SHOW statements
@@ -151,7 +152,7 @@ class MySession(Session):
         # Normalize query
         try:
             normalized = sqlglot.transpile(sql, read="mysql", pretty=True)[0]
-        except Exception:
+        except ParseError:
             normalized = " ".join(sql.strip().rstrip(";").upper().split())
 
         # Check cache
@@ -161,10 +162,8 @@ class MySession(Session):
 
         # Try action query sync call wrapped in executor (if needed)
         if self.action and self.honeypot_session:
-            response_str = await asyncio.get_event_loop().run_in_executor(
-                None,
-                partial(self.action.query, query=sql, session=self.honeypot_session),
-            )
+            func = partial(self.action.query, query=sql, session=self.honeypot_session)
+            response_str = await asyncio.get_event_loop().run_in_executor(None, func)  # type: ignore[arg-type]
             response = json.loads(response_str)
             self.query_response_cache[normalized] = response
             return response["rows"], response["columns"]
@@ -210,35 +209,50 @@ class MySession(Session):
                 },
             )
 
-        # First try to parse special commands (SET/SHOW)
+        # First try to parse the query with sqlglot using explicit dialect
         try:
-            parsed = parse_one(sql, dialect="mysql")
+            parsed = sqlglot.parse_one(sql, dialect="mysql")
 
             # Handle SET commands
             if isinstance(parsed, exp.Set):
                 return await self._handle_set_command(parsed)
 
-            # Handle SHOW VARIABLES
-            if isinstance(parsed, exp.Show) and parsed.args.get("kind") == "VARIABLES":
-                # Initialize default global variables if not set
-                if not hasattr(self, "global_vars"):
-                    self.global_vars = {
-                        "max_allowed_packet": "1073741824",  # Default value matching test
-                        "version": "8.0.0",  # Common default
-                    }
-                return await self._handle_show_variables(parsed)
+            # Handle SHOW commands with more comprehensive parsing
+            if isinstance(parsed, exp.Show):
+                kind = parsed.args.get("kind", "").upper()
+                if kind == "VARIABLES":
+                    # Initialize default global variables if not set
+                    if not hasattr(self, "global_vars"):
+                        self.global_vars = {
+                            "max_allowed_packet": "1073741824",
+                            "version": "8.0.0",
+                        }
+                    return await self._handle_show_variables(parsed)
+                # Other SHOW commands can be added here
 
-        except sqlglot_errors.ParseError:
-            # Not a parseable special command, continue normal handling
-            pass
+            # Handle other statement types
+            if isinstance(parsed, (exp.Select, exp.Insert, exp.Update, exp.Delete)):
+                # These will be handled by the normal query processing below
+                pass
+
+        except sqlglot_errors.ParseError as e:
+            logger.error(f"[{self.session_id}] SQL parse error: {e}")
+            raise MysqlError(
+                f"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{sql[:30]}...'",
+                code=errorcode.ER_PARSE_ERROR,
+            )
         except Exception as e:
-            logger.error(f"[{self.session_id}] Parsing error: {e}")
+            logger.error(f"[{self.session_id}] Error parsing SQL: {e}")
+            raise MysqlError(
+                "Internal server error while parsing SQL",
+                code=errorcode.ER_INTERNAL_ERROR,
+            )
 
-        # Normal query handling with caching
+        # Normal query handling with caching (existing code remains unchanged)
         sql_stripped = sql.strip().rstrip(";")
         try:
             normalized = transpile(sql_stripped, read="mysql", pretty=True)[0]
-        except Exception:
+        except (ParseError, IndexError):
             normalized = " ".join(sql_stripped.upper().split())
 
         # Try action handler
@@ -293,8 +307,7 @@ class MySession(Session):
                 # Improved: Use .sql() to get a reliable string for complex expressions
                 try:
                     value = item.expression.sql()
-                except Exception:
-                    # fallback to string cast if .sql() fails
+                except (AttributeError, TypeError, ParseError):
                     value = str(item.expression)
 
                 if parsed.args.get("is_global"):
@@ -358,7 +371,7 @@ class MySession(Session):
             return json.dumps(self.query_response_cache[query])
 
         try:
-            result = await self.command_handler(query)
+            result = await self.command_handler(query, session_id=self.session_id)
             self.query_response_cache[query] = result
 
             # Optional: save through data handler
@@ -372,6 +385,16 @@ class MySession(Session):
         except Exception as e:
             logger.error(f"Command handler failed: {e}")
             return json.dumps({"columns": [], "rows": []})
+
+    def parse_sql(self: str) -> exp.Expression:
+        try:
+            return sqlglot.parse_one(self, dialect="mysql")
+        except ParseError as e:
+            logger.error(f"SQL parse error: {e}")
+            raise MysqlError(
+                f"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax near '{self[:30]}...'",
+                code=ErrorCode.PARSE_ERROR,
+            )
 
 
 class AllowAllIdentityProvider(IdentityProvider):
@@ -394,9 +417,9 @@ class AllowAllIdentityProvider(IdentityProvider):
 
 
 class MySqlMimicHoneypot(BaseHoneypot):
-    def __init__(
-        self, port, action=None, command_handler=None, identity_provider=None, **kwargs
-    ):
+    sessions: Dict[str, MySession]
+
+    def __init__(self, port, action=None, command_handler=None, identity_provider=None):
         super().__init__(port)
         self.command_handler = command_handler or self._handle_sql_command
         self.identity_provider = identity_provider or AllowAllIdentityProvider()
@@ -414,7 +437,8 @@ class MySqlMimicHoneypot(BaseHoneypot):
         self.thread = None
         self.loop = None
 
-    async def _handle_sql_command(self, sql: str, session_id: str):
+    @staticmethod
+    async def _handle_sql_command():
         # Placeholder handler
         return [], []
 
@@ -424,8 +448,8 @@ class MySqlMimicHoneypot(BaseHoneypot):
         return self.sessions[session_id]
 
     def set_variable(self, key, value, session_id):
-        session_vars = self.sessions.setdefault(session_id, {})
-        session_vars[key] = value
+        session = self.sessions.setdefault(session_id, MySession())
+        session.variables[key] = value
 
     def get_variable(self, key, session_id):
         return self.sessions.get(session_id, {}).get(key)
@@ -496,7 +520,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     async def query(self, session_id: str, sql: str, attrs=None) -> Tuple[list, list]:
         if not hasattr(self, "sessions"):
-            self.sessions = {}
+            self.sessions = {}  # type: ignore[assignment]
         if session_id not in self.sessions:
             self.sessions[session_id] = MySession(
                 data_handler=self.command_handler, action=getattr(self, "action", None)

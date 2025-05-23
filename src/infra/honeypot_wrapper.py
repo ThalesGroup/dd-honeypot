@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from base_honeypot import BaseHoneypot
+from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
 
@@ -32,12 +33,18 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         data_file.parent.mkdir(parents=True, exist_ok=True)
         data_file.touch()
 
-    # Default action is LLM-based DataHandler
-    action = DataHandler(
-        data_file=str(data_file),
-        system_prompt=system_prompt,
-        model_id=model_id,
-    )
+    if honeypot_type == "http":
+        action = HTTPDataHandler(
+            data_file=str(data_file),
+            system_prompt=system_prompt,
+            model_id=model_id,
+        )
+    else:
+        action = DataHandler(
+            data_file=str(data_file),
+            system_prompt=system_prompt,
+            model_id=model_id,
+        )
 
     # For SSH, we optionally chain with fake filesystem
     if honeypot_type == "ssh":

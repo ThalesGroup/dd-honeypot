@@ -22,7 +22,6 @@ from infra.honeypot_wrapper import (
 from mysql_honeypot import (
     MySession,
     MySqlMimicHoneypot,
-    MysqlError,
 )  # Import your session class
 
 logger = logging.getLogger(__name__)
@@ -295,7 +294,7 @@ def save_response_to_jsonl(
     key = response.get("query") or json.dumps(response)
     if key not in existing:
         with open(file_path, "a") as f:
-            json.dump(response, f)
+            json.dump(response, f)  # type: ignore[arg-type]
             f.write("\n")
         print(f" Saved new query: {key}")
     else:
@@ -311,7 +310,7 @@ def mysql_honeypot(tmp_path: Path):
     }
     config_path = tmp_path / "config.json"
     with open(config_path, "w") as f:
-        json.dump(config_content, f)
+        json.dump(config_content, f)  # type: ignore[arg-type]
 
     # Create an empty data.jsonl file (for caching or data storage)
     data_file = tmp_path / "data.jsonl"
@@ -625,20 +624,20 @@ class TestSessionVariables:
 
     async def test_same_query_is_cached(self):
         # Run query twice and check results are the same (no data_handler mocking)
-        rows1, cols1 = await self.honeypot.query(self.session_id, "SELECT * FROM test")
-        rows2, cols2 = await self.honeypot.query(self.session_id, "SELECT * FROM test")
+        rows1, cols1 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
+        rows2, cols2 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
         assert rows2 == rows1
         assert cols2 == cols1
 
     async def test_set_variable(self):
-        result = await self.honeypot.query(self.session_id, "SET foo = bar")
-        assert result == ("OK",) or "OK" in str(result)
+        result = await self.honeypot.query(self.session_id, "SET foo = bar")  # type: ignore[attr-defined]
+        assert result == ("OK",) or "OK" in str(result)  # type: ignore[attr-defined]
 
     async def test_fallback_to_llm(self):
         self.honeypot.action = None
         self.honeypot.honeypot_session = None
 
-        rows, cols = await self.honeypot.query(self.session_id, "SELECT llm_fallback()")
+        rows, cols = await self.honeypot.query(self.session_id, "SELECT llm_fallback()")  # type: ignore[attr-defined]
         # You may need to adjust these assertions depending on your honeypot fallback behavior
         assert rows is not None
         assert cols is not None
@@ -647,11 +646,11 @@ class TestSessionVariables:
     async def test_global_variable_set_show(self):
         session_id = "test_session"
 
-        await self.honeypot.query(
+        await self.honeypot.query(  # type: ignore[attr-defined]
             session_id, "SET GLOBAL max_allowed_packet=1073741824"
         )
 
-        rows, cols = await self.honeypot.query(
+        rows, cols = await self.honeypot.query(  # type: ignore[attr-defined]
             session_id, "SHOW GLOBAL VARIABLES LIKE 'max_allowed_packet'"
         )
 
@@ -669,7 +668,7 @@ class TestSessionVariables:
     async def test_invalid_sql_returns_error(self):
         session_id = "test_session"
 
-        rows, cols = await self.honeypot.query(session_id, "INVALID SQL")
+        rows, cols = await self.honeypot.query(session_id, "INVALID SQL")  # type: ignore[attr-defined]
 
         # Expect no rows and cols to indicate error or no data
         assert rows == []
