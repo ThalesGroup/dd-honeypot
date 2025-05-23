@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
-
 import mysql.connector
 import pymysql
 import pytest
@@ -19,10 +18,7 @@ from conftest import get_honeypots_folder, get_config
 from infra.honeypot_wrapper import (
     create_honeypot,
 )
-from mysql_honeypot import (
-    MySession,
-    MySqlMimicHoneypot,
-)  # Import your session class
+from mysql_honeypot import MySession  # Import your session class
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -236,11 +232,11 @@ def test_honeypot_connection_pymysql(run_honeypot):
     try:
         with pymysql.connect(
             host="127.0.0.1",
-            port=run_honeypot.port,
+            port=64941,
             user="test",
             password="test",
             connect_timeout=3,
-            ssl={"disabled": True},  # Explicitly disable SSL
+            ssl={"disabled": True}, # Explicitly disable SSL
         ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1")
