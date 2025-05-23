@@ -488,7 +488,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     async def query(self, session_id: str, sql: str, attrs=None) -> Tuple[list, list]:
         if not hasattr(self, "sessions"):
-            self.sessions = {}  # type: ignore[assignment]
+            self.sessions = {} # type: ignore[assignment]
         if session_id not in self.sessions:
             self.sessions[session_id] = MySession(
                 data_handler=self.command_handler, action=getattr(self, "action", None)
