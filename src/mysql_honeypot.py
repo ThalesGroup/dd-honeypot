@@ -28,6 +28,8 @@ def setup_logging():
 
 logger = logging.getLogger(__name__)
 
+# ==================== Infrastructure Components ====================
+
 
 class StaticQueryHandler:
     def __init__(self, responses=None):
@@ -52,28 +54,32 @@ def _parse_llm_response(response: str) -> Tuple[List[Tuple], List[str]]:
         return [], ["Invalid LLM Output"]
 
 
-class MySession(Session):
+class BaseHoneypotSession(Session):
+    """Infrastructure code that could work with any database"""
+
     def __init__(
         self,
         base_dir=Path("data"),
         data_handler=None,
         action: HoneypotAction = None,
         config: Optional[dict] = None,
+        command_handler=None,
         *args,
         **kwargs,
     ):
-        self.global_vars = None
+        super().__init__(*args, **kwargs)
         self.data_handler = data_handler
         self.action = action
         self.honeypot_session = None
         self.session_id = str(uuid.uuid4())
-        self.session_variables = {}
         self.config = config or {}
+        self.command_handler = command_handler
 
-        super().__init__(*args, **kwargs)
         self.client_address = kwargs.get("address") or (
             args[1] if len(args) > 1 else "unknown"
         )
+        self.query_response_cache = {}
+
         logger.info(
             f"New session created: {self.session_id} from client {self.client_address}"
         )
@@ -89,30 +95,83 @@ class MySession(Session):
                 f"[{self.session_id}] Honeypot session connected: {self.honeypot_session}"
             )
 
+        if data_handler and hasattr(data_handler, "load_cache"):
+            try:
+                self.query_response_cache = data_handler.load_cache() or {}
+            except Exception as e:
+                logger.warning(f"Failed to load cache from data handler: {e}")
+
+    async def get_llm_response(self, query: str) -> Tuple[List[Tuple], List[str]]:
+        """Generic LLM response handling"""
+        try:
+            response = await self.get_or_generate_response(query)
+            logger.info(f"LLM response raw data: {response}")
+            if not response:
+                logger.error("Empty or invalid response from LLM.")
+                return [], ["Invalid LLM Output"]
+            return _parse_llm_response(response)
+        except Exception as e:
+            logger.error(f"Failed to get LLM response: {e}")
+            return [], ["Error in generating response"]
+
+    async def get_or_generate_response(self, query: str) -> str:
+        """Generic response generation"""
+        query = query.strip()
+        if query in self.query_response_cache:
+            return json.dumps(self.query_response_cache[query])
+
+        try:
+            result = await self.command_handler(query, session_id=self.session_id)
+            self.query_response_cache[query] = result
+
+            if self.data_handler and hasattr(self.data_handler, "save_response"):
+                try:
+                    self.data_handler.save_response(query, result)
+                except Exception as e:
+                    logger.error(f"Failed to save response: {e}")
+
+            return json.dumps(result)
+        except Exception as e:
+            logger.error(f"Command handler failed: {e}")
+            return json.dumps({"columns": [], "rows": []})
+
+    @staticmethod
+    def parse_sql(sql: str) -> exp.Expression:
+        """Generic SQL parsing"""
+        try:
+            return sqlglot.parse_one(sql, dialect="mysql")
+        except ParseError as e:
+            logger.error(f"SQL parse error: {e}")
+            raise MysqlError(
+                f"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax near '{sql[:30]}...'",
+                code=ErrorCode.PARSE_ERROR,
+            )
+
+
+# ==================== MySQL-Specific Implementation ====================
+
+
+class MySession(BaseHoneypotSession):
+    """MySQL-specific session implementation"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.global_vars = None
+        self.session_variables = {}
         self.model_id = self.config.get("model_id", "default_model_id")
         self.system_prompt = self.config.get(
             "system_prompt",
             "You are a MySQL server emulator. Only output valid MySQL query results formatted in JSON.",
         )
 
-        self.query_response_cache = {}
-        # If data_handler exists and has load capability, use it
-        if data_handler and hasattr(data_handler, "load_cache"):
-            try:
-                self.query_response_cache = data_handler.load_cache() or {}
-            except Exception as e:
-                logger.warning(f"Failed to load cache from data handler: {e}")
-                self.query_response_cache = {}
-
     async def command_handler(self, sql: str, session_id: str):
-        # Improved command handler to detect and simulate DROP FUNCTION IF EXISTS sys_exec
-
+        """MySQL-specific command handling"""
         try:
             parsed = sqlglot.parse_one(sql, dialect="mysql")
         except Exception:
             raise ValueError("Invalid SQL syntax")
 
-        # Detect DROP FUNCTION IF EXISTS sys_exec
+        # MySQL-specific DROP FUNCTION handling
         if (
             parsed.key.upper() == "DROP"
             and parsed.args.get("kind", "").upper() == "FUNCTION"
@@ -127,19 +186,16 @@ class MySession(Session):
                     function_name = str(first_expr).lower()
 
             if function_name == "sys_exec":
-                # Simulate success for dropping sys_exec
                 return [("OK",)], ["result"]
             else:
-                # Could simulate error or no-op for other functions
                 return [("OK",)], ["result"]
 
-        # Handle SET statements
+        # MySQL-specific SET handling
         if isinstance(parsed, exp.Set):
             return await self._handle_set_command(parsed)
 
-        # Handle SHOW statements
+        # MySQL-specific SHOW handling
         if parsed.key.upper() == "SHOW":
-            # Attempt to handle multiple SHOW variants
             if isinstance(parsed, exp.Show):
                 kind = parsed.args.get("kind", "").upper()
                 if (
@@ -149,18 +205,16 @@ class MySession(Session):
                 ):
                     return await self._handle_show_variables(parsed)
 
-        # Normalize query
+        # MySQL-specific query normalization
         try:
             normalized = sqlglot.transpile(sql, read="mysql", pretty=True)[0]
         except ParseError:
             normalized = " ".join(sql.strip().rstrip(";").upper().split())
 
-        # Check cache
         if normalized in self.query_response_cache:
             cached = self.query_response_cache[normalized]
             return cached[0], cached[1]
 
-        # Try action query sync call wrapped in executor (if needed)
         if self.action and self.honeypot_session:
             func = partial(self.action.query, query=sql, session=self.honeypot_session)
             response_str = await asyncio.get_event_loop().run_in_executor(None, func)  # type: ignore[arg-type]
@@ -168,35 +222,12 @@ class MySession(Session):
             self.query_response_cache[normalized] = response
             return response["rows"], response["columns"]
 
-        # Fallback empty result if none matched
         return [], ["No data available"]
 
-    async def get_llm_response(self, query: str) -> Tuple[List[Tuple], List[str]]:
-        try:
-            response = await self.get_or_generate_response(query)
-            logger.info(f"LLM response raw data: {response}")
-            if not response:
-                logger.error("Empty or invalid response from LLM.")
-                return [], ["Invalid LLM Output"]
-            try:
-                parsed = json.loads(response)
-                rows = [tuple(row) for row in parsed.get("rows", [])]
-                columns = parsed.get("columns", [])
-                if not rows or not columns:
-                    logger.warning("LLM response contains no rows or columns.")
-                    return [], ["No data available"]
-                return rows, columns
-            except Exception as e:
-                logger.error(f"Failed to parse LLM response: {e}")
-                return [], ["Invalid LLM Output"]
-        except Exception as e:
-            logger.error(f"Failed to get LLM response: {e}")
-            return [], ["Error in generating response"]
-
     async def handle_query(self, sql: str, attrs) -> Tuple[List[Tuple], List[str]]:
+        """MySQL-specific query handling"""
         logger.info(f"[{self.session_id}] Received query: {sql}")
 
-        # Log to honeypot data log
         if hasattr(self, "honeypot"):
             self.honeypot.log_data(
                 self.session_id,
@@ -209,30 +240,23 @@ class MySession(Session):
                 },
             )
 
-        # First try to parse the query with sqlglot using explicit dialect
         try:
             parsed = sqlglot.parse_one(sql, dialect="mysql")
 
-            # Handle SET commands
             if isinstance(parsed, exp.Set):
                 return await self._handle_set_command(parsed)
 
-            # Handle SHOW commands with more comprehensive parsing
             if isinstance(parsed, exp.Show):
                 kind = parsed.args.get("kind", "").upper()
                 if kind == "VARIABLES":
-                    # Initialize default global variables if not set
                     if not hasattr(self, "global_vars"):
                         self.global_vars = {
                             "max_allowed_packet": "1073741824",
                             "version": "8.0.0",
                         }
                     return await self._handle_show_variables(parsed)
-                # Other SHOW commands can be added here
 
-            # Handle other statement types
             if isinstance(parsed, (exp.Select, exp.Insert, exp.Update, exp.Delete)):
-                # These will be handled by the normal query processing below
                 pass
 
         except sqlglot_errors.ParseError as e:
@@ -248,14 +272,12 @@ class MySession(Session):
                 code=errorcode.ER_INTERNAL_ERROR,
             )
 
-        # Normal query handling with caching (existing code remains unchanged)
         sql_stripped = sql.strip().rstrip(";")
         try:
             normalized = transpile(sql_stripped, read="mysql", pretty=True)[0]
         except (ParseError, IndexError):
             normalized = " ".join(sql_stripped.upper().split())
 
-        # Try action handler
         if self.action and self.honeypot_session:
             try:
                 response_str = self.action.query(
@@ -263,37 +285,26 @@ class MySession(Session):
                 )
                 response = json.loads(response_str)
                 self.query_response_cache[normalized] = response
-
-                if self.data_handler and hasattr(self.data_handler, "save_response"):
-                    try:
-                        self.data_handler.save_response(normalized, response)
-                    except Exception as e:
-                        logger.error(f"Failed to save through data handler: {e}")
-
                 return response["rows"], response["columns"]
             except Exception as e:
                 logger.error(f"Action query error: {e}")
 
-        # Fallback to data handler
         if self.data_handler:
             try:
                 if callable(self.data_handler):
                     response = await self.data_handler(self.session_id, sql)
                 else:
                     response = await self.data_handler.get_data(sql)
-
-                self.query_response_cache[normalized] = response
                 return response["rows"], response["columns"]
             except Exception as e:
                 logger.error(f"[{self.session_id}] Data handler error: {e}")
 
-        logger.warning(f"[{self.session_id}] No data available for query")
         return [], ["No data available"]
 
     async def _handle_set_command(
         self, parsed: exp.Set
     ) -> Tuple[List[Tuple], List[str]]:
-        """Handle SET commands and store variables"""
+        """MySQL-specific SET command handling"""
         if not hasattr(self, "global_vars"):
             self.global_vars = {}
         if not hasattr(self, "session_vars"):
@@ -304,7 +315,6 @@ class MySession(Session):
                 var_name = (
                     item.this.name if hasattr(item.this, "name") else str(item.this)
                 )
-                # Improved: Use .sql() to get a reliable string for complex expressions
                 try:
                     value = item.expression.sql()
                 except (AttributeError, TypeError, ParseError):
@@ -320,8 +330,7 @@ class MySession(Session):
     async def _handle_show_variables(
         self, parsed: exp.Show
     ) -> Tuple[List[Tuple], List[str]]:
-        """Handle SHOW VARIABLES commands including SESSION, GLOBAL, and LIKE patterns"""
-
+        """MySQL-specific SHOW VARIABLES handling"""
         if not hasattr(self, "global_vars"):
             self.global_vars = {
                 "max_allowed_packet": "1073741824",
@@ -335,29 +344,22 @@ class MySession(Session):
         is_session = (
             parsed.args.get("is_session") or parsed.args.get("scope") == "SESSION"
         )
-        # Some SHOW commands use "scope" or "kind" to indicate SESSION/GLOBAL
 
         variables = {}
-
-        # Support SHOW GLOBAL VARIABLES, SHOW SESSION VARIABLES, and SHOW VARIABLES (default to SESSION)
         if is_global:
             variables.update({f"@@{k}": v for k, v in self.global_vars.items()})
         elif is_session:
             variables.update({f"@{k}": v for k, v in self.session_vars.items()})
         else:
-            # Default SHOW VARIABLES returns session variables per MySQL behavior
             variables.update({f"@{k}": v for k, v in self.session_vars.items()})
 
-        # Handle LIKE pattern with % wildcard
         if like_expr:
             pattern = str(like_expr.this).strip("'\"")
             import re
 
-            # Convert SQL LIKE pattern to regex pattern
             regex_pattern = (
                 "^" + re.escape(pattern).replace(r"\%", ".*").replace(r"\_", ".") + "$"
             )
-
             filtered_vars = [
                 (k, v) for k, v in variables.items() if re.match(regex_pattern, k)
             ]
@@ -365,39 +367,10 @@ class MySession(Session):
 
         return list(variables.items()), ["Variable_name", "Value"]
 
-    async def get_or_generate_response(self, query: str) -> str:
-        query = query.strip()
-        if query in self.query_response_cache:
-            return json.dumps(self.query_response_cache[query])
-
-        try:
-            result = await self.command_handler(query, session_id=self.session_id)
-            self.query_response_cache[query] = result
-
-            # Optional: save through data handler
-            if self.data_handler and hasattr(self.data_handler, "save_response"):
-                try:
-                    self.data_handler.save_response(query, result)
-                except Exception as e:
-                    logger.error(f"Failed to save response: {e}")
-
-            return json.dumps(result)
-        except Exception as e:
-            logger.error(f"Command handler failed: {e}")
-            return json.dumps({"columns": [], "rows": []})
-
-    def parse_sql(self: str) -> exp.Expression:
-        try:
-            return sqlglot.parse_one(self, dialect="mysql")
-        except ParseError as e:
-            logger.error(f"SQL parse error: {e}")
-            raise MysqlError(
-                f"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax near '{self[:30]}...'",
-                code=ErrorCode.PARSE_ERROR,
-            )
-
 
 class AllowAllIdentityProvider(IdentityProvider):
+    """MySQL-specific authentication provider"""
+
     def get_plugins(self):
         return [NativePasswordAuthPlugin()]
 
@@ -417,6 +390,8 @@ class AllowAllIdentityProvider(IdentityProvider):
 
 
 class MySqlMimicHoneypot(BaseHoneypot):
+    """MySQL-specific honeypot implementation"""
+
     sessions: Dict[str, MySession]
 
     def __init__(self, port, action=None, command_handler=None, identity_provider=None):
@@ -432,14 +407,13 @@ class MySqlMimicHoneypot(BaseHoneypot):
             session_factory=session_factory,
             identity_provider=self.identity_provider,
         )
-        self.server.log_data = self.log_data  # for structured logging
+        self.server.log_data = self.log_data
 
         self.thread = None
         self.loop = None
 
     @staticmethod
     async def _handle_sql_command():
-        # Placeholder handler
         return [], []
 
     def get_session(self, session_id):
@@ -459,18 +433,16 @@ class MySqlMimicHoneypot(BaseHoneypot):
         return session.session_vars
 
     def start(self):
-        """Start honeypot server in background thread and wait for it to be ready."""
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
         self._wait_for_server_ready()
 
     def run(self):
-        """Run the server with a dedicated asyncio event loop."""
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
         async def start_server():
-            await self.server.start_server(host="127.0.0.1", port=self.port)
+            await self.server.start_server(host="0.0.0.0", port=self.port)
             logger.info(f"MySQL honeypot server started on port {self.port}")
 
         try:
@@ -481,11 +453,10 @@ class MySqlMimicHoneypot(BaseHoneypot):
         finally:
             self.loop.close()
 
-    def _wait_for_server_ready(self, retries=10, delay=0.5):
-        """Wait until the honeypot server is accepting connections."""
+    def _wait_for_server_ready(self, retries=4, delay=0.5):
         for _ in range(retries):
             try:
-                with socket.create_connection(("127.0.0.1", self.port), timeout=1):
+                with socket.create_connection(("0.0.0.0", self.port), timeout=1):
                     logger.info("Honeypot server is ready")
                     return
             except (ConnectionRefusedError, OSError):
@@ -493,15 +464,12 @@ class MySqlMimicHoneypot(BaseHoneypot):
         raise TimeoutError("Honeypot server did not start within the timeout period")
 
     def stop(self):
-        """Stop the honeypot server gracefully."""
         if self.thread and self.thread.is_alive():
             self._stop_server()
             self.thread.join(timeout=2)
         logger.info("MySQL honeypot server stopped")
 
     def _stop_server(self):
-        """Run coroutine to stop the server and cancel pending tasks."""
-
         async def shutdown():
             if self.server:
                 await self.server.stop()
