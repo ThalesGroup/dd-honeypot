@@ -8,7 +8,7 @@ import requests
 from playwright.sync_api import sync_playwright
 
 from base_honeypot import HoneypotSession, BaseHoneypot
-from conftest import get_config, get_honeypots_folder
+from conftest import get_config, get_honeypots_folder, get_honeypot_folder
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import init_env_from_file
 from http_honeypot import HTTPHoneypot
@@ -113,10 +113,11 @@ def test_webdriver_http_request(php_my_admin):
 
 
 def test_http_honeypot_main():
-    def start_honeypot_server():
-        start_dd_honeypot("honeypots/boa_server_http")
-
-    t = threading.Thread(target=start_honeypot_server, daemon=True)
+    t = threading.Thread(
+        target=start_dd_honeypot,
+        args=[get_honeypot_folder("boa_server_http")],
+        daemon=True,
+    )
     t.start()
     try:
         assert wait_for_server(8080)
