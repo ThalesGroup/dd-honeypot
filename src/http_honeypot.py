@@ -62,7 +62,7 @@ class HTTPHoneypot(BaseHoneypot):
                 self.log_data(
                     session["h_session"],
                     {
-                        "request": {
+                        "http-request": {
                             "host": request.host,
                             "port": (
                                 80
@@ -70,11 +70,11 @@ class HTTPHoneypot(BaseHoneypot):
                                 else int(request.host.split(":")[1])
                             ),
                             "path": path,
-                            "query_string": request.query_string.decode(),
+                            "query-string": request.query_string.decode(),
                             "method": request.method,
                             "body": request.get_data(as_text=True),
+                            "headers": dict(request.headers),
                         },
-                        "request-headers": dict(request.headers),
                     },
                 )
                 result = self._action.request(
