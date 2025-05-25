@@ -232,11 +232,11 @@ def test_honeypot_connection_pymysql(run_honeypot):
     try:
         with pymysql.connect(
             host="127.0.0.1",
-            port=64941,
+            port=run_honeypot.port,
             user="test",
             password="test",
             connect_timeout=3,
-            ssl={"disabled": True}, # Explicitly disable SSL
+            ssl={"disabled": True},  # Explicitly disable SSL
         ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1")

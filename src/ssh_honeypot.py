@@ -76,7 +76,8 @@ class SSHServerInterface(paramiko.ServerInterface):
 
     def handle_shell(self, channel):
         try:
-            prompt = f"{self.username}@honeypot:~$ "
+            cwd = self.session.get("cwd", "/")
+            prompt = f"{self.username}@SSHServer:{cwd}$ "
 
             while not channel.closed:
                 buffer = ""
@@ -105,7 +106,7 @@ class SSHServerInterface(paramiko.ServerInterface):
                     self.session, {"method": "shell", "command": command}
                 )
 
-                if command.lower() in ["exit", "quit"]:
+                if command.lower() in ["exit", "quit", "logout"]:
                     channel.send("\r\nConnection closed.\r\n")
                     break
 

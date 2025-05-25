@@ -140,11 +140,11 @@ class BaseHoneypotSession(Session):
     def parse_sql(sql: str) -> exp.Expression:
         try:
             return sqlglot.parse_one(sql, dialect="mysql")
-        except ParseError as e:
+        except sqlglot_errors.ParseError as e:
             logger.error(f"SQL parse error: {e}")
             raise MysqlError(
                 f"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax near '{sql[:30]}...'",
-                code=ErrorCode.PARSE_ERROR,
+                code=errorcode.ER_PARSE_ERROR,
             )
 
 
