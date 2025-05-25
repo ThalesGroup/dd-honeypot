@@ -9,18 +9,17 @@ from typing import Generator
 
 import pytest
 
-from base_honeypot import BaseHoneypot, HoneypotSession
+from base_honeypot import HoneypotSession, BaseHoneypot
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import allocate_port
 from infra.interfaces import HoneypotAction
-from llm_utils import InvokeLimiter
 from tcp_honeypot import TCPHoneypot
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def tcp_honeypot() -> Generator[TCPHoneypot, None, None]:
+def tcp_honeypot() -> Generator[BaseHoneypot, None, None]:
 
     class BufferSessionDataAction(HoneypotAction):
         """
@@ -35,7 +34,7 @@ def tcp_honeypot() -> Generator[TCPHoneypot, None, None]:
             session["data"] += query
             return session["data"]
 
-    honeypot = TCPHoneypot(action=BufferSessionDataAction(), name="TestHTTPHoneypot")
+    honeypot = TCPHoneypot(action=BufferSessionDataAction(), name="TestTcpHoneypot")
     try:
         honeypot.start()
         yield honeypot
