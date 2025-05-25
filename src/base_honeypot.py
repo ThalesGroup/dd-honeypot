@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -71,6 +72,7 @@ class BaseHoneypot(ABC):
         """
         data_to_log = {
             "dd-honeypot": True,
+            "region": os.getenv("AWS_DEFAULT_REGION"),
             "time": datetime.now().isoformat(),
             "session-id": session.get("session_id"),
             "type": self.honeypot_type(),
