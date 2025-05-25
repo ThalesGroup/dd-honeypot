@@ -12,6 +12,8 @@ class DataHandler(HoneypotAction):
     def __init__(self, data_file: str, system_prompt: str, model_id: str):
         self.data_file = Path(data_file)
         self.hints_file = Path(data_file.replace("data", "hints"))
+        if isinstance(system_prompt, list):
+            system_prompt = "\n".join(system_prompt)
         self.system_prompt = system_prompt
         self.model_id = model_id
         self.commands = self._load_data()
@@ -59,13 +61,18 @@ class DataHandler(HoneypotAction):
 
         # LLM fallback
         logging.info(f"LLM fallback for query: {query}")
-        invoked, response = self.invoke_llm_with_limit(query)
+        user_prompt = self.query_user_prompt(query, session)
+        invoked, response = self.invoke_llm_with_limit(user_prompt)
         if invoked:
             self.commands.append({"command": query, "response": response})
             self._save_data()
         return response
 
-    def user_prompt(self, info: dict) -> str:
+    # noinspection PyPackageRequirements,PyMethodMayBeStatic
+    def query_user_prompt(self, query: str, session: HoneypotSession) -> str:
+        return f"User input: {query}"
+
+    def request_user_prompt(self, info: dict) -> str:
         raise NotImplementedError()
 
     def user_prompt_hint(self, info: dict) -> Optional[str]:
@@ -80,7 +87,7 @@ class DataHandler(HoneypotAction):
         for entry in self.commands:
             if entry["path"] == info["path"] and entry["args"] == args:
                 return entry["content"]
-        invoked, response = self.invoke_llm_with_limit(self.user_prompt(info))
+        invoked, response = self.invoke_llm_with_limit(self.request_user_prompt(info))
         if invoked:
             self.commands.append(
                 {"path": info["path"], "args": args, "content": response}

@@ -7,6 +7,7 @@ from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
+from tcp_honeypot import TCPHoneypot
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,9 @@ def create_honeypot(config: dict) -> BaseHoneypot:
 
     elif honeypot_type == "http":
         return HTTPHoneypot(port=port, action=action, name=config.get("name"))
+
+    elif honeypot_type == "tcp":
+        return TCPHoneypot(port=port, action=action, name=config.get("name"))
 
     elif honeypot_type == "mysql":
         from mysql_honeypot import MySqlMimicHoneypot

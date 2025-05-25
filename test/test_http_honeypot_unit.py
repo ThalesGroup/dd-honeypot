@@ -1,6 +1,5 @@
 import json
 import os.path
-import shutil
 import tempfile
 import threading
 import time
@@ -11,7 +10,7 @@ import requests
 from playwright.sync_api import sync_playwright
 
 from base_honeypot import HoneypotSession, BaseHoneypot
-from conftest import get_config, get_honeypots_folder, get_honeypot_folder
+from conftest import get_config, get_honeypots_folder
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import init_env_from_file, allocate_port
 from http_honeypot import HTTPHoneypot
@@ -22,7 +21,7 @@ from infra.interfaces import HoneypotAction
 def wait_for_server(port: int, retries=5, delay=1):
     for _ in range(retries):
         try:
-            requests.get(f"http://0.0.0.0:{port}")
+            requests.get(f"http://127.0.0.1:{port}")
             return True
         except requests.ConnectionError:
             time.sleep(delay)
@@ -117,6 +116,7 @@ def test_webdriver_http_request(php_my_admin):
 
 def test_http_honeypot_main(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("STOP_HONEYPOT", "false")
     port = allocate_port()
     with tempfile.TemporaryDirectory() as tmpdir:
         json.dump(
@@ -146,5 +146,5 @@ def test_http_honeypot_main(monkeypatch):
             assert response.status_code == 200
             assert "mocked response" == response.text
         finally:
-            os.environ["STOP_HONEYPOT"] = "1"
+            monkeypatch.setenv("STOP_HONEYPOT", "true")
             t.join(timeout=5)

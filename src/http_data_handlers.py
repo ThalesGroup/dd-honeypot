@@ -23,7 +23,7 @@ class HTTPDataHandler(DataHandler):
             "Login should always succeed",
         ]
 
-    def user_prompt(self, info: dict) -> str:
+    def request_user_prompt(self, info: dict) -> str:
         r = info["request"]
         result = f"""Method: {r.method}
     path: {info["path"]}
