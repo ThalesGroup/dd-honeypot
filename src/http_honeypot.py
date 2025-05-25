@@ -5,6 +5,7 @@ from flask import Flask, request, session, Request, Response
 
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction
+from werkzeug.serving import make_server
 
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -20,6 +21,7 @@ class HTTPHoneypot(BaseHoneypot):
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"  # Change this to a secure key
         self._thread = None
+        self._server = None
         self._action = action
 
         @self.app.before_request
@@ -61,6 +63,12 @@ class HTTPHoneypot(BaseHoneypot):
                     session["h_session"],
                     {
                         "request": {
+                            "host": request.host,
+                            "port": (
+                                80
+                                if ":" not in request.host
+                                else int(request.host.split(":")[1])
+                            ),
                             "path": path,
                             "query_string": request.query_string.decode(),
                             "method": request.method,
@@ -88,18 +96,20 @@ class HTTPHoneypot(BaseHoneypot):
             logger.error(f"500 error: {error}")
             return Response("Internal Server Error", 500)
 
+    def honeypot_type(self) -> str:
+        return "http"
+
     def start(self):
         logger.info(f"Starting honeypot on port {self.port}")
 
-        def run_app():
-            self.app.run(
-                host="0.0.0.0", port=self.port, debug=False, use_reloader=False
-            )
-
-        self._thread = threading.Thread(target=run_app, daemon=True)
+        self._server = make_server("0.0.0.0", self.port, self.app)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
 
     def stop(self):
+        if self._server:
+            self._server.shutdown()
+
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1)
         logger.info(f"Stopping honeypot on port {self.port}")

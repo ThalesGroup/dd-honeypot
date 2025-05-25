@@ -57,6 +57,12 @@ class BaseHoneypot(ABC):
         """
         return True
 
+    def honeypot_type(self) -> str:
+        """
+        :return: the type of the honeypot, for example, "HTTP", "SSH", etc.
+        """
+        return self.__class__.__name__
+
     def log_data(self, session: HoneypotSession, data: dict):
         """
 
@@ -67,8 +73,7 @@ class BaseHoneypot(ABC):
             "dd-honeypot": True,
             "time": datetime.now().isoformat(),
             "session-id": session.get("session_id"),
-            "type": self.__class__.__name__,
-            "port": self.port,
+            "type": self.honeypot_type(),
         }
         data_to_log.update(data)
         print(json.dumps(data_to_log))

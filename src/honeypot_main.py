@@ -59,7 +59,9 @@ async def _start_honeypots(folder: str):
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
     try:
-        while any(h.is_running() for h in honeypots):
+        while os.getenv("STOP_HONEYPOT") is None and any(
+            h.is_running() for h in honeypots
+        ):
             await asyncio.sleep(2)
         logging.info("Stopping honeypot")
         for h in honeypots:
