@@ -25,9 +25,10 @@ class HoneypotSession(dict):
 
 class BaseHoneypot(ABC):
 
-    def __init__(self, port: int = None):
+    def __init__(self, port: int = None, name: str = None):
         super().__init__()
         self.__port = port if port else allocate_port()
+        self.__name = name
 
     @property
     def port(self):
@@ -35,6 +36,13 @@ class BaseHoneypot(ABC):
         :return: port number
         """
         return self.__port
+
+    @property
+    def name(self):
+        """
+        :return: name of the honeypot
+        """
+        return self.__name
 
     @abstractmethod
     def start(self):
@@ -76,6 +84,7 @@ class BaseHoneypot(ABC):
             "time": datetime.now().isoformat(),
             "session-id": session.get("session_id"),
             "type": self.honeypot_type(),
+            "name": self.name,
         }
         data_to_log.update(data)
         print(json.dumps(data_to_log))

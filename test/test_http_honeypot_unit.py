@@ -1,4 +1,7 @@
+import json
 import os.path
+import shutil
+import tempfile
 import threading
 import time
 from typing import Generator
@@ -10,7 +13,7 @@ from playwright.sync_api import sync_playwright
 from base_honeypot import HoneypotSession, BaseHoneypot
 from conftest import get_config, get_honeypots_folder, get_honeypot_folder
 from honeypot_main import start_dd_honeypot
-from honeypot_utils import init_env_from_file
+from honeypot_utils import init_env_from_file, allocate_port
 from http_honeypot import HTTPHoneypot
 from infra.honeypot_wrapper import create_honeypot
 from infra.interfaces import HoneypotAction
@@ -32,7 +35,7 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
         def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
             return "Request logged"
 
-    honeypot = HTTPHoneypot(action=TestHTTPDataHandler())
+    honeypot = HTTPHoneypot(action=TestHTTPDataHandler(), name="TestHTTPHoneypot")
     try:
         honeypot.start()
         wait_for_server(honeypot.port)
@@ -112,15 +115,36 @@ def test_webdriver_http_request(php_my_admin):
                 print("❌ Login failed or SQL tab not found.")
 
 
-def test_http_honeypot_main():
-    t = threading.Thread(
-        target=start_dd_honeypot,
-        args=[get_honeypot_folder("boa_server_http")],
-        daemon=True,
-    )
-    t.start()
-    try:
-        assert wait_for_server(8080)
-    finally:
-        os.environ["STOP_HONEYPOT"] = "1"
-        t.join(timeout=5)
+def test_http_honeypot_main(monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    port = allocate_port()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        json.dump(
+            {
+                "port": port,
+                "name": "TestHTTPHoneypot",
+                "type": "http",
+                "model_id": "some model",
+                "system_prompt": ["You are a test HTTP honeypot"],
+            },
+            open(os.path.join(tmpdir, "config.json"), "w"),
+        )
+        t = threading.Thread(
+            target=start_dd_honeypot,
+            args=[tmpdir],
+            daemon=True,
+        )
+        t.start()
+        try:
+            assert wait_for_server(port)
+            monkeypatch.setattr(
+                "infra.data_handler.invoke_llm", lambda *a, **kw: "mocked response"
+            )
+            response = requests.get(
+                f"http://0.0.0.0:{port}/some_path", headers={"Accept": "text/html"}
+            )
+            assert response.status_code == 200
+            assert "mocked response" == response.text
+        finally:
+            os.environ["STOP_HONEYPOT"] = "1"
+            t.join(timeout=5)
