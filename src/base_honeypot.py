@@ -80,9 +80,17 @@ class BaseHoneypot(ABC):
         """
         return self.__class__.__name__
 
+    def log_login(self, session: HoneypotSession, data: dict):
+        """
+        log login data for the honeypot session. This can be used to log user login attempts, successful logins,
+        :param session:
+        :param data:
+        """
+        self.log_data(session, {"login": data})
+
     def log_data(self, session: HoneypotSession, data: dict):
         """
-
+        log data for the honeypot session. This can be used to log user commands, requests, and other data.
         :param session:
         :param data:
         """

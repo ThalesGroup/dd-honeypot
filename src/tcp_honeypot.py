@@ -43,6 +43,7 @@ class TCPHoneypot(BaseHoneypot):
                 logger.info(f"Connection accepted from {addr}")
 
                 session = self._action.connect({"client_ip": addr[0]})
+                self.log_login(session, {"client_ip": addr[0], "client_port": addr[1]})
                 with client_socket:
                     while self._running:
                         logger.info(f"Session {session.session_id} is active")

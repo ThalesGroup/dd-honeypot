@@ -48,22 +48,31 @@ class TelnetHoneypot(BaseHoneypot):
                 word += char
 
     async def shell(self, reader, writer):
-        writer.write("\r\nD-Link Corporation")
-        writer.write("\r\nLogin: ")
-        username = await self.read_line(reader, writer, True)
-        writer.write("\r\nPassword: ")
-        password = await self.read_line(reader, writer, False)
+        username, password = None, None
+        if "telnet" in self.config:
+            telnet_conf = self.config["telnet"]
+            if "banner" in telnet_conf:
+                writer.write(f"{telnet_conf['banner']}\r\n")
+            if "login-prompt" in telnet_conf:
+                writer.write(f"\r\n{telnet_conf['login-prompt']}")
+                username = await self.read_line(reader, writer, True)
+            if "password-prompt" in telnet_conf:
+                writer.write(f"\r\n{telnet_conf['password-prompt']}")
+                password = await self.read_line(reader, writer, False)
+            if "post-login-message" in telnet_conf:
+                writer.write(f"\r\n{telnet_conf['post-login-message']}\r\n")
+
         peer = writer.get_extra_info("peername")
-        client_ip = peer[0] if peer else "unknown"
-        writer.write(f"\r\nBusyBox v1.xx (date) Built-in shell (ash)")
-        session = self._action.connect(
-            {
-                "client_ip": client_ip,
-                "username": username.strip(),
-                "password": password.strip(),
-            }
-        )
-        writer.write("\r\n# ")
+        client_ip = peer[0] if peer else None
+        login_data = {
+            "client_ip": client_ip,
+            "username": username.strip() if username else None,
+            "password": password.strip() if password else None,
+        }
+        session = self._action.connect(login_data)
+        self.log_login(session, login_data)
+        shell_prompt = self.config.get("telnet", {}).get("shell-prompt", "# ")
+        writer.write(f"\r\n{shell_prompt}")
         line = await self.read_line(reader, writer, True)
         while line is not None:
             self.log_data(
@@ -76,7 +85,7 @@ class TelnetHoneypot(BaseHoneypot):
             else:
                 response = self._action.query(line, session)
                 writer.write(response.replace("\n", "\r\n"))
-                writer.write("\r\n# ")
+                writer.write(f"\r\n{shell_prompt}")
                 line = await self.read_line(reader, writer, True)
         writer.close()
 
