@@ -28,14 +28,14 @@ def telnet_honeypot() -> Generator[TelnetHoneypot, None, None]:
 
 
 def test_telnet_honeypot(telnet_honeypot):
-    with telnetlib.Telnet("0.0.0.0", telnet_honeypot.port, timeout=5) as tn:
-        tn.read_until(b"Login: ")
+    with telnetlib.Telnet("0.0.0.0", telnet_honeypot.port, timeout=2) as tn:
+        tn.read_until(b"Login: ", timeout=2)
         tn.write(b"admin\n")
 
-        tn.read_until(b"Password: ")
+        tn.read_until(b"Password: ", timeout=2)
         tn.write(b"123456\n")
 
-        tn.read_until(b"> ").decode()
+        tn.read_until(b"# ", timeout=2).decode()
         tn.write(b"exit\n")
         output = tn.read_all().decode()
         assert "Goodbye" in output

@@ -74,7 +74,7 @@ class TelnetHoneypot(BaseHoneypot):
                 break
             else:
                 response = self._action.query(line, session)
-                writer.write(response)
+                writer.write(response.replace("\n", "\r\n"))
                 writer.write("\r\n# ")
                 line = await self.read_line(reader, writer, True)
         writer.close()
@@ -84,7 +84,6 @@ class TelnetHoneypot(BaseHoneypot):
         server = await telnetlib3.create_server(
             host="0.0.0.0", port=self.port, shell=self.shell, encoding="utf8"
         )
-        print(f"Server running on port {self.port}")
         await server.serve_forever()
 
     def start(self):
