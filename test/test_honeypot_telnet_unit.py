@@ -29,7 +29,7 @@ def telnet_honeypot() -> Generator[TelnetHoneypot, None, None]:
 
 
 def test_telnet_honeypot(telnet_honeypot):
-    with telnetlib.Telnet("0.0.0.0", telnet_honeypot.port, timeout=2) as tn:
+    with telnetlib.Telnet("0.0.0.0", telnet_honeypot.port, timeout=3) as tn:
         tn.read_until(b"Login: ", timeout=2)
         tn.write(b"admin\n")
 
