@@ -1,5 +1,4 @@
 import logging
-import logging
 import telnetlib
 from typing import Generator
 
@@ -19,7 +18,9 @@ def telnet_honeypot() -> Generator[TelnetHoneypot, None, None]:
         def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
             return "Response to: " + query
 
-    honeypot = TelnetHoneypot(action=TelnetAction(), name="TestTelnetHoneypot")
+    honeypot = TelnetHoneypot(
+        action=TelnetAction(), config={"name": "TestTelnetHoneypot"}
+    )
     try:
         honeypot.start()
         yield honeypot

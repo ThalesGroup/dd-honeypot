@@ -34,7 +34,9 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
         def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
             return "Request logged"
 
-    honeypot = HTTPHoneypot(action=TestHTTPDataHandler(), name="TestHTTPHoneypot")
+    honeypot = HTTPHoneypot(
+        action=TestHTTPDataHandler(), config={"name": "TestHTTPHoneypot"}
+    )
     try:
         honeypot.start()
         wait_for_server(honeypot.port)

@@ -17,16 +17,17 @@ class TelnetHoneypot(BaseHoneypot):
         self,
         port: int = None,
         action: HoneypotAction = None,
-        name: str = None,
+        config: dict = None,
     ):
-        super().__init__(port, name)
+        super().__init__(port, config)
         self._action = action
         self._thread = None
 
     def honeypot_type(self) -> str:
         return "telnet"
 
-    async def read_line(self, reader, writer, echo: bool) -> Optional[str]:
+    @staticmethod
+    async def read_line(reader, writer, echo: bool) -> Optional[str]:
         word = ""
         while True:
             char = await reader.read(1)

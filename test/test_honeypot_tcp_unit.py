@@ -34,7 +34,9 @@ def tcp_honeypot() -> Generator[BaseHoneypot, None, None]:
             session["data"] += query
             return session["data"]
 
-    honeypot = TCPHoneypot(action=BufferSessionDataAction(), name="TestTcpHoneypot")
+    honeypot = TCPHoneypot(
+        action=BufferSessionDataAction(), config={"name": "TestTcpHoneypot"}
+    )
     try:
         honeypot.start()
         yield honeypot

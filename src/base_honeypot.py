@@ -3,6 +3,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Optional
 
 from honeypot_utils import allocate_port
 
@@ -25,10 +26,10 @@ class HoneypotSession(dict):
 
 class BaseHoneypot(ABC):
 
-    def __init__(self, port: int = None, name: str = None):
+    def __init__(self, port: int = None, config: dict = None):
         super().__init__()
         self.__port = port if port else allocate_port()
-        self.__name = name
+        self.__config = config
 
     @property
     def port(self):
@@ -38,11 +39,18 @@ class BaseHoneypot(ABC):
         return self.__port
 
     @property
-    def name(self):
+    def name(self) -> Optional[str]:
         """
         :return: name of the honeypot
         """
-        return self.__name
+        return self.__config.get("name") if self.__config else None
+
+    @property
+    def config(self) -> Optional[dict]:
+        """
+        :return: name of the honeypot
+        """
+        return self.__config
 
     @abstractmethod
     def start(self):

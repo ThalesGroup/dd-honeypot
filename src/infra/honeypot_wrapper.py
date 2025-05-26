@@ -75,13 +75,13 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         return SSHHoneypot(port=port, action=action)
 
     elif honeypot_type == "http":
-        return HTTPHoneypot(port=port, action=action, name=config.get("name"))
+        return HTTPHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "tcp":
-        return TCPHoneypot(port=port, action=action, name=config.get("name"))
+        return TCPHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "telnet":
-        return TelnetHoneypot(port=port, action=action, name=config.get("name"))
+        return TelnetHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "mysql":
         from mysql_honeypot import MySqlMimicHoneypot

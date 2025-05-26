@@ -14,9 +14,9 @@ class TCPHoneypot(BaseHoneypot):
         self,
         port: int = None,
         action: HoneypotAction = None,
-        name: str = None,
+        config: dict = None,
     ):
-        super().__init__(port, name)
+        super().__init__(port, config)
         self._action = action
         self._server_socket = None
         self._running = False

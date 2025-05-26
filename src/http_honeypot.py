@@ -16,9 +16,9 @@ class HTTPHoneypot(BaseHoneypot):
         self,
         port: int = None,
         action: HoneypotAction = None,
-        name: str = None,
+        config: dict = None,
     ):
-        super().__init__(port, name)
+        super().__init__(port, config)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"  # Change this to a secure key
         self._thread = None
