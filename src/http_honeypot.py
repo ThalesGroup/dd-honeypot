@@ -20,7 +20,7 @@ class HTTPHoneypot(BaseHoneypot):
     ):
         super().__init__(port, config)
         self.app = Flask(__name__)
-        self.app.secret_key = "your_secret_key"  # Change this to a secure key
+        self.app.secret_key = "your_secret_key"
         self._thread = None
         self._server = None
         self._action = action
