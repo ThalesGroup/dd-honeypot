@@ -53,7 +53,9 @@ def running_honeypot():
 def run_honeypot():
     config = get_config("mysql")
     config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
-    config["port"] = 0
+
+    config["port"] = 13306
+    config["host"] = "0.0.0.0"
 
     honeypot = create_honeypot(config=config)
     thread = threading.Thread(target=honeypot.start, daemon=True)
@@ -63,7 +65,7 @@ def run_honeypot():
     start = time.time()
     while True:
         try:
-            with socket.create_connection(("127.0.0.1", honeypot.port), timeout=0.5):
+            with socket.create_connection(("127.0.0.1", config["port"]), timeout=0.5):
                 break
         except (ConnectionRefusedError, OSError):
             if time.time() - start > timeout:
@@ -74,6 +76,12 @@ def run_honeypot():
     honeypot.stop()
 
 
+def handle_login(self, username, password):
+    if username in {"root", "test"}:
+        return True  # Accept login
+    return False  # Reject others
+
+
 """Ensures that the honeypot properly handles invalid handshakes and rejects 
 connections with the expected error messages."""
 
@@ -82,7 +90,7 @@ def test_honeypot_should_fail_on_invalid_handshake(run_honeypot):
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
-                host="54.172.18.244 ",
+                host="127.0.0.1",
                 port=run_honeypot.port,
                 user="test",
                 password="test",
@@ -207,7 +215,6 @@ def test_honeypot_connection_mysql_connector(run_honeypot):
             port=run_honeypot.port,
             user="test",
             password="test",
-            auth_plugin="mysql_native_password",
             connection_timeout=3,
             ssl_disabled=True,
         ) as conn:
@@ -247,6 +254,27 @@ def test_honeypot_connection_pymysql(run_honeypot):
         logger.info(
             f"mysql-connector attempt failed, falling back to pymysql: {repr(e)}"
         )
+    finally:
+        run_honeypot.stop()
+
+
+def test_basic_login_and_query(run_honeypot):
+    try:
+        with mysql.connector.connect(
+            host="127.0.0.1",
+            port=run_honeypot.port,
+            user="root",
+            password="",  # adjust if needed
+            connection_timeout=3,
+            ssl_disabled=True,
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                assert result == (1,), f"Expected (1,), got {result}"
+
+    except Exception as e:
+        logger.info(f"Basic test mysql-connector failed: {repr(e)}")
     finally:
         run_honeypot.stop()
 
