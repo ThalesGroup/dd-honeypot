@@ -19,6 +19,7 @@ from mysql_mimic.session import Session
 from mysql_mimic.errors import MysqlError, ErrorCode
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction
+from mysql_mimic import NativePasswordAuthPlugin
 
 
 def setup_logging():
@@ -353,22 +354,20 @@ class MySession(BaseHoneypotSession):
 
 
 class AllowAllIdentityProvider(IdentityProvider):
-    """MySQL-specific authentication provider"""
+    """Accept all users with any password using default plugin"""
 
     def get_plugins(self):
-        return [NativePasswordAuthPlugin()]
+        return [NativePasswordAuthPlugin()]  # Keep using default plugin
 
     def get_default_plugin(self):
         return NativePasswordAuthPlugin()
 
     async def get_user(self, username: str) -> User:
         logger.info(f"Allowing connection for user: {username}")
-        password = "123"
-        stage1 = hashlib.sha1(password.encode()).digest()
-        stage2 = hashlib.sha1(stage1).hexdigest()
+        # Empty auth_string disables password check (acts like auth bypass)
         return User(
             name=username,
-            auth_string=stage2,
+            auth_string="",  # This accepts any password
             auth_plugin="mysql_native_password",
         )
 
@@ -479,3 +478,11 @@ class MySqlMimicHoneypot(BaseHoneypot):
             )
         session = self.sessions[session_id]
         return await session.handle_query(sql, attrs or {})
+
+    def authenticate(
+        self, username: str, auth_plugin: str, auth_response: bytes
+    ) -> bool:
+        # Accept all users for testing, or customize here:
+        if username == "test":
+            return True
+        return False

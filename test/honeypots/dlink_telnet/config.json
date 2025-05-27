@@ -16,6 +16,9 @@
     "</Behavior Rules>"
   ],
   "port": 2323,
+  "AWS_REGION": "us-east-1",
+  "data_file": "data.jsonl",
+  "fs_file": "alpine_fs_small.json",
   "telnet": {
     "banner": "D-Link Corporation",
     "login-prompt": "Login: ",

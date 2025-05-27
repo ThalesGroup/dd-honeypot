@@ -7,7 +7,6 @@ from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
-from tcp_honeypot import TCPHoneypot
 from telnet_honeypot import TelnetHoneypot
 
 logger = logging.getLogger(__name__)
@@ -34,6 +33,9 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     if not data_file.exists():
         data_file.parent.mkdir(parents=True, exist_ok=True)
         data_file.touch()
+
+    if "AWS_REGION" in config:
+        os.environ["AWS_DEFAULT_REGION"] = config["AWS_REGION"]
 
     if honeypot_type == "http":
         action = HTTPDataHandler(
@@ -78,9 +80,52 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         return HTTPHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "tcp":
+        from tcp_honeypot import TCPHoneypot
+        from infra.fake_fs_data_handler import FakeFSDataHandler
+        from infra.chained_data_handler import ChainedDataHandler
+
+        if fs_file:
+            fs_handler = FakeFSDataHandler(
+                data_file=str(data_file),
+                system_prompt=system_prompt,
+                model_id=model_id,
+                fs_file=fs_file,
+            )
+            llm_handler = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
+            action = ChainedDataHandler(
+                fakefs_handler=fs_handler, llm_handler=llm_handler
+            )
+        else:
+            action = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
+
         return TCPHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "telnet":
+        from ssh_honeypot import SSHHoneypot
+        from infra.fake_fs_data_handler import FakeFSDataHandler
+        from infra.chained_data_handler import ChainedDataHandler
+
+        if fs_file:
+            fs_handler = FakeFSDataHandler(
+                data_file=str(data_file),
+                system_prompt=system_prompt,
+                model_id=model_id,
+                fs_file=fs_file,
+            )
+            llm_handler = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
+            action = ChainedDataHandler(
+                fakefs_handler=fs_handler, llm_handler=llm_handler
+            )
+        else:
+            action = DataHandler(
+                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
+            )
         return TelnetHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "mysql":
