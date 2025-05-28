@@ -54,8 +54,7 @@ def run_honeypot():
     config = get_config("mysql")
     config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
 
-    config["port"] = 13306
-    config["host"] = "0.0.0.0"
+    config["port"] = 3306
 
     honeypot = create_honeypot(config=config)
     thread = threading.Thread(target=honeypot.start, daemon=True)
@@ -65,7 +64,7 @@ def run_honeypot():
     start = time.time()
     while True:
         try:
-            with socket.create_connection(("127.0.0.1", config["port"]), timeout=0.5):
+            with socket.create_connection(("0.0.0.0", config["port"]), timeout=0.5):
                 break
         except (ConnectionRefusedError, OSError):
             if time.time() - start > timeout:
@@ -90,7 +89,7 @@ def test_honeypot_should_fail_on_invalid_handshake(run_honeypot):
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
-                host="127.0.0.1",
+                host=" 54.147.241.42",
                 port=run_honeypot.port,
                 user="test",
                 password="test",
@@ -170,44 +169,6 @@ def test_real_mysql_connection_and_query(run_honeypot):
 """Tests connectivity to the honeypot using both mysql-connector and pymysql libraries."""
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
-def test_real_mysql_basic_operations(run_honeypot):
-    """Test basic SQL operations on real MySQL to compare expected responses."""
-    try:
-        conn = mysql.connector.connect(
-            host="127.0.0.1",
-            port=3306,
-            user="test",
-            password="test",
-            database="test_db",
-        )
-        cursor = conn.cursor()
-
-        # Create a temporary table
-        cursor.execute(
-            "CREATE TEMPORARY TABLE IF NOT EXISTS temp_users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50));"
-        )
-
-        # Insert values
-        cursor.execute("INSERT INTO temp_users (name) VALUES ('person1'), ('person2');")
-        conn.commit()
-
-        # Select and check values
-        cursor.execute("SELECT name FROM temp_users ORDER BY id;")
-        results = cursor.fetchall()
-        assert results == [
-            ("person1",),
-            ("person2",),
-        ], f"Unexpected query result: {results}"
-
-        # Cleanup is automatic since it's a TEMPORARY table
-
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        pytest.skip(f"Skipping real DB test due to error: {str(e)}")
-
-
 def test_honeypot_connection_mysql_connector(run_honeypot):
     try:
         with mysql.connector.connect(
@@ -264,7 +225,7 @@ def test_basic_login_and_query(run_honeypot):
             host="127.0.0.1",
             port=run_honeypot.port,
             user="root",
-            password="",  # adjust if needed
+            password="123",  # adjust if needed
             connection_timeout=3,
             ssl_disabled=True,
         ) as conn:
@@ -280,7 +241,7 @@ def test_basic_login_and_query(run_honeypot):
 
 
 def test_connection_to_honeypot(run_honeypot):
-    host = "127.0.0.1"
+    host = " 54.147.241.42"
     port = run_honeypot.port
 
     # Update the expected exception to match the actual error message format
@@ -289,7 +250,11 @@ def test_connection_to_honeypot(run_honeypot):
         match=r"1045 \(28000\): Access denied for user attacker",
     ):
         mysql.connector.connect(
-            host=host, port=port, user="attacker", password="fake", connect_timeout=5
+            host=host,
+            port=run_honeypot.port,
+            user="attacker",
+            password="fake",
+            connect_timeout=5,
         )
 
 

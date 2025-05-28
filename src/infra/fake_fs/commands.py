@@ -48,6 +48,36 @@ def handle_mkdir(session: dict, path: str) -> str:
     return ""
 
 
+from textwrap import dedent
+
+
+def handle_wget(session, url: str) -> str:
+    fs = session["fs"]
+    cwd = session.get("cwd", "/")
+    filename = url.strip().split("/")[-1]
+    path = normalize_path(filename, cwd)
+
+    fs.create_file(path, content=f"# downloaded from {url}")
+
+    if "downloads" not in session:
+        session["downloads"] = []
+    session["downloads"].append({"url": url, "path": path})
+
+    fake_file_size = 1234
+    now = "2025-05-28 10:11:47"
+
+    return (
+        f"--{now}--  {url}\r\n"
+        f"Resolving {url.split('/')[2]}... done.\r\n"
+        f"Connecting to {url.split('/')[2]}|192.0.2.1|:80... connected.\r\n"
+        f"HTTP request sent, awaiting response... 200 OK\r\n"
+        f"Length: {fake_file_size} [text/x-shellscript]\r\n"
+        f"Saving to: ‘{filename}’\r\n\n"
+        f"{filename}              100%[{fake_file_size}/{fake_file_size}]   1.21K/s   in 0.01s\r\n\n"
+        f"{now} (1.21 KB/s) - ‘{filename}’ saved [{fake_file_size}/{fake_file_size}]"
+    )
+
+
 def normalize_path(path: str, cwd: str) -> str:
     if path.startswith("/"):
         base = []

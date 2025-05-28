@@ -6,126 +6,79 @@ from pathlib import Path
 from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
+from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
+from infra.fake_fs_data_handler import FakeFSDataHandler
 from telnet_honeypot import TelnetHoneypot
 
 logger = logging.getLogger(__name__)
 
 
-def create_honeypot(config: dict) -> BaseHoneypot:
-    """
-    Create a honeypot from a config dictionary.
-    Required keys: type, data_file, model_id, system_prompt, port
-    """
+def build_data_handler(config: dict):
+    data_file = str(config["data_file"])
+    model_id = config["model_id"]
+    system_prompt = config["system_prompt"]
+    fs_file = config.get("fs_file")
 
+    if fs_file:
+        fakefs_handler = FakeFSDataHandler(
+            data_file=data_file,
+            system_prompt=system_prompt,
+            model_id=model_id,
+            fs_file=fs_file,
+        )
+        llm_handler = DataHandler(
+            data_file=data_file,
+            system_prompt=system_prompt,
+            model_id=model_id,
+        )
+        return ChainedDataHandler(
+            fakefs_handler=fakefs_handler, llm_handler=llm_handler
+        )
+    else:
+        return DataHandler(
+            data_file=data_file,
+            system_prompt=system_prompt,
+            model_id=model_id,
+        )
+
+
+def create_honeypot(config: dict) -> BaseHoneypot:
     required_keys = ["type", "data_file", "model_id", "system_prompt", "port"]
     for key in required_keys:
         if key not in config:
             raise ValueError(f"Missing required config key: {key}")
 
     honeypot_type = config["type"]
-    data_file = Path(config["data_file"])
-    model_id = config["model_id"]
-    system_prompt = config["system_prompt"]
     port = config["port"]
-    fs_file = config.get("fs_file")
-
-    if not data_file.exists():
-        data_file.parent.mkdir(parents=True, exist_ok=True)
-        data_file.touch()
 
     if "AWS_REGION" in config:
         os.environ["AWS_DEFAULT_REGION"] = config["AWS_REGION"]
 
     if honeypot_type == "http":
         action = HTTPDataHandler(
-            data_file=str(data_file),
-            system_prompt=system_prompt,
-            model_id=model_id,
+            data_file=str(config["data_file"]),
+            system_prompt=config["system_prompt"],
+            model_id=config["model_id"],
         )
-    else:
-        action = DataHandler(
-            data_file=str(data_file),
-            system_prompt=system_prompt,
-            model_id=model_id,
-        )
+        return HTTPHoneypot(port=port, action=action, config=config)
 
-    # For SSH, we optionally chain with fake filesystem
+    action = build_data_handler(config)
+
     if honeypot_type == "ssh":
         from ssh_honeypot import SSHHoneypot
-        from infra.fake_fs_data_handler import FakeFSDataHandler
-        from infra.chained_data_handler import ChainedDataHandler
 
-        if fs_file:
-            fs_handler = FakeFSDataHandler(
-                data_file=str(data_file),
-                system_prompt=system_prompt,
-                model_id=model_id,
-                fs_file=fs_file,
-            )
-            llm_handler = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
-            action = ChainedDataHandler(
-                fakefs_handler=fs_handler, llm_handler=llm_handler
-            )
-        else:
-            action = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
-
-        return SSHHoneypot(port=port, action=action)
-
-    elif honeypot_type == "http":
-        return HTTPHoneypot(port=port, action=action, config=config)
+        honeypot = SSHHoneypot(port=port, action=action)
+        if isinstance(action, ChainedDataHandler):
+            action.log_callback = honeypot.log_data
+        return honeypot
 
     elif honeypot_type == "tcp":
         from tcp_honeypot import TCPHoneypot
-        from infra.fake_fs_data_handler import FakeFSDataHandler
-        from infra.chained_data_handler import ChainedDataHandler
-
-        if fs_file:
-            fs_handler = FakeFSDataHandler(
-                data_file=str(data_file),
-                system_prompt=system_prompt,
-                model_id=model_id,
-                fs_file=fs_file,
-            )
-            llm_handler = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
-            action = ChainedDataHandler(
-                fakefs_handler=fs_handler, llm_handler=llm_handler
-            )
-        else:
-            action = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
 
         return TCPHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "telnet":
-        from ssh_honeypot import SSHHoneypot
-        from infra.fake_fs_data_handler import FakeFSDataHandler
-        from infra.chained_data_handler import ChainedDataHandler
-
-        if fs_file:
-            fs_handler = FakeFSDataHandler(
-                data_file=str(data_file),
-                system_prompt=system_prompt,
-                model_id=model_id,
-                fs_file=fs_file,
-            )
-            llm_handler = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
-            action = ChainedDataHandler(
-                fakefs_handler=fs_handler, llm_handler=llm_handler
-            )
-        else:
-            action = DataHandler(
-                data_file=str(data_file), system_prompt=system_prompt, model_id=model_id
-            )
         return TelnetHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "mysql":

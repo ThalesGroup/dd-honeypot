@@ -22,6 +22,7 @@ class FileSystemNode:
 class FakeFileSystem:
     def __init__(self, root: FileSystemNode):
         self.root = root
+        self.content = ""
 
     @staticmethod
     def from_json(data: dict) -> "FakeFileSystem":
@@ -36,6 +37,21 @@ class FakeFileSystem:
         root_data = data["/"]
         root_node = build_node("/", root_data)
         return FakeFileSystem(root_node)
+
+    def create_file(self, path: str, content: str = ""):
+        from infra.fake_fs.commands import normalize_path
+
+        path = normalize_path(path, cwd="/")
+        parts = path.strip("/").split("/")
+        node = self.root
+        for part in parts[:-1]:
+            if part not in node.children:
+                node.children[part] = FileSystemNode(part, is_dir=True)
+            node = node.children[part]
+
+        file_name = parts[-1]
+        node.children[file_name] = FileSystemNode(file_name, is_dir=False)
+        node.children[file_name].content = content
 
     def resolve_path(
         self,
