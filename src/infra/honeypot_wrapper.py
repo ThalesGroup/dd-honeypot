@@ -68,7 +68,10 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     if honeypot_type == "ssh":
         from ssh_honeypot import SSHHoneypot
 
-        return SSHHoneypot(port=port, action=action)
+        honeypot = SSHHoneypot(port=port, action=action)
+        if isinstance(action, ChainedDataHandler):
+            action.log_callback = honeypot.log_data
+        return honeypot
 
     elif honeypot_type == "tcp":
         from tcp_honeypot import TCPHoneypot

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from infra.data_handler import DataHandler
 from infra.fake_fs.filesystem import FakeFileSystem
-from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir
+from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_wget
 from infra.interfaces import HoneypotSession
 
 
@@ -33,16 +33,24 @@ class FakeFSDataHandler(DataHandler):
                 parts = query.strip().split()
                 flags = [p for p in parts if p.startswith("-")]
                 return handle_ls(session, flags=" ".join(flags))
-        elif query.startswith("cd "):
-            parts = query.split(maxsplit=1)
-            if len(parts) == 2:
-                return handle_cd(session, parts[1])
-            return "Usage: cd <dir>"
-        elif query.startswith("mkdir "):
-            parts = query.split(maxsplit=1)
-            if len(parts) == 2:
-                return handle_mkdir(session, parts[1])
-            return "Usage: mkdir <dir>"
+
+            elif query.startswith("cd "):
+                parts = query.split(maxsplit=1)
+                if len(parts) == 2:
+                    return handle_cd(session, parts[1])
+                return "Usage: cd <dir>"
+            elif query.startswith("mkdir "):
+                parts = query.split(maxsplit=1)
+                if len(parts) == 2:
+                    return handle_mkdir(session, parts[1])
+                return "Usage: mkdir <dir>"
+            elif query.startswith("wget "):
+                parts = query.split(maxsplit=1)
+                if len(parts) == 2:
+                    url = parts[1].strip()
+
+                    return handle_wget(session, url)
+                return "Usage: wget <url>"
         else:
             # fallback to default behavior (cached or LLM)
             return super().query(query, session, **kwargs)
