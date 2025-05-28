@@ -54,8 +54,7 @@ def run_honeypot():
     config = get_config("mysql")
     config["data_file"] = os.path.join(get_honeypots_folder(), "mysql", "data.jsonl")
 
-    config["port"] = 13306
-    config["host"] = "0.0.0.0"
+    config["port"] = 3306
 
     honeypot = create_honeypot(config=config)
     thread = threading.Thread(target=honeypot.start, daemon=True)
@@ -65,7 +64,7 @@ def run_honeypot():
     start = time.time()
     while True:
         try:
-            with socket.create_connection(("127.0.0.1", config["port"]), timeout=0.5):
+            with socket.create_connection(("0.0.0.0", config["port"]), timeout=0.5):
                 break
         except (ConnectionRefusedError, OSError):
             if time.time() - start > timeout:
@@ -264,7 +263,7 @@ def test_basic_login_and_query(run_honeypot):
             host="127.0.0.1",
             port=run_honeypot.port,
             user="root",
-            password="",  # adjust if needed
+            password="123",  # adjust if needed
             connection_timeout=3,
             ssl_disabled=True,
         ) as conn:
@@ -289,7 +288,11 @@ def test_connection_to_honeypot(run_honeypot):
         match=r"1045 \(28000\): Access denied for user attacker",
     ):
         mysql.connector.connect(
-            host=host, port=port, user="attacker", password="fake", connect_timeout=5
+            host=host,
+            port=run_honeypot.port,
+            user="attacker",
+            password="fake",
+            connect_timeout=5,
         )
 
 
@@ -647,7 +650,7 @@ class TestSessionVariables:
         self.session_id = "test_session"
 
     async def test_same_query_is_cached(self):
-        # Run query twice and check results are the same (no data_handler mocking)
+        #Run query twice and check results are the same (no data_handler mocking)
         rows1, cols1 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
         rows2, cols2 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
         assert rows2 == rows1
