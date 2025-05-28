@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import re
 import threading
 import socket
@@ -13,13 +12,21 @@ from functools import partial
 from typing import List, Tuple, Optional, Dict
 import sqlglot
 from mysql.connector import errorcode
-from sqlglot import transpile, errors as sqlglot_errors, exp, ParseError
-from mysql_mimic import MysqlServer, IdentityProvider, User, NativePasswordAuthPlugin
-from mysql_mimic.session import Session
-from mysql_mimic.errors import MysqlError, ErrorCode
+from sqlglot import transpile, errors as sqlglot_errors, exp
+from mysql_mimic.errors import MysqlError
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction
-from mysql_mimic import NativePasswordAuthPlugin
+
+import mysql_mimic.utils as utils
+from mysql_mimic import MysqlServer, Session, AllowedResult
+from mysql_mimic.auth import (
+    IdentityProvider,
+    User,
+    AuthState,
+    Success,
+    NativePasswordAuthPlugin,
+)
+from mysql_mimic.connection import Connection
 
 
 def setup_logging():
@@ -353,25 +360,6 @@ class MySession(BaseHoneypotSession):
         return list(variables.items()), ["Variable_name", "Value"]
 
 
-class AllowAllIdentityProvider(IdentityProvider):
-    """Accept all users with any password using default plugin"""
-
-    def get_plugins(self):
-        return [NativePasswordAuthPlugin()]  # Keep using default plugin
-
-    def get_default_plugin(self):
-        return NativePasswordAuthPlugin()
-
-    async def get_user(self, username: str) -> User:
-        logger.info(f"Allowing connection for user: {username}")
-        # Empty auth_string disables password check (acts like auth bypass)
-        return User(
-            name=username,
-            auth_string="",  # This accepts any password
-            auth_plugin="mysql_native_password",
-        )
-
-
 class MySqlMimicHoneypot(BaseHoneypot):
     """MySQL-specific honeypot implementation"""
 
@@ -471,7 +459,7 @@ class MySqlMimicHoneypot(BaseHoneypot):
 
     async def query(self, session_id: str, sql: str, attrs=None) -> Tuple[list, list]:
         if not hasattr(self, "sessions"):
-            self.sessions = {} # type: ignore[assignment]
+            self.sessions = {}  # type: ignore[assignment]
         if session_id not in self.sessions:
             self.sessions[session_id] = MySession(
                 data_handler=self.command_handler, action=getattr(self, "action", None)
@@ -479,10 +467,52 @@ class MySqlMimicHoneypot(BaseHoneypot):
         session = self.sessions[session_id]
         return await session.handle_query(sql, attrs or {})
 
-    def authenticate(
-        self, username: str, auth_plugin: str, auth_response: bytes
-    ) -> bool:
+    @staticmethod
+    def authenticate(username: str, auth_plugin: str, auth_response: bytes) -> bool:
         # Accept all users for testing, or customize here:
         if username == "test":
             return True
         return False
+
+
+class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
+    async def auth(self, auth_info=None) -> AuthState:
+        if not auth_info:
+
+            # noinspection PyTypeChecker
+            auth_info = yield utils.nonce(20) + b"\x00"
+        yield Success(auth_info.user.name)
+
+
+class AllowAllIdentityProvider(IdentityProvider):
+    def get_plugins(self):
+        return [AllowAllPasswordAuthPlugin()]
+
+    def get_default_plugin(self):
+        return AllowAllPasswordAuthPlugin()
+
+    # noinspection PyTypeChecker
+    async def get_user(self, username: str) -> User:
+        return User(name=username, auth_plugin="mysql_native_password")
+
+
+class LoggingSession(Session):
+    async def init(self, connection: Connection) -> None:
+        print(f"[CONNECT] New connection from {connection.connection_id}")
+        return await super().init(connection)
+
+    async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
+        print(f"[QUERY] {sql}")
+        return await super().handle_query(sql, attrs)
+
+
+async def main():
+    server = MysqlServer(
+        session_factory=LoggingSession, identity_provider=AllowAllIdentityProvider()
+    )
+    print("Starting MySQL mimic server on 0.0.0.0:3306")
+    await server.serve_forever()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

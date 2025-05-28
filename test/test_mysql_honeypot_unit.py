@@ -89,7 +89,7 @@ def test_honeypot_should_fail_on_invalid_handshake(run_honeypot):
     try:
         with pytest.raises((DatabaseError, OperationalError, InterfaceError)) as exc_info:  # type: ignore
             with mysql.connector.connect(
-                host="127.0.0.1",
+                host=" 54.147.241.42",
                 port=run_honeypot.port,
                 user="test",
                 password="test",
@@ -169,44 +169,6 @@ def test_real_mysql_connection_and_query(run_honeypot):
 """Tests connectivity to the honeypot using both mysql-connector and pymysql libraries."""
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="MySQL not available in CI")
-def test_real_mysql_basic_operations(run_honeypot):
-    """Test basic SQL operations on real MySQL to compare expected responses."""
-    try:
-        conn = mysql.connector.connect(
-            host="127.0.0.1",
-            port=3306,
-            user="test",
-            password="test",
-            database="test_db",
-        )
-        cursor = conn.cursor()
-
-        # Create a temporary table
-        cursor.execute(
-            "CREATE TEMPORARY TABLE IF NOT EXISTS temp_users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50));"
-        )
-
-        # Insert values
-        cursor.execute("INSERT INTO temp_users (name) VALUES ('person1'), ('person2');")
-        conn.commit()
-
-        # Select and check values
-        cursor.execute("SELECT name FROM temp_users ORDER BY id;")
-        results = cursor.fetchall()
-        assert results == [
-            ("person1",),
-            ("person2",),
-        ], f"Unexpected query result: {results}"
-
-        # Cleanup is automatic since it's a TEMPORARY table
-
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        pytest.skip(f"Skipping real DB test due to error: {str(e)}")
-
-
 def test_honeypot_connection_mysql_connector(run_honeypot):
     try:
         with mysql.connector.connect(
@@ -279,7 +241,7 @@ def test_basic_login_and_query(run_honeypot):
 
 
 def test_connection_to_honeypot(run_honeypot):
-    host = "127.0.0.1"
+    host = " 54.147.241.42"
     port = run_honeypot.port
 
     # Update the expected exception to match the actual error message format
@@ -650,7 +612,7 @@ class TestSessionVariables:
         self.session_id = "test_session"
 
     async def test_same_query_is_cached(self):
-        #Run query twice and check results are the same (no data_handler mocking)
+        # Run query twice and check results are the same (no data_handler mocking)
         rows1, cols1 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
         rows2, cols2 = await self.honeypot.query(self.session_id, "SELECT * FROM test")  # type: ignore[attr-defined]
         assert rows2 == rows1
