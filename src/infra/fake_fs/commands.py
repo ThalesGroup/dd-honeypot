@@ -1,4 +1,5 @@
 import logging
+import os
 
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
@@ -62,6 +63,14 @@ def handle_wget(session, url: str) -> str:
     if "downloads" not in session:
         session["downloads"] = []
     session["downloads"].append({"url": url, "path": path})
+
+    host_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../downloaded_files")
+    )
+    os.makedirs(host_path, exist_ok=True)
+    file_path = os.path.join(host_path, filename)
+    with open(file_path, "w") as f:
+        f.write(f"# downloaded from {url}")
 
     fake_file_size = 1234
     now = "2025-05-28 10:11:47"
