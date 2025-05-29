@@ -17,3 +17,9 @@ aws/**/config
 host_key
 config/**
 logs
+
+downloaded_files/*
+!downloaded_files/.gitkeep
+
+uploaded_files/*
+!uploaded_files/.gitkeep
