@@ -1,6 +1,6 @@
 import json
 import os
-from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir
+from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_wget
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 
@@ -59,3 +59,14 @@ def test_ls_long_format():
     session = {"cwd": "/", "fs": fs}
     result = handle_ls(session, flags="-l")
     assert "bin" in result
+
+
+def test_handle_wget_creates_file():
+    fs = FakeFileSystem(FileSystemNode("/"))
+    session = {"cwd": "/", "fs": fs}
+    url = "http://test.com/malware.sh"
+    output = handle_wget(session, url)
+
+    assert "malware.sh" in fs.root.list_children()
+    assert "saved" in output
+    assert session["downloads"][0]["url"] == url
