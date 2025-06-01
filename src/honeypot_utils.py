@@ -2,6 +2,7 @@ import logging
 import os
 import socket
 from pathlib import Path
+from time import sleep
 
 _PROJECT_FOLDER = Path(os.path.dirname(os.path.abspath(__file__))).parent.absolute()
 
@@ -30,3 +31,16 @@ def allocate_port():
         s.listen(1)
         port = s.getsockname()[1]
     return port
+
+
+def wait_for_port(port: int):
+    retries = 3
+    for i in range(1, retries + 1):
+        try:
+            with socket.create_connection(("0.0.0.0", port), timeout=1):
+                break
+        except (ConnectionRefusedError, socket.timeout, OSError) as e:
+            if i < retries:
+                sleep(0.5 * i)
+            else:
+                raise e

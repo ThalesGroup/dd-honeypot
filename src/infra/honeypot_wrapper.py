@@ -1,14 +1,15 @@
 import json
 import logging
 import os
-from pathlib import Path
 
 from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
+from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
 from infra.fake_fs_data_handler import FakeFSDataHandler
+from sql_data_hanlder import SqlDataHandler
 from telnet_honeypot import TelnetHoneypot
 
 logger = logging.getLogger(__name__)
@@ -82,9 +83,10 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         return TelnetHoneypot(port=port, action=action, config=config)
 
     elif honeypot_type == "mysql":
-        from mysql_honeypot import MySqlMimicHoneypot
+        from mysql_honeypot import MySQLHoneypot
 
-        return MySqlMimicHoneypot(port=port, action=action)
+        action = ChainedHoneypotAction(SqlDataHandler(), action)
+        return MySQLHoneypot(port=port, action=action, config=config)
 
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")

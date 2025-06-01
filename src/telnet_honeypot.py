@@ -7,6 +7,7 @@ import telnetlib3
 
 
 from base_honeypot import BaseHoneypot
+from honeypot_utils import wait_for_port
 from infra.interfaces import HoneypotAction
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ class TelnetHoneypot(BaseHoneypot):
 
         thread = threading.Thread(target=_start_asyncio_server, daemon=True)
         thread.start()
+        wait_for_port(self.port)
 
     def stop(self):
         if self._thread:
