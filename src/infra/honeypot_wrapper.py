@@ -85,7 +85,8 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     elif honeypot_type == "mysql":
         from mysql_honeypot import MySQLHoneypot
 
-        action = ChainedHoneypotAction(SqlDataHandler(), action)
+        dialect = config.get("dialect")
+        action = ChainedHoneypotAction(SqlDataHandler(dialect=dialect), action)
         return MySQLHoneypot(port=port, action=action, config=config)
 
     else:

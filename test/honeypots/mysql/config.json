@@ -3,5 +3,6 @@
   "system_prompt": "You are a MySQL server. Answer the query as if you are responding from a real MySQL database.",
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "data_file": "honeypots/mysql/data.jsonl",
-  "port": 13306
+  "port": 13306,
+  "dialect": "mysql"
 }
