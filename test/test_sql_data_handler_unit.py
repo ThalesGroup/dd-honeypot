@@ -1,7 +1,7 @@
 import pytest
 
 from infra.interfaces import HoneypotAction
-from sql_data_hanlder import SqlDataHandler
+from sql_data_handler import SqlDataHandler
 
 
 @pytest.fixture()
