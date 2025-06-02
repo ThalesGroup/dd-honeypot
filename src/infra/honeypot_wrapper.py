@@ -53,9 +53,6 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     honeypot_type = config["type"]
     port = config["port"]
 
-    if "AWS_REGION" in config:
-        os.environ["AWS_DEFAULT_REGION"] = config["AWS_REGION"]
-
     if honeypot_type == "http":
         action = HTTPDataHandler(
             data_file=str(config["data_file"]),

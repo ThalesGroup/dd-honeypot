@@ -1,6 +1,8 @@
 import json
 import os
-from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_wget
+import tempfile
+
+from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 
@@ -61,11 +63,13 @@ def test_ls_long_format():
     assert "bin" in result
 
 
-def test_handle_wget_creates_file():
+def test_handle_wget_creates_file(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
     fs = FakeFileSystem(FileSystemNode("/"))
     session = {"cwd": "/", "fs": fs}
     url = "http://test.com/malware.sh"
-    output = handle_wget(session, url)
+    output = handle_download(session, url)
 
     assert "malware.sh" in fs.root.list_children()
     assert "saved" in output

@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
@@ -52,31 +53,28 @@ def handle_mkdir(session: dict, path: str) -> str:
 from textwrap import dedent
 
 
-def handle_wget(session, url: str) -> str:
+def handle_download(session, url: str) -> str:
+    DOWNLOAD_DIR = os.getenv("HONEYPOT_DOWNLOAD_DIR", "/data/downloaded_files")
     fs = session["fs"]
     cwd = session.get("cwd", "/")
     filename = url.strip().split("/")[-1]
-    path = normalize_path(filename, cwd)
+    virtual_path = normalize_path(filename, cwd)
 
-    fs.create_file(path, content=f"# downloaded from {url}")
+    fs.create_file(virtual_path, content=f"# downloaded from {url}")
 
-    if "downloads" not in session:
-        session["downloads"] = []
-    session["downloads"].append({"url": url, "path": path})
+    # Track downloaded files
+    session.setdefault("downloads", []).append({"url": url, "path": virtual_path})
 
-    host_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../downloaded_files")
-    )
-    os.makedirs(host_path, exist_ok=True)
-    file_path = os.path.join(host_path, filename)
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(DOWNLOAD_DIR, filename)
     with open(file_path, "w") as f:
         f.write(f"# downloaded from {url}")
 
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     fake_file_size = 1234
-    now = "2025-05-28 10:11:47"
 
     return (
-        f"--{now}--  {url}\r\n"
+        f"--{now}--  {url}\n"
         f"Resolving {url.split('/')[2]}... done.\r\n"
         f"Connecting to {url.split('/')[2]}|192.0.2.1|:80... connected.\r\n"
         f"HTTP request sent, awaiting response... 200 OK\r\n"
