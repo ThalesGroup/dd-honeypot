@@ -4,7 +4,7 @@ from pathlib import Path
 
 from infra.data_handler import DataHandler
 from infra.fake_fs.filesystem import FakeFileSystem
-from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_wget
+from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
 from infra.interfaces import HoneypotSession
 
 
@@ -44,13 +44,12 @@ class FakeFSDataHandler(DataHandler):
                 if len(parts) == 2:
                     return handle_mkdir(session, parts[1])
                 return "Usage: mkdir <dir>"
-            elif query.startswith("wget "):
-                parts = query.split(maxsplit=1)
-                if len(parts) == 2:
-                    url = parts[1].strip()
-
-                    return handle_wget(session, url)
-                return "Usage: wget <url>"
+            elif query.startswith("wget ") or query.startswith("curl "):
+                parts = query.split()
+                if len(parts) >= 2:
+                    url = parts[-1]  # supports: wget -p http://...
+                    return handle_download(session, url)
+                return "Usage: wget <url> or curl <url>"
         else:
             # fallback to default behavior (cached or LLM)
             return super().query(query, session, **kwargs)
