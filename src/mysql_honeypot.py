@@ -90,9 +90,21 @@ class MySQLHoneypot(BaseHoneypot):
             return await super().init(connection)
 
         async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
-            self._log_data(self._honeypot_session, {"query": sql})
-            # TODO use _action to handle the query, and format the result
+            if self._log_data:
+                self._log_data(self._honeypot_session, {"query": sql})
+
+            if self._action:
+                _ = self._action.query(sql, self._honeypot_session)
+
             result = await super().handle_query(sql, attrs)
+
+            # Validate the type of result before returning to avoid errors
+            if isinstance(result, str):
+
+                raise RuntimeError(
+                    f"Unexpected string result from super().handle_query: {result}"
+                )
+
             return result
 
     def create_session_factory(self) -> LoggingSession:

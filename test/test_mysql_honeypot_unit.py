@@ -37,7 +37,7 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
         assert result == (1,), f"Expected (1,), got {result}"
 
 
-@pytest.mark.skip("TODO - check how the error is raised in a real MySQL server")
 def test_mysql_honeypot_parse_error(mysql_cnn):
-    with mysql_cnn.cursor() as cursor:
-        cursor.execute("SELECT SELECT")
+    with pytest.raises(pymysql.err.OperationalError):  # Change here
+        with mysql_cnn.cursor() as cursor:
+            cursor.execute("SELECT SELECT")
