@@ -98,7 +98,7 @@ class MySQLHoneypot(BaseHoneypot):
 
             result = await super().handle_query(sql, attrs)
 
-            # Validate the type of result before returning to avoid errors
+            #Validate the type of result before returning to avoid errors
             if isinstance(result, str):
 
                 raise RuntimeError(

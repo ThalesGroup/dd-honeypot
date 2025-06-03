@@ -2,7 +2,6 @@ from typing import Generator
 
 import pymysql
 import pytest
-
 from base_honeypot import BaseHoneypot, HoneypotSession
 from infra.interfaces import HoneypotAction
 from mysql_honeypot import MySQLHoneypot
