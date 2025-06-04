@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import threading
 from typing import Dict, Optional, Union
@@ -45,7 +44,6 @@ def patch_client_connected_cb_to_avoid_log_errors():
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
     async def auth(self, auth_info=None) -> AuthState:
         if not auth_info:
-            # noinspection PyTypeChecker
             auth_info = yield utils.nonce(20) + b"\x00"
         yield Success(auth_info.user.name)
 
@@ -61,50 +59,6 @@ class AllowAllIdentityProvider(IdentityProvider):
         return User(name=username, auth_plugin="mysql_native_password")
 
 
-class MysqlHoneypotAction(HoneypotAction):
-    """
-    Mimics HTTP honeypot's cache + LLM logic for MySQL honeypot:
-    - Loads cache from JSON file
-    - Checks if query cached
-    - Calls async dummy LLM if unknown
-    - Saves new answers immediately
-    """
-
-    def __init__(self, data_path: str = "mysql_data.json"):
-        self.data_path = data_path
-        self._lock = asyncio.Lock()
-        try:
-            with open(self.data_path, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.data = {}
-
-    async def save_data(self):
-        # Acquire lock to prevent concurrent writes
-        async with self._lock:
-            with open(self.data_path, "w", encoding="utf-8") as f:
-                json.dump(self.data, f, indent=2)
-
-    @staticmethod
-    async def call_llm(query: str) -> str:
-        # Dummy async LLM call stub
-        await asyncio.sleep(0.5)  # simulate latency
-        # Replace this with your real LLM async call
-        return f"LLM-generated response for: {query}"
-
-    async def respond(self, query: str, session) -> str:
-        key = query.strip().lower()
-        if key in self.data:
-            logger.debug(f"Cache hit for query: {query}")
-            return self.data[key]
-
-        logger.info(f"Cache miss for query: {query}, calling LLM...")
-        answer = await self.call_llm(query)
-        self.data[key] = answer
-        await self.save_data()
-        return answer
-
-
 class MySQLHoneypot(BaseHoneypot):
     def __init__(
         self,
@@ -114,7 +68,7 @@ class MySQLHoneypot(BaseHoneypot):
     ):
         super().__init__(port, config)
         patch_client_connected_cb_to_avoid_log_errors()
-        self._action = action or MysqlHoneypotAction()
+        self._action = action
         self._thread = None
 
     class LoggingSession(Session):
@@ -143,9 +97,8 @@ class MySQLHoneypot(BaseHoneypot):
                 self._log_data(self._honeypot_session, {"query": sql})
 
             upper_sql = sql.strip().upper()
-            # For simple commands, just simulate OK response
             if upper_sql.startswith(("SET", "USE", "BEGIN", "COMMIT", "ROLLBACK")):
-                return None  # OK response, no rows
+                return None
 
             if self._action and hasattr(self._action, "respond"):
                 response = self._action.respond(sql, self._honeypot_session)
@@ -154,13 +107,10 @@ class MySQLHoneypot(BaseHoneypot):
                 if isinstance(response, str):
                     return ["response"], [[response]]
 
+            # fallback
             result = await super().handle_query(sql, attrs)
-
             if isinstance(result, str):
-                raise RuntimeError(
-                    f"Unexpected string result from super().handle_query: {result}"
-                )
-
+                raise RuntimeError(f"Unexpected string result: {result}")
             return result
 
     def create_session_factory(self) -> LoggingSession:
@@ -175,20 +125,18 @@ class MySQLHoneypot(BaseHoneypot):
             identity_provider=AllowAllIdentityProvider(),
             port=self.port,
         )
-        logger.info(f"Starting MySQL honeypot on port {self.port}")
+        logger.info(f"MySQL honeypot running on port {self.port}")
         await server.serve_forever()
 
     def start(self):
-        def _start_asyncio_server():
+        def _start():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            task = loop.create_task(self.run_server())
-            loop.run_until_complete(task)
+            loop.run_until_complete(self.run_server())
 
-        thread = threading.Thread(target=_start_asyncio_server, daemon=True)
-        thread.start()
+        self._thread = threading.Thread(target=_start, daemon=True)
+        self._thread.start()
         wait_for_port(self.port)
-        self._thread = thread
 
     def stop(self):
         if self._thread:
