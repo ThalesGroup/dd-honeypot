@@ -83,7 +83,7 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         from mysql_honeypot import MySQLHoneypot
 
         dialect = config.get("dialect")
-        action = ChainedHoneypotAction(SqlDataHandler(dialect=dialect), action)
+        action = ChainedHoneypotAction(action, SqlDataHandler(dialect=dialect))
         return MySQLHoneypot(port=port, action=action, config=config)
 
     else:

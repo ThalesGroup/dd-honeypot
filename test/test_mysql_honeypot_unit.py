@@ -4,17 +4,20 @@ import pymysql
 import pytest
 
 from base_honeypot import BaseHoneypot, HoneypotSession
+from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.interfaces import HoneypotAction
 from mysql_honeypot import MySQLHoneypot
+from sql_data_handler import SqlDataHandler
 
 
 @pytest.fixture
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     class MysqlAction(HoneypotAction):
         def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
-            return "Response to: " + query
+            return '[{"response": "ok"}]'
 
-    honeypot = MySQLHoneypot(action=MysqlAction(), config={"name": "MySQLHoneypotTest"})
+    action = ChainedHoneypotAction(MysqlAction(), SqlDataHandler(dialect="mysql"))
+    honeypot = MySQLHoneypot(action=action, config={"name": "MySQLHoneypotTest"})
     try:
         honeypot.start()
         yield honeypot

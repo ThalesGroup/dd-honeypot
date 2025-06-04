@@ -1,8 +1,10 @@
 import asyncio
+import json
 import logging
 import threading
 from typing import Dict, Optional, Union
 
+import mysql_mimic.connection
 import mysql_mimic.utils as utils
 from mysql_mimic import MysqlServer, Session
 from mysql_mimic.auth import (
@@ -13,14 +15,12 @@ from mysql_mimic.auth import (
     NativePasswordAuthPlugin,
 )
 from mysql_mimic.connection import Connection
-from mysql_mimic.variables import Variables
 from mysql_mimic.stream import ConnectionClosed
+from mysql_mimic.variables import Variables
 
 from base_honeypot import BaseHoneypot
 from honeypot_utils import wait_for_port
 from infra.interfaces import HoneypotAction
-
-import mysql_mimic.connection
 
 logger = logging.getLogger(__name__)
 
@@ -95,23 +95,20 @@ class MySQLHoneypot(BaseHoneypot):
         ) -> Union[None, tuple]:
             if self._log_data:
                 self._log_data(self._honeypot_session, {"query": sql})
-
-            upper_sql = sql.strip().upper()
-            if upper_sql.startswith(("SET", "USE", "BEGIN", "COMMIT", "ROLLBACK")):
-                return None
-
-            if self._action and hasattr(self._action, "respond"):
-                response = self._action.respond(sql, self._honeypot_session)
-                if asyncio.iscoroutine(response):
-                    response = await response
-                if isinstance(response, str):
-                    return ["response"], [[response]]
-
-            # fallback
             result = await super().handle_query(sql, attrs)
-            if isinstance(result, str):
-                raise RuntimeError(f"Unexpected string result: {result}")
-            return result
+            if len(result[0]) > 0:
+                return result
+
+            response = self._action.query(sql, self._honeypot_session, **attrs)
+            json_arr = json.loads(response)
+            if len(json_arr) == 0:
+                return [], []
+            else:
+                return [], []
+            # TODO: Implement proper response handling
+            # columns = [(k, 253) for k in json_arr[0].keys()]
+            # rows = [(idx,) + tuple(row.values()) for idx, row in enumerate(json_arr)]
+            # return rows, columns
 
     def create_session_factory(self) -> LoggingSession:
         return self.LoggingSession(action=self._action, log_data=self.log_data)
