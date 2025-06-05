@@ -8,7 +8,7 @@ from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
 def test_basic_ls_and_cd():
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "src", "alpine_fs_small.json")
+    json_path = os.path.join(base_dir, "test/honeypots/ssh/alpine_fs_small.json")
 
     with open(json_path) as f:
         fs_data = json.load(f)
@@ -30,7 +30,7 @@ def test_basic_ls_and_cd():
 def test_basic_ls_from_root():
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "src", "alpine_fs_small.json")
+    json_path = os.path.join(base_dir, "test/honeypots/ssh/alpine_fs_small.json")
 
     with open(json_path) as f:
         data = json.load(f)
