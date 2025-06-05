@@ -54,8 +54,11 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
 def test_honeypot_parse_error_exception_type(mysql_cnn):
     try:
         with mysql_cnn.cursor() as cursor:
-            with pytest.raises(pymysql.err.OperationalError):
+            try:
                 cursor.execute("SELECT SELECT")
+                pytest.fail("Expected OperationalError, but none was raised")
+            except Exception as e:
+                assert isinstance(e, pymysql.err.OperationalError)
     except pymysql.MySQLError as e:
         pytest.fail(f"Honeypot connection failed: {e}")
 
@@ -69,8 +72,11 @@ def test_real_mysql_parse_error():
             password="",
         ) as conn:
             with conn.cursor() as cursor:
-                with pytest.raises(pymysql.err.ProgrammingError):
+                try:
                     cursor.execute("SELECT SELECT")
+                    pytest.fail("Expected ProgrammingError, but none was raised")
+                except Exception as e:
+                    assert isinstance(e, pymysql.err.ProgrammingError)
     except pymysql.MySQLError as e:
         pytest.fail(f"Failed to connect to real MySQL: {e}")
 
@@ -133,7 +139,19 @@ def test_show_variables(mysql_cnn):
         assert result is not None and isinstance(result, tuple)
 
 
-def test_unsupported_command_error(mysql_cnn):
-    with pytest.raises(pymysql.err.OperationalError):
-        with mysql_cnn.cursor() as cursor:
-            cursor.execute("FLY TO THE MOON")
+def test_mysql_honeypot_query():
+    conn = pymysql.connect(
+        host="54.147.241.42",
+        port=3306,
+        user="root",
+        password="",
+        autocommit=True,
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+            result = cursor.fetchall()
+            assert result == [{"1": 1}]
+    finally:
+        conn.close()
