@@ -63,6 +63,7 @@ def test_honeypot_parse_error_exception_type(mysql_cnn):
         pytest.fail(f"Honeypot connection failed: {e}")
 
 
+@pytest.mark.skip(reason="Requires real MySQL instance; not suitable for CI")
 def test_real_mysql_parse_error():
     try:
         with pymysql.connect(
