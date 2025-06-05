@@ -10,6 +10,7 @@ from typing import Generator
 import pytest
 
 from base_honeypot import HoneypotSession, BaseHoneypot
+from conftest import get_honeypot_main
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import allocate_port
 from infra.interfaces import HoneypotAction
@@ -63,42 +64,17 @@ def test_tcp_honeypot(tcp_honeypot):
 
 
 def test_tcp_honeypot_main(monkeypatch):
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    monkeypatch.setenv("STOP_HONEYPOT", "false")
-    port = allocate_port()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        json.dump(
-            {
-                "port": port,
-                "name": "TestTCPHoneypot",
-                "type": "tcp",
-                "model_id": "some model",
-                "system_prompt": ["You are a test TCP honeypot"],
-            },
-            open(os.path.join(tmpdir, "config.json"), "w"),
+    with get_honeypot_main(monkeypatch, {"type": "tcp"}) as port:
+        monkeypatch.setattr(
+            "infra.data_handler.invoke_llm", lambda *a, **kw: "mocked response"
         )
-        t = threading.Thread(
-            target=start_dd_honeypot,
-            args=[tmpdir],
-            daemon=True,
-        )
-        t.start()
-        sleep(2)
-        try:
-            monkeypatch.setattr(
-                "infra.data_handler.invoke_llm", lambda *a, **kw: "mocked response"
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            input_data = "hello"
+            client_socket.settimeout(3)
+            client_socket.connect(("0.0.0.0", port))
+            # noinspection PyTypeChecker
+            client_socket.sendall(input_data.encode())
+            response = client_socket.recv(
+                1024,
             )
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                input_data = "hello"
-                client_socket.settimeout(3)
-                client_socket.connect(("0.0.0.0", port))
-                # noinspection PyTypeChecker
-                client_socket.sendall(input_data.encode())
-                response = client_socket.recv(
-                    1024,
-                )
-                assert response.decode() == "mocked response"
-
-        finally:
-            monkeypatch.setenv("STOP_HONEYPOT", "true")
-            t.join(timeout=5)
+            assert response.decode() == "mocked response"
