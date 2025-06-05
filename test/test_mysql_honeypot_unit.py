@@ -131,7 +131,6 @@ def test_select_with_where(mysql_cnn):
         result = cursor.fetchone()
         assert result == ("ok",)
 
-
 def test_show_variables(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SHOW VARIABLES LIKE 'version%'")
