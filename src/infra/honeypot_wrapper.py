@@ -104,5 +104,17 @@ def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
     with open(config_path) as f:
         config = json.load(f)
 
+    if "fs_file" in config:
+        fs_file_candidate = os.path.join(
+            folder_path, os.path.basename(config["fs_file"])
+        )
+        if os.path.exists(fs_file_candidate):
+            config["fs_file"] = fs_file_candidate
+        else:
+            logging.warning(
+                f"fs_file declared but not found: {fs_file_candidate}. Continuing without fakefs."
+            )
+            config.pop("fs_file")
+
     config["data_file"] = data_file_path
     return create_honeypot(config)
