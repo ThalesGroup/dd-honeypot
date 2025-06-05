@@ -66,7 +66,7 @@ def test_honeypot_parse_error_exception_type(mysql_cnn):
 def test_real_mysql_parse_error():
     try:
         with pymysql.connect(
-            host="127.0.0.1",
+            host="0.0.0.0",
             port=3306,
             user="root",
             password="",
@@ -130,6 +130,7 @@ def test_select_with_where(mysql_cnn):
         cursor.execute("SELECT 1 AS id, 'foo' AS name WHERE 1=1")
         result = cursor.fetchone()
         assert result == ("ok",)
+
 
 def test_show_variables(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
