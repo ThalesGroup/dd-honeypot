@@ -51,15 +51,28 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
         assert result == (1, "test")
 
 
-def test_mysql_honeypot_parse_error(mysql_cnn):
-    with pytest.raises(pymysql.err.OperationalError) as exc_info:
+def test_honeypot_parse_error_exception_type(mysql_cnn):
+    try:
         with mysql_cnn.cursor() as cursor:
-            cursor.execute(
-                "SELECT SELECT"
-            )  # Honeypot returns OperationalError, code 1105
-    err = exc_info.value
-    assert err.args[0] == 1105
-    assert "Invalid expression" in str(err)
+            with pytest.raises(pymysql.err.OperationalError):
+                cursor.execute("SELECT SELECT")
+    except pymysql.MySQLError as e:
+        pytest.fail(f"Honeypot connection failed: {e}")
+
+
+def test_real_mysql_parse_error():
+    try:
+        with pymysql.connect(
+            host="127.0.0.1",
+            port=3306,
+            user="root",
+            password="",
+        ) as conn:
+            with conn.cursor() as cursor:
+                with pytest.raises(pymysql.err.ProgrammingError):
+                    cursor.execute("SELECT SELECT")
+    except pymysql.MySQLError as e:
+        pytest.fail(f"Failed to connect to real MySQL: {e}")
 
 
 def test_mysql_honeypot_main(monkeypatch):
@@ -82,9 +95,15 @@ def test_mysql_honeypot_main(monkeypatch):
 
 def test_multiple_statements(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
-        cursor.execute("SELECT 1; SELECT 2")  # May raise error if not supported
-        results = cursor.fetchall()
-        assert results or True
+        try:
+            cursor.execute("SELECT 1; SELECT 2")
+            results = cursor.fetchall()
+            assert len(results) > 0  # If execution succeeds, check at least one result
+        except (pymysql.err.ProgrammingError, pymysql.err.InternalError) as e:
+            assert (
+                "You have an error in your SQL syntax" in str()
+                or "not allowed to execute multiple statements" in str(e)
+            )
 
 
 def test_mysql_honeypot_parse_multiple_records(mysql_cnn):

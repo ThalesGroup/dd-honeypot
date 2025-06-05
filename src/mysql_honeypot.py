@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import threading
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import mysql_mimic.connection
 import mysql_mimic.utils as utils
@@ -17,6 +17,7 @@ from mysql_mimic.auth import (
 from mysql_mimic.connection import Connection
 from mysql_mimic.stream import ConnectionClosed
 from mysql_mimic.variables import Variables
+from mysql_mimic.session import AllowedResult
 
 from base_honeypot import BaseHoneypot
 from honeypot_utils import wait_for_port
@@ -90,9 +91,7 @@ class MySQLHoneypot(BaseHoneypot):
                 )
             return await super().init(connection)
 
-        async def handle_query(
-            self, sql: str, attrs: Dict[str, str]
-        ) -> Union[None, tuple]:
+        async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
             if self._log_data:
                 self._log_data(self._honeypot_session, {"query": sql})
 
