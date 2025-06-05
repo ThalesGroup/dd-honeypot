@@ -4,6 +4,7 @@ import pymysql
 import pytest
 
 from base_honeypot import BaseHoneypot, HoneypotSession
+from conftest import get_honeypot_main
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.interfaces import HoneypotAction
 from mysql_honeypot import MySQLHoneypot
@@ -35,12 +36,30 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
 
 def test_mysql_honeypot_parse_ok(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
-        cursor.execute("SELECT 1")
+        cursor.execute("SELECT 1 AS int_col, 'test' AS str_col")
         result = cursor.fetchone()
-        assert result == (1,), f"Expected (1,), got {result}"
+        assert result == (1, "test")
 
 
 def test_mysql_honeypot_parse_error(mysql_cnn):
     with pytest.raises(pymysql.err.OperationalError):  # Change here
         with mysql_cnn.cursor() as cursor:
             cursor.execute("SELECT SELECT")
+
+
+def test_tcp_honeypot_main(monkeypatch):
+    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+        monkeypatch.setattr(
+            "infra.data_handler.invoke_llm",
+            lambda *a, **kw: '[{"user": "root", "host": "host1"}]',
+        )
+        with pymysql.connect(
+            host="0.0.0.0", port=port, user="root", password="root12"
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                assert result == (1,)
+                cursor.execute("SELECT user, host FROM mysql.user")
+                result = cursor.fetchone()
+                assert result == ("root", "host1")

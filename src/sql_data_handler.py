@@ -13,7 +13,11 @@ class SqlDataHandler(HoneypotAction):
     def query(self, query: str, session: dict, **kwargs) -> Optional[str]:
         try:
             sqlglot.parse_one(query, dialect=self._dialect)
-            if query.upper().startswith(("SET", "USE", "BEGIN", "COMMIT", "ROLLBACK")):
+            if (
+                query.strip()
+                .upper()
+                .startswith(("SET", "USE", "BEGIN", "COMMIT", "ROLLBACK"))
+            ):
                 return "[]"
             return None
         except sqlglot.errors.ParseError as e:

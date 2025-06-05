@@ -98,14 +98,10 @@ class MySQLHoneypot(BaseHoneypot):
 
             # First try default mysql_mimic behavior
             result = await super().handle_query(sql, attrs)
-            if isinstance(result, tuple) and len(result[0]) > 0:
+            if len(result[0]) > 0:
                 return result
 
-            # Try responding via _action if super() gave nothing
             response = self._action.query(sql, self._honeypot_session, **attrs)
-            if asyncio.iscoroutine(response):
-                response = await response
-
             try:
                 json_arr = json.loads(response)
             except Exception as e:
@@ -113,15 +109,12 @@ class MySQLHoneypot(BaseHoneypot):
                 return [], []
 
             if not isinstance(json_arr, list) or not json_arr:
+                logger.warning(f"Returned JSON is not a list or is empty: {json_arr}")
                 return [], []
-
-            # Extract columns and rows
-            columns = [
-                (k, 253) for k in json_arr[0].keys()
-            ]  # 253 = MYSQL_TYPE_VAR_STRING
-            rows = [tuple(row.get(col[0]) for col in columns) for row in json_arr]
-
-            return columns, rows
+            if len(json_arr) == 0:
+                logger.warning("Returned JSON is empty")
+                return [], []
+            return [tuple(row.values()) for row in json_arr], json_arr[0].keys()
 
     def create_session_factory(self) -> LoggingSession:
         return self.LoggingSession(action=self._action, log_data=self.log_data)
