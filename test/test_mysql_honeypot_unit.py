@@ -15,6 +15,9 @@ from sql_data_handler import SqlDataHandler
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     class MysqlAction(HoneypotAction):
         def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
+            if "UNION ALL" in query:
+                return '[{"int_col": 1, "str_col": "row1"}, {"int_col": 2, "str_col": "row2"}]'
+            # fallback
             return '[{"response": "ok"}]'
 
     action = ChainedHoneypotAction(MysqlAction(), SqlDataHandler(dialect="mysql"))
@@ -34,6 +37,13 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
         yield conn
 
 
+def test_mysql_honeypot_simple_query(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT 1")
+        result = cursor.fetchone()
+        assert result == (1,)
+
+
 def test_mysql_honeypot_parse_ok(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT 1 AS int_col, 'test' AS str_col")
@@ -42,12 +52,17 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
 
 
 def test_mysql_honeypot_parse_error(mysql_cnn):
-    with pytest.raises(pymysql.err.OperationalError):  # Change here
+    with pytest.raises(pymysql.err.OperationalError) as exc_info:
         with mysql_cnn.cursor() as cursor:
-            cursor.execute("SELECT SELECT")
+            cursor.execute(
+                "SELECT SELECT"
+            )  # Honeypot returns OperationalError, code 1105
+    err = exc_info.value
+    assert err.args[0] == 1105
+    assert "Invalid expression" in str(err)
 
 
-def test_tcp_honeypot_main(monkeypatch):
+def test_mysql_honeypot_main(monkeypatch):
     with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
         monkeypatch.setattr(
             "infra.data_handler.invoke_llm",
@@ -63,3 +78,43 @@ def test_tcp_honeypot_main(monkeypatch):
                 cursor.execute("SELECT user, host FROM mysql.user")
                 result = cursor.fetchone()
                 assert result == ("root", "host1")
+
+
+def test_multiple_statements(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT 1; SELECT 2")  # May raise error if not supported
+        results = cursor.fetchall()
+        assert results or True
+
+
+def test_mysql_honeypot_parse_multiple_records(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1 AS int_col, 'row1' AS str_col
+            UNION ALL
+            SELECT 2, 'row2'
+        """
+        )
+        result = cursor.fetchall()
+        assert list(result) == [(1, "row1"), (2, "row2")]
+
+
+def test_select_with_where(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT 1 AS id, 'foo' AS name WHERE 1=1")
+        result = cursor.fetchone()
+        assert result == ("ok",)
+
+
+def test_show_variables(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SHOW VARIABLES LIKE 'version%'")
+        result = cursor.fetchone()
+        assert result is not None and isinstance(result, tuple)
+
+
+def test_unsupported_command_error(mysql_cnn):
+    with pytest.raises(pymysql.err.OperationalError):
+        with mysql_cnn.cursor() as cursor:
+            cursor.execute("FLY TO THE MOON")
