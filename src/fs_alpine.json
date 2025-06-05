@@ -1,0 +1,1779 @@
+{
+  "/": {
+    "type": "dir",
+    "content": {
+      "bin": {
+        "type": "dir",
+        "content": {
+          "login": {
+            "type": "dir",
+            "content": {}
+          },
+          "pipe_progress": {
+            "type": "dir",
+            "content": {}
+          },
+          "df": {
+            "type": "dir",
+            "content": {}
+          },
+          "makemime": {
+            "type": "dir",
+            "content": {}
+          },
+          "chmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "ps": {
+            "type": "dir",
+            "content": {}
+          },
+          "sleep": {
+            "type": "dir",
+            "content": {}
+          },
+          "netstat": {
+            "type": "dir",
+            "content": {}
+          },
+          "false": {
+            "type": "dir",
+            "content": {}
+          },
+          "bbconfig": {
+            "type": "dir",
+            "content": {}
+          },
+          "printenv": {
+            "type": "dir",
+            "content": {}
+          },
+          "ash": {
+            "type": "dir",
+            "content": {}
+          },
+          "chown": {
+            "type": "dir",
+            "content": {}
+          },
+          "true": {
+            "type": "dir",
+            "content": {}
+          },
+          "kill": {
+            "type": "dir",
+            "content": {}
+          },
+          "mount": {
+            "type": "dir",
+            "content": {}
+          },
+          "dnsdomainname": {
+            "type": "dir",
+            "content": {}
+          },
+          "umount": {
+            "type": "dir",
+            "content": {}
+          },
+          "getopt": {
+            "type": "dir",
+            "content": {}
+          },
+          "dumpkmap": {
+            "type": "dir",
+            "content": {}
+          },
+          "stat": {
+            "type": "dir",
+            "content": {}
+          },
+          "ping": {
+            "type": "dir",
+            "content": {}
+          },
+          "fatattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "chgrp": {
+            "type": "dir",
+            "content": {}
+          },
+          "sed": {
+            "type": "dir",
+            "content": {}
+          },
+          "hostname": {
+            "type": "dir",
+            "content": {}
+          },
+          "run-parts": {
+            "type": "dir",
+            "content": {}
+          },
+          "uname": {
+            "type": "dir",
+            "content": {}
+          },
+          "setserial": {
+            "type": "dir",
+            "content": {}
+          },
+          "more": {
+            "type": "dir",
+            "content": {}
+          },
+          "ls": {
+            "type": "dir",
+            "content": {}
+          },
+          "zcat": {
+            "type": "dir",
+            "content": {}
+          },
+          "rev": {
+            "type": "dir",
+            "content": {}
+          },
+          "tar": {
+            "type": "dir",
+            "content": {}
+          },
+          "fdflush": {
+            "type": "dir",
+            "content": {}
+          },
+          "ionice": {
+            "type": "dir",
+            "content": {}
+          },
+          "mv": {
+            "type": "dir",
+            "content": {}
+          },
+          "fgrep": {
+            "type": "dir",
+            "content": {}
+          },
+          "gunzip": {
+            "type": "dir",
+            "content": {}
+          },
+          "cp": {
+            "type": "dir",
+            "content": {}
+          },
+          "ln": {
+            "type": "dir",
+            "content": {}
+          },
+          "rmdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "link": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "sh": {
+            "type": "dir",
+            "content": {}
+          },
+          "dd": {
+            "type": "dir",
+            "content": {}
+          },
+          "kbd_mode": {
+            "type": "dir",
+            "content": {}
+          },
+          "reformime": {
+            "type": "dir",
+            "content": {}
+          },
+          "stty": {
+            "type": "dir",
+            "content": {}
+          },
+          "ping6": {
+            "type": "dir",
+            "content": {}
+          },
+          "sync": {
+            "type": "dir",
+            "content": {}
+          },
+          "lzop": {
+            "type": "dir",
+            "content": {}
+          },
+          "fsync": {
+            "type": "dir",
+            "content": {}
+          },
+          "dmesg": {
+            "type": "dir",
+            "content": {}
+          },
+          "pwd": {
+            "type": "dir",
+            "content": {}
+          },
+          "date": {
+            "type": "dir",
+            "content": {}
+          },
+          "mpstat": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipcalc": {
+            "type": "dir",
+            "content": {}
+          },
+          "echo": {
+            "type": "dir",
+            "content": {}
+          },
+          "base64": {
+            "type": "dir",
+            "content": {}
+          },
+          "watch": {
+            "type": "dir",
+            "content": {}
+          },
+          "mktemp": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "touch": {
+            "type": "dir",
+            "content": {}
+          },
+          "usleep": {
+            "type": "dir",
+            "content": {}
+          },
+          "chattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "rm": {
+            "type": "dir",
+            "content": {}
+          },
+          "egrep": {
+            "type": "dir",
+            "content": {}
+          },
+          "setpriv": {
+            "type": "dir",
+            "content": {}
+          },
+          "busybox": {
+            "type": "dir",
+            "content": {}
+          },
+          "linux32": {
+            "type": "dir",
+            "content": {}
+          },
+          "mknod": {
+            "type": "dir",
+            "content": {}
+          },
+          "iostat": {
+            "type": "dir",
+            "content": {}
+          },
+          "su": {
+            "type": "dir",
+            "content": {}
+          },
+          "cat": {
+            "type": "dir",
+            "content": {}
+          },
+          "mountpoint": {
+            "type": "dir",
+            "content": {}
+          },
+          "arch": {
+            "type": "dir",
+            "content": {}
+          },
+          "grep": {
+            "type": "dir",
+            "content": {}
+          },
+          "gzip": {
+            "type": "dir",
+            "content": {}
+          },
+          "nice": {
+            "type": "dir",
+            "content": {}
+          },
+          "pidof": {
+            "type": "dir",
+            "content": {}
+          },
+          "linux64": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      },
+      "etc": {
+        "type": "dir",
+        "content": {
+          "nsswitch.conf": {
+            "type": "dir",
+            "content": {}
+          },
+          "modules": {
+            "type": "dir",
+            "content": {}
+          },
+          "motd": {
+            "type": "dir",
+            "content": {}
+          },
+          "fstab": {
+            "type": "dir",
+            "content": {}
+          },
+          "busybox-paths.d": {
+            "type": "dir",
+            "content": {
+              "busybox": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "udhcpc": {
+            "type": "dir",
+            "content": {
+              "udhcpc.conf": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "secfixes.d": {
+            "type": "dir",
+            "content": {
+              "alpine": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "hosts": {
+            "type": "dir",
+            "content": {}
+          },
+          "alpine-release": {
+            "type": "dir",
+            "content": {}
+          },
+          "crontabs": {
+            "type": "dir",
+            "content": {
+              "root": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "modprobe.d": {
+            "type": "dir",
+            "content": {
+              "blacklist.conf": {
+                "type": "dir",
+                "content": {}
+              },
+              "i386.conf": {
+                "type": "dir",
+                "content": {}
+              },
+              "aliases.conf": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "os-release": {
+            "type": "dir",
+            "content": {}
+          },
+          "inittab": {
+            "type": "dir",
+            "content": {}
+          },
+          "passwd": {
+            "type": "dir",
+            "content": {}
+          },
+          "profile": {
+            "type": "dir",
+            "content": {}
+          },
+          "sysctl.conf": {
+            "type": "dir",
+            "content": {}
+          },
+          "hostname": {
+            "type": "dir",
+            "content": {}
+          },
+          "profile.d": {
+            "type": "dir",
+            "content": {
+              "20locale.sh": {
+                "type": "dir",
+                "content": {}
+              },
+              "README": {
+                "type": "dir",
+                "content": {}
+              },
+              "color_prompt.sh.disabled": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "logrotate.d": {
+            "type": "dir",
+            "content": {
+              "acpid": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "opt": {
+            "type": "dir",
+            "content": {}
+          },
+          "securetty": {
+            "type": "dir",
+            "content": {}
+          },
+          "group": {
+            "type": "dir",
+            "content": {}
+          },
+          "ssl1.1": {
+            "type": "dir",
+            "content": {
+              "cert.pem": {
+                "type": "dir",
+                "content": {}
+              },
+              "certs": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "shells": {
+            "type": "dir",
+            "content": {}
+          },
+          "shadow": {
+            "type": "dir",
+            "content": {}
+          },
+          "modules-load.d": {
+            "type": "dir",
+            "content": {}
+          },
+          "ssl": {
+            "type": "dir",
+            "content": {
+              "openssl.cnf": {
+                "type": "dir",
+                "content": {}
+              },
+              "ct_log_list.cnf.dist": {
+                "type": "dir",
+                "content": {}
+              },
+              "private": {
+                "type": "dir",
+                "content": {}
+              },
+              "openssl.cnf.dist": {
+                "type": "dir",
+                "content": {}
+              },
+              "ct_log_list.cnf": {
+                "type": "dir",
+                "content": {}
+              },
+              "cert.pem": {
+                "type": "dir",
+                "content": {}
+              },
+              "certs": {
+                "type": "dir",
+                "content": {
+                  "ca-certificates.crt": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              }
+            }
+          },
+          "periodic": {
+            "type": "dir",
+            "content": {
+              "weekly": {
+                "type": "dir",
+                "content": {}
+              },
+              "monthly": {
+                "type": "dir",
+                "content": {}
+              },
+              "hourly": {
+                "type": "dir",
+                "content": {}
+              },
+              "daily": {
+                "type": "dir",
+                "content": {}
+              },
+              "15min": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "network": {
+            "type": "dir",
+            "content": {
+              "if-pre-down.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-post-down.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-down.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-post-up.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-pre-up.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-up.d": {
+                "type": "dir",
+                "content": {
+                  "dad": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              }
+            }
+          },
+          "protocols": {
+            "type": "dir",
+            "content": {}
+          },
+          "sysctl.d": {
+            "type": "dir",
+            "content": {}
+          },
+          "apk": {
+            "type": "dir",
+            "content": {
+              "keys": {
+                "type": "dir",
+                "content": {
+                  "alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "alpine-devel@lists.alpinelinux.org-616a9724.rsa.pub": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "alpine-devel@lists.alpinelinux.org-616adfeb.rsa.pub": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              },
+              "world": {
+                "type": "dir",
+                "content": {}
+              },
+              "repositories": {
+                "type": "dir",
+                "content": {}
+              },
+              "arch": {
+                "type": "dir",
+                "content": {}
+              },
+              "protected_paths.d": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "issue": {
+            "type": "dir",
+            "content": {}
+          },
+          "mtab": {
+            "type": "dir",
+            "content": {}
+          },
+          "services": {
+            "type": "dir",
+            "content": {}
+          },
+          "resolv.conf": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      },
+      "home": {
+        "type": "dir",
+        "content": {}
+      },
+      "usr": {
+        "type": "dir",
+        "content": {
+          "sbin": {
+            "type": "dir",
+            "content": {
+              "nandwrite": {
+                "type": "dir",
+                "content": {}
+              },
+              "nbd-client": {
+                "type": "dir",
+                "content": {}
+              },
+              "ntpd": {
+                "type": "dir",
+                "content": {}
+              },
+              "addgroup": {
+                "type": "dir",
+                "content": {}
+              },
+              "loadfont": {
+                "type": "dir",
+                "content": {}
+              },
+              "nanddump": {
+                "type": "dir",
+                "content": {}
+              },
+              "crond": {
+                "type": "dir",
+                "content": {}
+              },
+              "deluser": {
+                "type": "dir",
+                "content": {}
+              },
+              "arping": {
+                "type": "dir",
+                "content": {}
+              },
+              "ether-wake": {
+                "type": "dir",
+                "content": {}
+              },
+              "rdev": {
+                "type": "dir",
+                "content": {}
+              },
+              "add-shell": {
+                "type": "dir",
+                "content": {}
+              },
+              "brctl": {
+                "type": "dir",
+                "content": {}
+              },
+              "readahead": {
+                "type": "dir",
+                "content": {}
+              },
+              "rfkill": {
+                "type": "dir",
+                "content": {}
+              },
+              "killall5": {
+                "type": "dir",
+                "content": {}
+              },
+              "adduser": {
+                "type": "dir",
+                "content": {}
+              },
+              "remove-shell": {
+                "type": "dir",
+                "content": {}
+              },
+              "fbset": {
+                "type": "dir",
+                "content": {}
+              },
+              "chroot": {
+                "type": "dir",
+                "content": {}
+              },
+              "partprobe": {
+                "type": "dir",
+                "content": {}
+              },
+              "delgroup": {
+                "type": "dir",
+                "content": {}
+              },
+              "sendmail": {
+                "type": "dir",
+                "content": {}
+              },
+              "setlogcons": {
+                "type": "dir",
+                "content": {}
+              },
+              "rdate": {
+                "type": "dir",
+                "content": {}
+              },
+              "setfont": {
+                "type": "dir",
+                "content": {}
+              },
+              "chpasswd": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "local": {
+            "type": "dir",
+            "content": {
+              "lib": {
+                "type": "dir",
+                "content": {}
+              },
+              "share": {
+                "type": "dir",
+                "content": {}
+              },
+              "bin": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "lib": {
+            "type": "dir",
+            "content": {
+              "os-release": {
+                "type": "dir",
+                "content": {}
+              },
+              "libz.so.1": {
+                "type": "dir",
+                "content": {}
+              },
+              "libssl.so.3": {
+                "type": "dir",
+                "content": {}
+              },
+              "libz.so.1.3.1": {
+                "type": "dir",
+                "content": {}
+              },
+              "libapk.so.2.14.9": {
+                "type": "dir",
+                "content": {}
+              },
+              "ossl-modules": {
+                "type": "dir",
+                "content": {
+                  "legacy.so": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              },
+              "libcrypto.so.3": {
+                "type": "dir",
+                "content": {}
+              },
+              "modules-load.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "sysctl.d": {
+                "type": "dir",
+                "content": {
+                  "00-alpine.conf": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              },
+              "engines-3": {
+                "type": "dir",
+                "content": {
+                  "capi.so": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "loader_attic.so": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "padlock.so": {
+                    "type": "dir",
+                    "content": {}
+                  },
+                  "afalg.so": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              }
+            }
+          },
+          "share": {
+            "type": "dir",
+            "content": {
+              "udhcpc": {
+                "type": "dir",
+                "content": {
+                  "default.script": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              },
+              "man": {
+                "type": "dir",
+                "content": {}
+              },
+              "misc": {
+                "type": "dir",
+                "content": {}
+              },
+              "apk": {
+                "type": "dir",
+                "content": {
+                  "keys": {
+                    "type": "dir",
+                    "content": {
+                      "alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "armhf": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-616a9724.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "x86_64": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-5261cecb.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-5261cecb.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-60ac2099.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "loongarch64": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-66ba20fe.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616a9724.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "x86": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-61666e3f.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-5243ef4b.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-5e69ca50.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616abc23.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-58cbb476.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-61666e3f.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-5243ef4b.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "riscv64": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-60ac2099.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-616db30d.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616db30d.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "armv7": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-524d27bb.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-616adfeb.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "aarch64": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "ppc64le": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-616abc23.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-58cbb476.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "mips64": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-5e69ca50.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      },
+                      "alpine-devel@lists.alpinelinux.org-66ba20fe.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616adfeb.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-58e4f17d.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "alpine-devel@lists.alpinelinux.org-616ac3bc.rsa.pub": {
+                        "type": "dir",
+                        "content": {}
+                      },
+                      "s390x": {
+                        "type": "dir",
+                        "content": {
+                          "alpine-devel@lists.alpinelinux.org-58e4f17d.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          },
+                          "alpine-devel@lists.alpinelinux.org-616ac3bc.rsa.pub": {
+                            "type": "dir",
+                            "content": {}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "bin": {
+            "type": "dir",
+            "content": {
+              "clear": {
+                "type": "dir",
+                "content": {}
+              },
+              "traceroute": {
+                "type": "dir",
+                "content": {}
+              },
+              "timeout": {
+                "type": "dir",
+                "content": {}
+              },
+              "last": {
+                "type": "dir",
+                "content": {}
+              },
+              "id": {
+                "type": "dir",
+                "content": {}
+              },
+              "setsid": {
+                "type": "dir",
+                "content": {}
+              },
+              "renice": {
+                "type": "dir",
+                "content": {}
+              },
+              "hostid": {
+                "type": "dir",
+                "content": {}
+              },
+              "pwdx": {
+                "type": "dir",
+                "content": {}
+              },
+              "vlock": {
+                "type": "dir",
+                "content": {}
+              },
+              "sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "nl": {
+                "type": "dir",
+                "content": {}
+              },
+              "env": {
+                "type": "dir",
+                "content": {}
+              },
+              "md5sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "time": {
+                "type": "dir",
+                "content": {}
+              },
+              "wget": {
+                "type": "dir",
+                "content": {}
+              },
+              "unlink": {
+                "type": "dir",
+                "content": {}
+              },
+              "xzcat": {
+                "type": "dir",
+                "content": {}
+              },
+              "lsof": {
+                "type": "dir",
+                "content": {}
+              },
+              "unexpand": {
+                "type": "dir",
+                "content": {}
+              },
+              "sort": {
+                "type": "dir",
+                "content": {}
+              },
+              "iconv": {
+                "type": "dir",
+                "content": {}
+              },
+              "groups": {
+                "type": "dir",
+                "content": {}
+              },
+              "ttysize": {
+                "type": "dir",
+                "content": {}
+              },
+              "truncate": {
+                "type": "dir",
+                "content": {}
+              },
+              "od": {
+                "type": "dir",
+                "content": {}
+              },
+              "strings": {
+                "type": "dir",
+                "content": {}
+              },
+              "resize": {
+                "type": "dir",
+                "content": {}
+              },
+              "bzcat": {
+                "type": "dir",
+                "content": {}
+              },
+              "flock": {
+                "type": "dir",
+                "content": {}
+              },
+              "tree": {
+                "type": "dir",
+                "content": {}
+              },
+              "traceroute6": {
+                "type": "dir",
+                "content": {}
+              },
+              "passwd": {
+                "type": "dir",
+                "content": {}
+              },
+              "udhcpc6": {
+                "type": "dir",
+                "content": {}
+              },
+              "shuf": {
+                "type": "dir",
+                "content": {}
+              },
+              "readlink": {
+                "type": "dir",
+                "content": {}
+              },
+              "mkpasswd": {
+                "type": "dir",
+                "content": {}
+              },
+              "chvt": {
+                "type": "dir",
+                "content": {}
+              },
+              "unlzma": {
+                "type": "dir",
+                "content": {}
+              },
+              "nc": {
+                "type": "dir",
+                "content": {}
+              },
+              "uniq": {
+                "type": "dir",
+                "content": {}
+              },
+              "xargs": {
+                "type": "dir",
+                "content": {}
+              },
+              "unxz": {
+                "type": "dir",
+                "content": {}
+              },
+              "tac": {
+                "type": "dir",
+                "content": {}
+              },
+              "[[": {
+                "type": "dir",
+                "content": {}
+              },
+              "lsusb": {
+                "type": "dir",
+                "content": {}
+              },
+              "pgrep": {
+                "type": "dir",
+                "content": {}
+              },
+              "xxd": {
+                "type": "dir",
+                "content": {}
+              },
+              "ipcs": {
+                "type": "dir",
+                "content": {}
+              },
+              "find": {
+                "type": "dir",
+                "content": {}
+              },
+              "du": {
+                "type": "dir",
+                "content": {}
+              },
+              "less": {
+                "type": "dir",
+                "content": {}
+              },
+              "vi": {
+                "type": "dir",
+                "content": {}
+              },
+              "reset": {
+                "type": "dir",
+                "content": {}
+              },
+              "crontab": {
+                "type": "dir",
+                "content": {}
+              },
+              "head": {
+                "type": "dir",
+                "content": {}
+              },
+              "showkey": {
+                "type": "dir",
+                "content": {}
+              },
+              "install": {
+                "type": "dir",
+                "content": {}
+              },
+              "cksum": {
+                "type": "dir",
+                "content": {}
+              },
+              "whoami": {
+                "type": "dir",
+                "content": {}
+              },
+              "beep": {
+                "type": "dir",
+                "content": {}
+              },
+              "tee": {
+                "type": "dir",
+                "content": {}
+              },
+              "comm": {
+                "type": "dir",
+                "content": {}
+              },
+              "tty": {
+                "type": "dir",
+                "content": {}
+              },
+              "ssl_client": {
+                "type": "dir",
+                "content": {}
+              },
+              "seq": {
+                "type": "dir",
+                "content": {}
+              },
+              "pscan": {
+                "type": "dir",
+                "content": {}
+              },
+              "fallocate": {
+                "type": "dir",
+                "content": {}
+              },
+              "setkeycodes": {
+                "type": "dir",
+                "content": {}
+              },
+              "ldd": {
+                "type": "dir",
+                "content": {}
+              },
+              "sha3sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "uudecode": {
+                "type": "dir",
+                "content": {}
+              },
+              "nproc": {
+                "type": "dir",
+                "content": {}
+              },
+              "unix2dos": {
+                "type": "dir",
+                "content": {}
+              },
+              "factor": {
+                "type": "dir",
+                "content": {}
+              },
+              "ipcrm": {
+                "type": "dir",
+                "content": {}
+              },
+              "deallocvt": {
+                "type": "dir",
+                "content": {}
+              },
+              "sha512sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "realpath": {
+                "type": "dir",
+                "content": {}
+              },
+              "sha1sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "uptime": {
+                "type": "dir",
+                "content": {}
+              },
+              "cryptpw": {
+                "type": "dir",
+                "content": {}
+              },
+              "logger": {
+                "type": "dir",
+                "content": {}
+              },
+              "free": {
+                "type": "dir",
+                "content": {}
+              },
+              "cpio": {
+                "type": "dir",
+                "content": {}
+              },
+              "fuser": {
+                "type": "dir",
+                "content": {}
+              },
+              "pmap": {
+                "type": "dir",
+                "content": {}
+              },
+              "expr": {
+                "type": "dir",
+                "content": {}
+              },
+              "hexdump": {
+                "type": "dir",
+                "content": {}
+              },
+              "scanelf": {
+                "type": "dir",
+                "content": {}
+              },
+              "expand": {
+                "type": "dir",
+                "content": {}
+              },
+              "which": {
+                "type": "dir",
+                "content": {}
+              },
+              "bzip2": {
+                "type": "dir",
+                "content": {}
+              },
+              "pstree": {
+                "type": "dir",
+                "content": {}
+              },
+              "tail": {
+                "type": "dir",
+                "content": {}
+              },
+              "getconf": {
+                "type": "dir",
+                "content": {}
+              },
+              "nsenter": {
+                "type": "dir",
+                "content": {}
+              },
+              "nslookup": {
+                "type": "dir",
+                "content": {}
+              },
+              "unshare": {
+                "type": "dir",
+                "content": {}
+              },
+              "shred": {
+                "type": "dir",
+                "content": {}
+              },
+              "lzopcat": {
+                "type": "dir",
+                "content": {}
+              },
+              "nmeter": {
+                "type": "dir",
+                "content": {}
+              },
+              "sha256sum": {
+                "type": "dir",
+                "content": {}
+              },
+              "paste": {
+                "type": "dir",
+                "content": {}
+              },
+              "test": {
+                "type": "dir",
+                "content": {}
+              },
+              "fold": {
+                "type": "dir",
+                "content": {}
+              },
+              "blkdiscard": {
+                "type": "dir",
+                "content": {}
+              },
+              "openvt": {
+                "type": "dir",
+                "content": {}
+              },
+              "wc": {
+                "type": "dir",
+                "content": {}
+              },
+              "uuencode": {
+                "type": "dir",
+                "content": {}
+              },
+              "split": {
+                "type": "dir",
+                "content": {}
+              },
+              "lzcat": {
+                "type": "dir",
+                "content": {}
+              },
+              "cal": {
+                "type": "dir",
+                "content": {}
+              },
+              "whois": {
+                "type": "dir",
+                "content": {}
+              },
+              "getent": {
+                "type": "dir",
+                "content": {}
+              },
+              "unlzop": {
+                "type": "dir",
+                "content": {}
+              },
+              "mesg": {
+                "type": "dir",
+                "content": {}
+              },
+              "killall": {
+                "type": "dir",
+                "content": {}
+              },
+              "who": {
+                "type": "dir",
+                "content": {}
+              },
+              "basename": {
+                "type": "dir",
+                "content": {}
+              },
+              "bc": {
+                "type": "dir",
+                "content": {}
+              },
+              "cmp": {
+                "type": "dir",
+                "content": {}
+              },
+              "awk": {
+                "type": "dir",
+                "content": {}
+              },
+              "nohup": {
+                "type": "dir",
+                "content": {}
+              },
+              "pkill": {
+                "type": "dir",
+                "content": {}
+              },
+              "cut": {
+                "type": "dir",
+                "content": {}
+              },
+              "lzma": {
+                "type": "dir",
+                "content": {}
+              },
+              "bunzip2": {
+                "type": "dir",
+                "content": {}
+              },
+              "hd": {
+                "type": "dir",
+                "content": {}
+              },
+              "yes": {
+                "type": "dir",
+                "content": {}
+              },
+              "volname": {
+                "type": "dir",
+                "content": {}
+              },
+              "printf": {
+                "type": "dir",
+                "content": {}
+              },
+              "diff": {
+                "type": "dir",
+                "content": {}
+              },
+              "dirname": {
+                "type": "dir",
+                "content": {}
+              },
+              "dc": {
+                "type": "dir",
+                "content": {}
+              },
+              "mkfifo": {
+                "type": "dir",
+                "content": {}
+              },
+              "top": {
+                "type": "dir",
+                "content": {}
+              },
+              "unzip": {
+                "type": "dir",
+                "content": {}
+              },
+              "eject": {
+                "type": "dir",
+                "content": {}
+              },
+              "tr": {
+                "type": "dir",
+                "content": {}
+              },
+              "dos2unix": {
+                "type": "dir",
+                "content": {}
+              },
+              "[": {
+                "type": "dir",
+                "content": {}
+              },
+              "microcom": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          }
+        }
+      },
+      "tmp": {
+        "type": "dir",
+        "content": {}
+      },
+      "var": {
+        "type": "dir",
+        "content": {
+          "run": {
+            "type": "dir",
+            "content": {}
+          },
+          "local": {
+            "type": "dir",
+            "content": {}
+          },
+          "log": {
+            "type": "dir",
+            "content": {}
+          },
+          "mail": {
+            "type": "dir",
+            "content": {}
+          },
+          "cache": {
+            "type": "dir",
+            "content": {
+              "misc": {
+                "type": "dir",
+                "content": {}
+              },
+              "apk": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "opt": {
+            "type": "dir",
+            "content": {}
+          },
+          "empty": {
+            "type": "dir",
+            "content": {}
+          },
+          "lib": {
+            "type": "dir",
+            "content": {
+              "misc": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "spool": {
+            "type": "dir",
+            "content": {
+              "mail": {
+                "type": "dir",
+                "content": {}
+              },
+              "cron": {
+                "type": "dir",
+                "content": {
+                  "crontabs": {
+                    "type": "dir",
+                    "content": {}
+                  }
+                }
+              }
+            }
+          },
+          "lock": {
+            "type": "dir",
+            "content": {}
+          },
+          "tmp": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      }
+    }
+  }
+}

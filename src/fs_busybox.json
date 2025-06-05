@@ -1,0 +1,1742 @@
+{
+  "/": {
+    "type": "dir",
+    "content": {
+      "bin": {
+        "type": "dir",
+        "content": {
+          "ubiattach": {
+            "type": "dir",
+            "content": {}
+          },
+          "clear": {
+            "type": "dir",
+            "content": {}
+          },
+          "traceroute": {
+            "type": "dir",
+            "content": {}
+          },
+          "dhcprelay": {
+            "type": "dir",
+            "content": {}
+          },
+          "nandwrite": {
+            "type": "dir",
+            "content": {}
+          },
+          "wall": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipneigh": {
+            "type": "dir",
+            "content": {}
+          },
+          "timeout": {
+            "type": "dir",
+            "content": {}
+          },
+          "login": {
+            "type": "dir",
+            "content": {}
+          },
+          "pipe_progress": {
+            "type": "dir",
+            "content": {}
+          },
+          "lpr": {
+            "type": "dir",
+            "content": {}
+          },
+          "losetup": {
+            "type": "dir",
+            "content": {}
+          },
+          "df": {
+            "type": "dir",
+            "content": {}
+          },
+          "udpsvd": {
+            "type": "dir",
+            "content": {}
+          },
+          "fsfreeze": {
+            "type": "dir",
+            "content": {}
+          },
+          "makemime": {
+            "type": "dir",
+            "content": {}
+          },
+          "last": {
+            "type": "dir",
+            "content": {}
+          },
+          "ip": {
+            "type": "dir",
+            "content": {}
+          },
+          "id": {
+            "type": "dir",
+            "content": {}
+          },
+          "chmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "conspy": {
+            "type": "dir",
+            "content": {}
+          },
+          "nbd-client": {
+            "type": "dir",
+            "content": {}
+          },
+          "rpm": {
+            "type": "dir",
+            "content": {}
+          },
+          "setsid": {
+            "type": "dir",
+            "content": {}
+          },
+          "renice": {
+            "type": "dir",
+            "content": {}
+          },
+          "ps": {
+            "type": "dir",
+            "content": {}
+          },
+          "init": {
+            "type": "dir",
+            "content": {}
+          },
+          "users": {
+            "type": "dir",
+            "content": {}
+          },
+          "hostid": {
+            "type": "dir",
+            "content": {}
+          },
+          "loadkmap": {
+            "type": "dir",
+            "content": {}
+          },
+          "patch": {
+            "type": "dir",
+            "content": {}
+          },
+          "pwdx": {
+            "type": "dir",
+            "content": {}
+          },
+          "udhcpc": {
+            "type": "dir",
+            "content": {}
+          },
+          "vlock": {
+            "type": "dir",
+            "content": {}
+          },
+          "ifup": {
+            "type": "dir",
+            "content": {}
+          },
+          "sleep": {
+            "type": "dir",
+            "content": {}
+          },
+          "ftpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "dpkg-deb": {
+            "type": "dir",
+            "content": {}
+          },
+          "man": {
+            "type": "dir",
+            "content": {}
+          },
+          "netstat": {
+            "type": "dir",
+            "content": {}
+          },
+          "sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "false": {
+            "type": "dir",
+            "content": {}
+          },
+          "nl": {
+            "type": "dir",
+            "content": {}
+          },
+          "env": {
+            "type": "dir",
+            "content": {}
+          },
+          "bootchartd": {
+            "type": "dir",
+            "content": {}
+          },
+          "md5sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipaddr": {
+            "type": "dir",
+            "content": {}
+          },
+          "dumpleases": {
+            "type": "dir",
+            "content": {}
+          },
+          "printenv": {
+            "type": "dir",
+            "content": {}
+          },
+          "ntpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "time": {
+            "type": "dir",
+            "content": {}
+          },
+          "ash": {
+            "type": "dir",
+            "content": {}
+          },
+          "rtcwake": {
+            "type": "dir",
+            "content": {}
+          },
+          "chown": {
+            "type": "dir",
+            "content": {}
+          },
+          "popmaildir": {
+            "type": "dir",
+            "content": {}
+          },
+          "wget": {
+            "type": "dir",
+            "content": {}
+          },
+          "unlink": {
+            "type": "dir",
+            "content": {}
+          },
+          "xzcat": {
+            "type": "dir",
+            "content": {}
+          },
+          "true": {
+            "type": "dir",
+            "content": {}
+          },
+          "addgroup": {
+            "type": "dir",
+            "content": {}
+          },
+          "kill": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsof": {
+            "type": "dir",
+            "content": {}
+          },
+          "unexpand": {
+            "type": "dir",
+            "content": {}
+          },
+          "loadfont": {
+            "type": "dir",
+            "content": {}
+          },
+          "mount": {
+            "type": "dir",
+            "content": {}
+          },
+          "sort": {
+            "type": "dir",
+            "content": {}
+          },
+          "iptunnel": {
+            "type": "dir",
+            "content": {}
+          },
+          "envdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "groups": {
+            "type": "dir",
+            "content": {}
+          },
+          "ttysize": {
+            "type": "dir",
+            "content": {}
+          },
+          "slattach": {
+            "type": "dir",
+            "content": {}
+          },
+          "modprobe": {
+            "type": "dir",
+            "content": {}
+          },
+          "fbsplash": {
+            "type": "dir",
+            "content": {}
+          },
+          "truncate": {
+            "type": "dir",
+            "content": {}
+          },
+          "od": {
+            "type": "dir",
+            "content": {}
+          },
+          "iprule": {
+            "type": "dir",
+            "content": {}
+          },
+          "fgconsole": {
+            "type": "dir",
+            "content": {}
+          },
+          "dnsdomainname": {
+            "type": "dir",
+            "content": {}
+          },
+          "umount": {
+            "type": "dir",
+            "content": {}
+          },
+          "getopt": {
+            "type": "dir",
+            "content": {}
+          },
+          "dumpkmap": {
+            "type": "dir",
+            "content": {}
+          },
+          "rx": {
+            "type": "dir",
+            "content": {}
+          },
+          "fsck.minix": {
+            "type": "dir",
+            "content": {}
+          },
+          "stat": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubiupdatevol": {
+            "type": "dir",
+            "content": {}
+          },
+          "nanddump": {
+            "type": "dir",
+            "content": {}
+          },
+          "strings": {
+            "type": "dir",
+            "content": {}
+          },
+          "crc32": {
+            "type": "dir",
+            "content": {}
+          },
+          "resize": {
+            "type": "dir",
+            "content": {}
+          },
+          "run-init": {
+            "type": "dir",
+            "content": {}
+          },
+          "bzcat": {
+            "type": "dir",
+            "content": {}
+          },
+          "flock": {
+            "type": "dir",
+            "content": {}
+          },
+          "lpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "klogd": {
+            "type": "dir",
+            "content": {}
+          },
+          "fdformat": {
+            "type": "dir",
+            "content": {}
+          },
+          "fsck": {
+            "type": "dir",
+            "content": {}
+          },
+          "ping": {
+            "type": "dir",
+            "content": {}
+          },
+          "tree": {
+            "type": "dir",
+            "content": {}
+          },
+          "uevent": {
+            "type": "dir",
+            "content": {}
+          },
+          "traceroute6": {
+            "type": "dir",
+            "content": {}
+          },
+          "route": {
+            "type": "dir",
+            "content": {}
+          },
+          "passwd": {
+            "type": "dir",
+            "content": {}
+          },
+          "swapon": {
+            "type": "dir",
+            "content": {}
+          },
+          "udhcpc6": {
+            "type": "dir",
+            "content": {}
+          },
+          "shuf": {
+            "type": "dir",
+            "content": {}
+          },
+          "crond": {
+            "type": "dir",
+            "content": {}
+          },
+          "fatattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "readlink": {
+            "type": "dir",
+            "content": {}
+          },
+          "ar": {
+            "type": "dir",
+            "content": {}
+          },
+          "chgrp": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkpasswd": {
+            "type": "dir",
+            "content": {}
+          },
+          "sed": {
+            "type": "dir",
+            "content": {}
+          },
+          "chvt": {
+            "type": "dir",
+            "content": {}
+          },
+          "unlzma": {
+            "type": "dir",
+            "content": {}
+          },
+          "nc": {
+            "type": "dir",
+            "content": {}
+          },
+          "uniq": {
+            "type": "dir",
+            "content": {}
+          },
+          "smemcap": {
+            "type": "dir",
+            "content": {}
+          },
+          "xargs": {
+            "type": "dir",
+            "content": {}
+          },
+          "dpkg": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubidetach": {
+            "type": "dir",
+            "content": {}
+          },
+          "unxz": {
+            "type": "dir",
+            "content": {}
+          },
+          "tac": {
+            "type": "dir",
+            "content": {}
+          },
+          "hostname": {
+            "type": "dir",
+            "content": {}
+          },
+          "getfattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "run-parts": {
+            "type": "dir",
+            "content": {}
+          },
+          "[[": {
+            "type": "dir",
+            "content": {}
+          },
+          "poweroff": {
+            "type": "dir",
+            "content": {}
+          },
+          "uname": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsusb": {
+            "type": "dir",
+            "content": {}
+          },
+          "pgrep": {
+            "type": "dir",
+            "content": {}
+          },
+          "fdisk": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkfs.vfat": {
+            "type": "dir",
+            "content": {}
+          },
+          "linuxrc": {
+            "type": "dir",
+            "content": {}
+          },
+          "insmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "mim": {
+            "type": "dir",
+            "content": {}
+          },
+          "xxd": {
+            "type": "dir",
+            "content": {}
+          },
+          "setserial": {
+            "type": "dir",
+            "content": {}
+          },
+          "more": {
+            "type": "dir",
+            "content": {}
+          },
+          "ftpget": {
+            "type": "dir",
+            "content": {}
+          },
+          "iproute": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipcs": {
+            "type": "dir",
+            "content": {}
+          },
+          "ls": {
+            "type": "dir",
+            "content": {}
+          },
+          "find": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubirsvol": {
+            "type": "dir",
+            "content": {}
+          },
+          "zcat": {
+            "type": "dir",
+            "content": {}
+          },
+          "du": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubimkvol": {
+            "type": "dir",
+            "content": {}
+          },
+          "deluser": {
+            "type": "dir",
+            "content": {}
+          },
+          "less": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsscsi": {
+            "type": "dir",
+            "content": {}
+          },
+          "rev": {
+            "type": "dir",
+            "content": {}
+          },
+          "vi": {
+            "type": "dir",
+            "content": {}
+          },
+          "reset": {
+            "type": "dir",
+            "content": {}
+          },
+          "blockdev": {
+            "type": "dir",
+            "content": {}
+          },
+          "blkid": {
+            "type": "dir",
+            "content": {}
+          },
+          "tar": {
+            "type": "dir",
+            "content": {}
+          },
+          "base32": {
+            "type": "dir",
+            "content": {}
+          },
+          "crontab": {
+            "type": "dir",
+            "content": {}
+          },
+          "fdflush": {
+            "type": "dir",
+            "content": {}
+          },
+          "head": {
+            "type": "dir",
+            "content": {}
+          },
+          "arping": {
+            "type": "dir",
+            "content": {}
+          },
+          "makedevs": {
+            "type": "dir",
+            "content": {}
+          },
+          "ether-wake": {
+            "type": "dir",
+            "content": {}
+          },
+          "runlevel": {
+            "type": "dir",
+            "content": {}
+          },
+          "i2cset": {
+            "type": "dir",
+            "content": {}
+          },
+          "mdev": {
+            "type": "dir",
+            "content": {}
+          },
+          "ionice": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "showkey": {
+            "type": "dir",
+            "content": {}
+          },
+          "rdev": {
+            "type": "dir",
+            "content": {}
+          },
+          "install": {
+            "type": "dir",
+            "content": {}
+          },
+          "tftp": {
+            "type": "dir",
+            "content": {}
+          },
+          "cksum": {
+            "type": "dir",
+            "content": {}
+          },
+          "whoami": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkfs.ext2": {
+            "type": "dir",
+            "content": {}
+          },
+          "beep": {
+            "type": "dir",
+            "content": {}
+          },
+          "hexedit": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkswap": {
+            "type": "dir",
+            "content": {}
+          },
+          "tcpsvd": {
+            "type": "dir",
+            "content": {}
+          },
+          "mv": {
+            "type": "dir",
+            "content": {}
+          },
+          "tee": {
+            "type": "dir",
+            "content": {}
+          },
+          "i2cget": {
+            "type": "dir",
+            "content": {}
+          },
+          "comm": {
+            "type": "dir",
+            "content": {}
+          },
+          "dnsd": {
+            "type": "dir",
+            "content": {}
+          },
+          "sysctl": {
+            "type": "dir",
+            "content": {}
+          },
+          "inetd": {
+            "type": "dir",
+            "content": {}
+          },
+          "fgrep": {
+            "type": "dir",
+            "content": {}
+          },
+          "gunzip": {
+            "type": "dir",
+            "content": {}
+          },
+          "tty": {
+            "type": "dir",
+            "content": {}
+          },
+          "ssl_client": {
+            "type": "dir",
+            "content": {}
+          },
+          "add-shell": {
+            "type": "dir",
+            "content": {}
+          },
+          "pivot_root": {
+            "type": "dir",
+            "content": {}
+          },
+          "seq": {
+            "type": "dir",
+            "content": {}
+          },
+          "depmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "cp": {
+            "type": "dir",
+            "content": {}
+          },
+          "ln": {
+            "type": "dir",
+            "content": {}
+          },
+          "resume": {
+            "type": "dir",
+            "content": {}
+          },
+          "brctl": {
+            "type": "dir",
+            "content": {}
+          },
+          "rmdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "seedrng": {
+            "type": "dir",
+            "content": {}
+          },
+          "link": {
+            "type": "dir",
+            "content": {}
+          },
+          "pscan": {
+            "type": "dir",
+            "content": {}
+          },
+          "fallocate": {
+            "type": "dir",
+            "content": {}
+          },
+          "mke2fs": {
+            "type": "dir",
+            "content": {}
+          },
+          "lsattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "setkeycodes": {
+            "type": "dir",
+            "content": {}
+          },
+          "sha3sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "uudecode": {
+            "type": "dir",
+            "content": {}
+          },
+          "nproc": {
+            "type": "dir",
+            "content": {}
+          },
+          "script": {
+            "type": "dir",
+            "content": {}
+          },
+          "ed": {
+            "type": "dir",
+            "content": {}
+          },
+          "unix2dos": {
+            "type": "dir",
+            "content": {}
+          },
+          "factor": {
+            "type": "dir",
+            "content": {}
+          },
+          "sh": {
+            "type": "dir",
+            "content": {}
+          },
+          "readahead": {
+            "type": "dir",
+            "content": {}
+          },
+          "dd": {
+            "type": "dir",
+            "content": {}
+          },
+          "kbd_mode": {
+            "type": "dir",
+            "content": {}
+          },
+          "rpm2cpio": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipcrm": {
+            "type": "dir",
+            "content": {}
+          },
+          "deallocvt": {
+            "type": "dir",
+            "content": {}
+          },
+          "sha512sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "tsort": {
+            "type": "dir",
+            "content": {}
+          },
+          "realpath": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkdosfs": {
+            "type": "dir",
+            "content": {}
+          },
+          "sha1sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "uptime": {
+            "type": "dir",
+            "content": {}
+          },
+          "cryptpw": {
+            "type": "dir",
+            "content": {}
+          },
+          "logger": {
+            "type": "dir",
+            "content": {}
+          },
+          "scriptreplay": {
+            "type": "dir",
+            "content": {}
+          },
+          "free": {
+            "type": "dir",
+            "content": {}
+          },
+          "killall5": {
+            "type": "dir",
+            "content": {}
+          },
+          "zcip": {
+            "type": "dir",
+            "content": {}
+          },
+          "tunctl": {
+            "type": "dir",
+            "content": {}
+          },
+          "cpio": {
+            "type": "dir",
+            "content": {}
+          },
+          "reformime": {
+            "type": "dir",
+            "content": {}
+          },
+          "fuser": {
+            "type": "dir",
+            "content": {}
+          },
+          "rmmod": {
+            "type": "dir",
+            "content": {}
+          },
+          "watchdog": {
+            "type": "dir",
+            "content": {}
+          },
+          "vconfig": {
+            "type": "dir",
+            "content": {}
+          },
+          "pmap": {
+            "type": "dir",
+            "content": {}
+          },
+          "adjtimex": {
+            "type": "dir",
+            "content": {}
+          },
+          "lpq": {
+            "type": "dir",
+            "content": {}
+          },
+          "powertop": {
+            "type": "dir",
+            "content": {}
+          },
+          "stty": {
+            "type": "dir",
+            "content": {}
+          },
+          "logread": {
+            "type": "dir",
+            "content": {}
+          },
+          "expr": {
+            "type": "dir",
+            "content": {}
+          },
+          "hexdump": {
+            "type": "dir",
+            "content": {}
+          },
+          "i2ctransfer": {
+            "type": "dir",
+            "content": {}
+          },
+          "expand": {
+            "type": "dir",
+            "content": {}
+          },
+          "setuidgid": {
+            "type": "dir",
+            "content": {}
+          },
+          "mt": {
+            "type": "dir",
+            "content": {}
+          },
+          "which": {
+            "type": "dir",
+            "content": {}
+          },
+          "chat": {
+            "type": "dir",
+            "content": {}
+          },
+          "adduser": {
+            "type": "dir",
+            "content": {}
+          },
+          "bzip2": {
+            "type": "dir",
+            "content": {}
+          },
+          "ping6": {
+            "type": "dir",
+            "content": {}
+          },
+          "chpst": {
+            "type": "dir",
+            "content": {}
+          },
+          "sync": {
+            "type": "dir",
+            "content": {}
+          },
+          "sulogin": {
+            "type": "dir",
+            "content": {}
+          },
+          "lzop": {
+            "type": "dir",
+            "content": {}
+          },
+          "pstree": {
+            "type": "dir",
+            "content": {}
+          },
+          "udhcpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "switch_root": {
+            "type": "dir",
+            "content": {}
+          },
+          "remove-shell": {
+            "type": "dir",
+            "content": {}
+          },
+          "i2cdump": {
+            "type": "dir",
+            "content": {}
+          },
+          "fbset": {
+            "type": "dir",
+            "content": {}
+          },
+          "arp": {
+            "type": "dir",
+            "content": {}
+          },
+          "runsv": {
+            "type": "dir",
+            "content": {}
+          },
+          "tail": {
+            "type": "dir",
+            "content": {}
+          },
+          "getconf": {
+            "type": "dir",
+            "content": {}
+          },
+          "nsenter": {
+            "type": "dir",
+            "content": {}
+          },
+          "nslookup": {
+            "type": "dir",
+            "content": {}
+          },
+          "fsync": {
+            "type": "dir",
+            "content": {}
+          },
+          "httpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkfs.minix": {
+            "type": "dir",
+            "content": {}
+          },
+          "unshare": {
+            "type": "dir",
+            "content": {}
+          },
+          "chroot": {
+            "type": "dir",
+            "content": {}
+          },
+          "shred": {
+            "type": "dir",
+            "content": {}
+          },
+          "readprofile": {
+            "type": "dir",
+            "content": {}
+          },
+          "nmeter": {
+            "type": "dir",
+            "content": {}
+          },
+          "dmesg": {
+            "type": "dir",
+            "content": {}
+          },
+          "xz": {
+            "type": "dir",
+            "content": {}
+          },
+          "pwd": {
+            "type": "dir",
+            "content": {}
+          },
+          "ifenslave": {
+            "type": "dir",
+            "content": {}
+          },
+          "sha256sum": {
+            "type": "dir",
+            "content": {}
+          },
+          "paste": {
+            "type": "dir",
+            "content": {}
+          },
+          "tftpd": {
+            "type": "dir",
+            "content": {}
+          },
+          "envuidgid": {
+            "type": "dir",
+            "content": {}
+          },
+          "lspci": {
+            "type": "dir",
+            "content": {}
+          },
+          "date": {
+            "type": "dir",
+            "content": {}
+          },
+          "ifconfig": {
+            "type": "dir",
+            "content": {}
+          },
+          "svlogd": {
+            "type": "dir",
+            "content": {}
+          },
+          "partprobe": {
+            "type": "dir",
+            "content": {}
+          },
+          "mpstat": {
+            "type": "dir",
+            "content": {}
+          },
+          "telnetd": {
+            "type": "dir",
+            "content": {}
+          },
+          "softlimit": {
+            "type": "dir",
+            "content": {}
+          },
+          "test": {
+            "type": "dir",
+            "content": {}
+          },
+          "ipcalc": {
+            "type": "dir",
+            "content": {}
+          },
+          "fakeidentd": {
+            "type": "dir",
+            "content": {}
+          },
+          "echo": {
+            "type": "dir",
+            "content": {}
+          },
+          "fold": {
+            "type": "dir",
+            "content": {}
+          },
+          "base64": {
+            "type": "dir",
+            "content": {}
+          },
+          "blkdiscard": {
+            "type": "dir",
+            "content": {}
+          },
+          "openvt": {
+            "type": "dir",
+            "content": {}
+          },
+          "wc": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubirename": {
+            "type": "dir",
+            "content": {}
+          },
+          "uuencode": {
+            "type": "dir",
+            "content": {}
+          },
+          "split": {
+            "type": "dir",
+            "content": {}
+          },
+          "watch": {
+            "type": "dir",
+            "content": {}
+          },
+          "lzcat": {
+            "type": "dir",
+            "content": {}
+          },
+          "cal": {
+            "type": "dir",
+            "content": {}
+          },
+          "telnet": {
+            "type": "dir",
+            "content": {}
+          },
+          "mktemp": {
+            "type": "dir",
+            "content": {}
+          },
+          "tc": {
+            "type": "dir",
+            "content": {}
+          },
+          "nologin": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "setfattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "iplink": {
+            "type": "dir",
+            "content": {}
+          },
+          "touch": {
+            "type": "dir",
+            "content": {}
+          },
+          "ifdown": {
+            "type": "dir",
+            "content": {}
+          },
+          "svc": {
+            "type": "dir",
+            "content": {}
+          },
+          "usleep": {
+            "type": "dir",
+            "content": {}
+          },
+          "devmem": {
+            "type": "dir",
+            "content": {}
+          },
+          "whois": {
+            "type": "dir",
+            "content": {}
+          },
+          "chattr": {
+            "type": "dir",
+            "content": {}
+          },
+          "delgroup": {
+            "type": "dir",
+            "content": {}
+          },
+          "rm": {
+            "type": "dir",
+            "content": {}
+          },
+          "ascii": {
+            "type": "dir",
+            "content": {}
+          },
+          "runsvdir": {
+            "type": "dir",
+            "content": {}
+          },
+          "egrep": {
+            "type": "dir",
+            "content": {}
+          },
+          "setpriv": {
+            "type": "dir",
+            "content": {}
+          },
+          "svok": {
+            "type": "dir",
+            "content": {}
+          },
+          "reboot": {
+            "type": "dir",
+            "content": {}
+          },
+          "busybox": {
+            "type": "dir",
+            "content": {}
+          },
+          "mesg": {
+            "type": "dir",
+            "content": {}
+          },
+          "sendmail": {
+            "type": "dir",
+            "content": {}
+          },
+          "linux32": {
+            "type": "dir",
+            "content": {}
+          },
+          "hwclock": {
+            "type": "dir",
+            "content": {}
+          },
+          "killall": {
+            "type": "dir",
+            "content": {}
+          },
+          "swapoff": {
+            "type": "dir",
+            "content": {}
+          },
+          "who": {
+            "type": "dir",
+            "content": {}
+          },
+          "basename": {
+            "type": "dir",
+            "content": {}
+          },
+          "bc": {
+            "type": "dir",
+            "content": {}
+          },
+          "ifplugd": {
+            "type": "dir",
+            "content": {}
+          },
+          "mknod": {
+            "type": "dir",
+            "content": {}
+          },
+          "cmp": {
+            "type": "dir",
+            "content": {}
+          },
+          "awk": {
+            "type": "dir",
+            "content": {}
+          },
+          "setarch": {
+            "type": "dir",
+            "content": {}
+          },
+          "nohup": {
+            "type": "dir",
+            "content": {}
+          },
+          "freeramdisk": {
+            "type": "dir",
+            "content": {}
+          },
+          "pkill": {
+            "type": "dir",
+            "content": {}
+          },
+          "taskset": {
+            "type": "dir",
+            "content": {}
+          },
+          "ts": {
+            "type": "dir",
+            "content": {}
+          },
+          "cut": {
+            "type": "dir",
+            "content": {}
+          },
+          "ftpput": {
+            "type": "dir",
+            "content": {}
+          },
+          "lzma": {
+            "type": "dir",
+            "content": {}
+          },
+          "logname": {
+            "type": "dir",
+            "content": {}
+          },
+          "iostat": {
+            "type": "dir",
+            "content": {}
+          },
+          "sv": {
+            "type": "dir",
+            "content": {}
+          },
+          "bunzip2": {
+            "type": "dir",
+            "content": {}
+          },
+          "chrt": {
+            "type": "dir",
+            "content": {}
+          },
+          "findfs": {
+            "type": "dir",
+            "content": {}
+          },
+          "getty": {
+            "type": "dir",
+            "content": {}
+          },
+          "setlogcons": {
+            "type": "dir",
+            "content": {}
+          },
+          "su": {
+            "type": "dir",
+            "content": {}
+          },
+          "cat": {
+            "type": "dir",
+            "content": {}
+          },
+          "rdate": {
+            "type": "dir",
+            "content": {}
+          },
+          "setfont": {
+            "type": "dir",
+            "content": {}
+          },
+          "fstrim": {
+            "type": "dir",
+            "content": {}
+          },
+          "chpasswd": {
+            "type": "dir",
+            "content": {}
+          },
+          "hd": {
+            "type": "dir",
+            "content": {}
+          },
+          "hdparm": {
+            "type": "dir",
+            "content": {}
+          },
+          "yes": {
+            "type": "dir",
+            "content": {}
+          },
+          "w": {
+            "type": "dir",
+            "content": {}
+          },
+          "volname": {
+            "type": "dir",
+            "content": {}
+          },
+          "mountpoint": {
+            "type": "dir",
+            "content": {}
+          },
+          "printf": {
+            "type": "dir",
+            "content": {}
+          },
+          "diff": {
+            "type": "dir",
+            "content": {}
+          },
+          "hush": {
+            "type": "dir",
+            "content": {}
+          },
+          "syslogd": {
+            "type": "dir",
+            "content": {}
+          },
+          "arch": {
+            "type": "dir",
+            "content": {}
+          },
+          "grep": {
+            "type": "dir",
+            "content": {}
+          },
+          "acpid": {
+            "type": "dir",
+            "content": {}
+          },
+          "dirname": {
+            "type": "dir",
+            "content": {}
+          },
+          "dc": {
+            "type": "dir",
+            "content": {}
+          },
+          "cttyhack": {
+            "type": "dir",
+            "content": {}
+          },
+          "mkfifo": {
+            "type": "dir",
+            "content": {}
+          },
+          "modinfo": {
+            "type": "dir",
+            "content": {}
+          },
+          "gzip": {
+            "type": "dir",
+            "content": {}
+          },
+          "top": {
+            "type": "dir",
+            "content": {}
+          },
+          "unzip": {
+            "type": "dir",
+            "content": {}
+          },
+          "setconsole": {
+            "type": "dir",
+            "content": {}
+          },
+          "nice": {
+            "type": "dir",
+            "content": {}
+          },
+          "raidautorun": {
+            "type": "dir",
+            "content": {}
+          },
+          "pidof": {
+            "type": "dir",
+            "content": {}
+          },
+          "eject": {
+            "type": "dir",
+            "content": {}
+          },
+          "tr": {
+            "type": "dir",
+            "content": {}
+          },
+          "dos2unix": {
+            "type": "dir",
+            "content": {}
+          },
+          "i2cdetect": {
+            "type": "dir",
+            "content": {}
+          },
+          "linux64": {
+            "type": "dir",
+            "content": {}
+          },
+          "halt": {
+            "type": "dir",
+            "content": {}
+          },
+          "ubirmvol": {
+            "type": "dir",
+            "content": {}
+          },
+          "nameif": {
+            "type": "dir",
+            "content": {}
+          },
+          "[": {
+            "type": "dir",
+            "content": {}
+          },
+          "microcom": {
+            "type": "dir",
+            "content": {}
+          },
+          "start-stop-daemon": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      },
+      "etc": {
+        "type": "dir",
+        "content": {
+          "nsswitch.conf": {
+            "type": "dir",
+            "content": {}
+          },
+          "passwd": {
+            "type": "dir",
+            "content": {}
+          },
+          "localtime": {
+            "type": "dir",
+            "content": {}
+          },
+          "group": {
+            "type": "dir",
+            "content": {}
+          },
+          "shadow": {
+            "type": "dir",
+            "content": {}
+          },
+          "network": {
+            "type": "dir",
+            "content": {
+              "if-post-down.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-down.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-pre-up.d": {
+                "type": "dir",
+                "content": {}
+              },
+              "if-up.d": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "hosts": {
+            "type": "dir",
+            "content": {}
+          },
+          "hostname": {
+            "type": "dir",
+            "content": {}
+          },
+          "resolv.conf": {
+            "type": "dir",
+            "content": {}
+          },
+          "mtab": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      },
+      "home": {
+        "type": "dir",
+        "content": {}
+      },
+      "usr": {
+        "type": "dir",
+        "content": {
+          "sbin": {
+            "type": "dir",
+            "content": {}
+          },
+          "bin": {
+            "type": "dir",
+            "content": {
+              "env": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          }
+        }
+      },
+      "tmp": {
+        "type": "dir",
+        "content": {}
+      },
+      "var": {
+        "type": "dir",
+        "content": {
+          "spool": {
+            "type": "dir",
+            "content": {
+              "mail": {
+                "type": "dir",
+                "content": {}
+              }
+            }
+          },
+          "www": {
+            "type": "dir",
+            "content": {}
+          }
+        }
+      }
+    }
+  }
+}
