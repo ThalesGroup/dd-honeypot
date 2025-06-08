@@ -16,5 +16,5 @@ def test_parse_ok(sql_data_handler):
 
 def test_parse_error(sql_data_handler):
     session = sql_data_handler.connect({})
-    with pytest.raises(Exception, match="SQL parse error: ") as e:
-        sql_data_handler.query("SELECT * FROM", session)  # Missing table name
+    result = sql_data_handler.query("SELECT SELECT", session)
+    assert "SQL parse error:" in result
