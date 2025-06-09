@@ -10,14 +10,16 @@ from paramiko.ssh_exception import SSHException
 
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction  # Define this interface
+from infra.prompt_utils import render_prompt
 
 
 class SSHServerInterface(paramiko.ServerInterface):
-    def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot):
+    def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
         self.username = None
         self.session = None
         self.action = action
         self.honeypot = honeypot
+        self.config = config or {}
 
     def check_auth_password(self, username, password):
         logging.info(f"Authentication: {username}:{password}")
@@ -77,7 +79,13 @@ class SSHServerInterface(paramiko.ServerInterface):
     def handle_shell(self, channel):
         try:
             cwd = self.session.get("cwd", "/")
-            prompt = f"{self.username}@SSHServer:{cwd}$ "
+            prompt_template = (
+                self.config.get("prompt_template")
+                or self.config.get("shell-prompt")
+                or f"{self.username}@SSHServer:{cwd}$ "
+            )
+
+            prompt = render_prompt(prompt_template, self.session)
 
             while not channel.closed:
                 buffer = ""
@@ -171,7 +179,9 @@ class SSHHoneypot(BaseHoneypot):
             transport = Transport(client_socket)
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.add_server_key(self.host_key)
-            transport.start_server(server=SSHServerInterface(self.action, self))
+            transport.start_server(
+                server=SSHServerInterface(self.action, self, self.config)
+            )
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 30):

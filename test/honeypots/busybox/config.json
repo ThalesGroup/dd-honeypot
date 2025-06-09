@@ -1,6 +1,7 @@
 {
   "type": "ssh",
   "name": "BusyBox Linux Honeypot",
+  "prompt_template": "# ",
   "shell-prompt": "honeypot@fakevm:~$ ",
   "data_file": "data.jsonl",
   "fs_file": "fs_busybox.json",

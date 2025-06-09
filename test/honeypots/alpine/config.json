@@ -1,6 +1,7 @@
 {
   "type": "ssh",
   "name": "Alpine Linux Honeypot",
+  "prompt_template": "${{username}}@alpine:${{cwd}}$ ",
   "shell-prompt": "honeypot@fakevm:~$ ",
   "data_file": "data.jsonl",
   "fs_file": "fs_alpine.json",
