@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 import sqlglot
@@ -8,7 +9,7 @@ from infra.interfaces import HoneypotAction
 class SqlDataHandler(HoneypotAction):
     def __init__(self, *args, dialect: str = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._dialect = dialect
+        self._dialect = dialect # Accept 'mysql' or 'postgres' etc.
 
     def query(self, query: str, session: dict, **kwargs) -> Optional[str]:
         try:
@@ -21,4 +22,4 @@ class SqlDataHandler(HoneypotAction):
                 return "[]"
             return None
         except sqlglot.errors.ParseError as e:
-            raise Exception(f"SQL parse error: {e}") from e
+            return json.dumps([{"error": f"SQL parse error: {str(e)}"}])
