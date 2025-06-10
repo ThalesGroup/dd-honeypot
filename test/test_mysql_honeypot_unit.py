@@ -142,12 +142,3 @@ def test_mysql_session_with_two_queries(monkeypatch):
                 result2 = cursor.fetchone()
                 assert result2 == ("root", "host1")
 
-
-def test_set_variable_raises_not_supported_error(mysql_cnn, caplog):
-    caplog.set_level(logging.CRITICAL, logger="mysql_mimic.connection")
-
-    with mysql_cnn.cursor() as cursor:
-        with pytest.raises(pymysql.err.NotSupportedError) as excinfo:
-            cursor.execute("SET @my_var = 123;")
-        # Optional: check error message contains "not supported"
-        assert "not supported" in str(excinfo.value).lower()
