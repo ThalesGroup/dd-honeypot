@@ -141,4 +141,3 @@ def test_mysql_session_with_two_queries(monkeypatch):
                 cursor.execute("SELECT user, host FROM mysql.user;")
                 result2 = cursor.fetchone()
                 assert result2 == ("root", "host1")
-
