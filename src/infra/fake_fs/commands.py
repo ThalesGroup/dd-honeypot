@@ -28,8 +28,10 @@ def handle_cd(session: dict, path: str) -> str:
     target = fs.resolve_path(path, current_path)
     if not target or not target.is_dir:
         return f"cd: no such file or directory: {path}"
-    session["cwd"] = normalize_path(path, current_path)
-    return ""
+    session["cwd"] = os.path.normpath(os.path.join(current_path, path))
+    if not session["cwd"].startswith("/"):
+        session["cwd"] = "/" + session["cwd"]
+    return session["cwd"]
 
 
 def handle_mkdir(session: dict, path: str) -> str:

@@ -60,14 +60,21 @@ class FakeFileSystem:
         create_missing: bool = False,
         expect_dir: bool = False,
     ) -> Optional[FileSystemNode]:
-        parts = (cwd + "/" + path).strip("/").split("/")
+        import os
+
+        # Normalize the combined path (e.g. cwd="/etc", path="../bin" => "/bin")
+        full_path = os.path.normpath(os.path.join(cwd, path))
+        if not full_path.startswith("/"):
+            full_path = "/" + full_path
+
+        parts = full_path.strip("/").split("/")
         current = self.root
 
         for part in parts:
             if part in ("", "."):
                 continue
             if part == "..":
-                # Not implemented: parent traversal
+                # Not handled in tree traversal — skip here because we already normalized the path above
                 continue
             child = current.get_child(part)
             if child is None:
