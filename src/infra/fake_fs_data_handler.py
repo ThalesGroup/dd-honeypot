@@ -44,7 +44,7 @@ class FakeFSDataHandler(DataHandler):
                 if len(parts) == 2:
                     return handle_mkdir(session, parts[1])
                 return "Usage: mkdir <dir>"
-            elif query.startswith("wget ") or query.startswith("curl "):
+            elif "wget" in query.lower() or "curl" in query.lower():
                 parts = query.split()
                 if len(parts) >= 2:
                     url = parts[-1]  # supports: wget -p http://...
