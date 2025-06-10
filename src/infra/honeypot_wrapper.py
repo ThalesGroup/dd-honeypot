@@ -5,6 +5,7 @@ import os
 from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
+from infra.File_download_handler import FileDownloadHandler
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
@@ -15,7 +16,7 @@ from telnet_honeypot import TelnetHoneypot
 logger = logging.getLogger(__name__)
 
 
-def build_data_handler(config: dict):
+def build_data_handler(config: dict, log_callback=None):
     data_file = str(config["data_file"])
     model_id = config["model_id"]
     system_prompt = config["system_prompt"]
@@ -33,9 +34,16 @@ def build_data_handler(config: dict):
             system_prompt=system_prompt,
             model_id=model_id,
         )
-        return ChainedDataHandler(
-            fakefs_handler=fakefs_handler, llm_handler=llm_handler
+        file_download_handler = FileDownloadHandler(
+            fakefs_handler=fakefs_handler, log_callback=log_callback
         )
+
+        chained_handler = ChainedDataHandler(
+            [file_download_handler, fakefs_handler, llm_handler]
+        )
+
+        return chained_handler
+
     else:
         return DataHandler(
             data_file=data_file,
