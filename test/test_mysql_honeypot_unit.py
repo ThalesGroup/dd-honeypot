@@ -1,8 +1,10 @@
+import json
 from typing import Generator
 
 import pymysql
 import pytest
 
+from conftest import get_honeypot_main
 from mysql_honeypot import MySQLHoneypot
 from infra.interfaces import HoneypotAction
 from base_honeypot import BaseHoneypot, HoneypotSession
@@ -30,6 +32,24 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
         yield conn
 
 
+def test_mysql_honeypot_main(monkeypatch):
+    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+        monkeypatch.setattr(
+            "infra.data_handler.invoke_llm",
+            lambda *a, **kw: '[{"user": "root", "host": "host1"}]',
+        )
+        with pymysql.connect(
+            host="0.0.0.0", port=port, user="root", password="root12"
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                assert result == (1,)
+                cursor.execute("SELECT user, host FROM mysql.user")
+                result = cursor.fetchone()
+                assert result == ("root", "host1")
+
+
 def test_mysql_honeypot_simple_query(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT 1")
@@ -44,24 +64,22 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
         assert result == (1, "test")
 
 
-def test_mysql_honeypot_parse_multiple_records(mysql_honeypot, mysql_cnn):
-    fake_response = (
-        '[{"int_col": 1, "str_col": "row1"}, {"int_col": 2, "str_col": "row2"}]'
+def test_mysql_honeypot_parse_multiple_records(monkeypatch):
+    monkeypatch.setattr(
+        "infra.data_handler.invoke_llm",
+        lambda *a, **kw: json.dumps(
+            [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+        ),
     )
 
-    # Patch the query method directly on the MysqlAction instance
-    mysql_honeypot._action.query = lambda q, s, **kw: fake_response
-
-    with mysql_cnn.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT 1 AS int_col, 'row1' AS str_col
-            UNION ALL
-            SELECT 2, 'row2'
-        """
-        )
-        result = cursor.fetchall()
-        assert list(result) == [(1, "row1"), (2, "row2")]
+    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+        with pymysql.connect(
+            host="0.0.0.0", port=port, user="root", password="root12"
+        ) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, name FROM users")
+                result = cursor.fetchall()
+                assert result == ((1, "Alice"), (2, "Bob"))
 
 
 def test_honeypot_parse_error_exception_type(mysql_cnn):
