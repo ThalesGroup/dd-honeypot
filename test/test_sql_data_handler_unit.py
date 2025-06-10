@@ -26,7 +26,6 @@ def test_parse_error(sql_data_handler):
     assert result.startswith('[{"error": "SQL parse error:')
     assert "Unexpected token" in result or "Invalid expression" in result
 
-
 def test_invalid_sql_returns_none(sql_data_handler):
     session = sql_data_handler.connect({})
     result = sql_data_handler.query("SELECT * FORM", session)
