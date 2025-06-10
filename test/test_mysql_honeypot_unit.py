@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Generator
 
 import pymysql
@@ -117,3 +118,36 @@ def test_show_variables(mysql_honeypot, mysql_cnn):
         cursor.execute("SHOW VARIABLES LIKE 'version%'")
         result = cursor.fetchone()
         assert result == ("version", "8.0.29")
+
+
+def test_mysql_session_with_two_queries(monkeypatch):
+    # Patch invoke_llm so no real LLM call is made
+    monkeypatch.setattr(
+        "infra.data_handler.invoke_llm",
+        lambda *a, **kw: '[{"user": "root", "host": "host1"}]',
+    )
+
+    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+        with pymysql.connect(
+            host="0.0.0.0", port=port, user="session_user", password="pass"
+        ) as conn:
+            with conn.cursor() as cursor:
+                # 1st query: simple SELECT 1
+                cursor.execute("SELECT 1;")
+                result1 = cursor.fetchone()
+                assert result1 == (1,)
+
+                # 2nd query: show user+host - honeypot returns fixed LLM response
+                cursor.execute("SELECT user, host FROM mysql.user;")
+                result2 = cursor.fetchone()
+                assert result2 == ("root", "host1")
+
+
+def test_set_variable_raises_not_supported_error(mysql_cnn, caplog):
+    caplog.set_level(logging.CRITICAL, logger="mysql_mimic.connection")
+
+    with mysql_cnn.cursor() as cursor:
+        with pytest.raises(pymysql.err.NotSupportedError) as excinfo:
+            cursor.execute("SET @my_var = 123;")
+        # Optional: check error message contains "not supported"
+        assert "not supported" in str(excinfo.value).lower()
