@@ -28,6 +28,7 @@ class BaseHoneypot(ABC):
 
     def __init__(self, port: int = None, config: dict = None):
         super().__init__()
+        self._action = None
         self.__port = port if port else allocate_port()
         self.__config = config
 
