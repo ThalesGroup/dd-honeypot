@@ -23,7 +23,7 @@ def test_basic_ls_and_cd():
     assert "home" in output
 
     handle_cd(session, "home")
-    assert session["cwd"] == "//home"
+    assert session["cwd"] == "/home"
     assert "user" in handle_ls(session)
 
 
