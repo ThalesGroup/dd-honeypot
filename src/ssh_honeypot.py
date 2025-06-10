@@ -128,8 +128,8 @@ class SSHServerInterface(paramiko.ServerInterface):
 
 
 class SSHHoneypot(BaseHoneypot):
-    def __init__(self, port=0, action: HoneypotAction = None):
-        super().__init__(port)
+    def __init__(self, port=0, action: HoneypotAction = None, config: dict = None):
+        super().__init__(port, config)
         self.action = action
         self.server_socket = None
         self.running = False

@@ -74,7 +74,23 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     if honeypot_type == "ssh":
         from ssh_honeypot import SSHHoneypot
 
-        honeypot = SSHHoneypot(port=port, action=action)
+        honeypot = SSHHoneypot(port=port, action=action, config=config)
+        if isinstance(action, ChainedDataHandler):
+            action.log_callback = honeypot.log_data
+        return honeypot
+
+    elif honeypot_type == "alpine":
+        from ssh_honeypot import SSHHoneypot
+
+        honeypot = SSHHoneypot(port=port, action=action, config=config)
+        if isinstance(action, ChainedDataHandler):
+            action.log_callback = honeypot.log_data
+        return honeypot
+
+    elif honeypot_type == "busybox":
+        from ssh_honeypot import SSHHoneypot
+
+        honeypot = SSHHoneypot(port=port, action=action, config=config)
         if isinstance(action, ChainedDataHandler):
             action.log_callback = honeypot.log_data
         return honeypot
