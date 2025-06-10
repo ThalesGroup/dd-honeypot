@@ -2,6 +2,8 @@ import os
 import requests
 from urllib.parse import urlparse
 
+from base_honeypot import HoneypotSession
+
 
 class FileDownloadHandler:
     def __init__(
@@ -10,6 +12,10 @@ class FileDownloadHandler:
         self.fakefs_handler = fakefs_handler
         self.log_callback = log_callback
         self.download_dir = download_dir
+
+    def connect(self, auth_info: dict) -> HoneypotSession:
+        # Delegate session creation to FakeFS (or create your own if needed)
+        return self.fakefs_handler.connect(auth_info)
 
     def query(self, command, session, **kwargs):
         if not (command.startswith("wget ") or command.startswith("curl ")):
