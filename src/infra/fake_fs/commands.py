@@ -25,13 +25,15 @@ def handle_ls(session: dict, flags: str = "") -> str:
 def handle_cd(session: dict, path: str) -> str:
     fs: FakeFileSystem = session["fs"]
     current_path = session.get("cwd", "/")
-    target = fs.resolve_path(path, current_path)
-    if not target or not target.is_dir:
-        return f"cd: no such file or directory: {path}"
-    session["cwd"] = os.path.normpath(os.path.join(current_path, path))
-    if not session["cwd"].startswith("/"):
-        session["cwd"] = "/" + session["cwd"]
-    return session["cwd"]
+
+    for candidate in [p.strip() for p in path.split("||")]:
+        new_path = normalize_path(candidate, current_path)
+        node = fs.resolve_path(new_path, "/")
+        if node and node.is_dir:
+            session["cwd"] = new_path
+            return new_path
+
+    return f"cd: no such file or directory: {path}"
 
 
 def handle_mkdir(session: dict, path: str) -> str:
@@ -91,7 +93,7 @@ def normalize_path(path: str, cwd: str) -> str:
     if path.startswith("/"):
         base = []
     else:
-        base = cwd.strip("/").split("/")
+        base = [p for p in cwd.strip("/").split("/") if p]
 
     parts = path.strip("/").split("/")
     for part in parts:

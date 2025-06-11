@@ -3,3 +3,4 @@
 {"name": "nested_relative_cd", "cwd": "/usr/bin", "command": "cd ../../etc", "expected_cwd": "/etc"}
 {"name": "invalid_path", "cwd": "/", "command": "cd nonexistent", "expected_error": "cd: no such file or directory: nonexistent"}
 {"name": "stay_in_current", "cwd": "/etc", "command": "cd .", "expected_cwd": "/etc"}
+{"name": "fallback_cd_success", "cwd": "/", "command": "cd /nonexistent || cd /bin || cd /etc", "expected_cwd": "/bin"}
