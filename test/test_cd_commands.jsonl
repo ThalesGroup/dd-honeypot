@@ -1,0 +1,5 @@
+{"name": "go_to_bin_from_root", "cwd": "/", "command": "cd bin", "expected_cwd": "/bin"}
+{"name": "go_to_parent_then_etc", "cwd": "/bin", "command": "cd ../etc", "expected_cwd": "/etc"}
+{"name": "nested_relative_cd", "cwd": "/usr/bin", "command": "cd ../../etc", "expected_cwd": "/etc"}
+{"name": "invalid_path", "cwd": "/", "command": "cd nonexistent", "expected_error": "cd: no such file or directory: nonexistent"}
+{"name": "stay_in_current", "cwd": "/etc", "command": "cd .", "expected_cwd": "/etc"}
