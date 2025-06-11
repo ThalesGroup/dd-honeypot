@@ -115,7 +115,6 @@ class MySQLHoneypot(BaseHoneypot):
                 return [], []
             return [tuple(row.values()) for row in json_arr], list(json_arr[0].keys())
 
-
     def create_session_factory(self) -> LoggingSession:
         return self.LoggingSession(action=self._action, log_data=self.log_data)
 
