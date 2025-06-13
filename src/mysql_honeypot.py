@@ -4,7 +4,7 @@ import logging
 import threading
 from typing import Dict, Optional
 
-import mysql_mimic
+import mysql_mimic.connection
 import mysql_mimic.utils as utils
 from mysql_mimic import MysqlServer, Session
 from mysql_mimic.auth import (
@@ -27,17 +27,19 @@ logger = logging.getLogger(__name__)
 
 
 def patch_client_connected_cb_to_avoid_log_errors():
-    orig_cb = mysql_mimic.server.MysqlServer._client_connected_cb
+    orig_client_connected_cb = mysql_mimic.server.MysqlServer._client_connected_cb
 
-    async def safe_cb(self, reader, writer):
+    async def safe_client_connected_cb(self, reader, writer):
         try:
-            await orig_cb(self, reader, writer)
+            await orig_client_connected_cb(self, reader, writer)
         except (ConnectionClosed, ConnectionResetError):
-            logger.info("Client disconnected cleanly")
+            logger.info("Client disconnected cleanly (suppressed stack trace)")
         except Exception as e:
-            logger.error("Unhandled exception in client_connected_cb", exc_info=True)
+            logger.error(
+                f"Unhandled exception in client_connected_cb: {e}", exc_info=True
+            )
 
-    mysql_mimic.server.MysqlServer._client_connected_cb = safe_cb
+    mysql_mimic.server.MysqlServer._client_connected_cb = safe_client_connected_cb
 
 
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
@@ -81,7 +83,6 @@ class MySQLHoneypot(BaseHoneypot):
             self._action = action
             self._honeypot_session = None
             self._log_data = log_data
-            self._session_data = {"vars": {}}
 
         async def init(self, connection: Connection) -> None:
             if self._action:
@@ -94,57 +95,25 @@ class MySQLHoneypot(BaseHoneypot):
             if self._log_data:
                 self._log_data(self._honeypot_session, {"query": sql})
 
-            query = sql.strip().rstrip(";")
-
-            # Handle SET @var = value
-            if query.lower().startswith("set @"):
-                try:
-                    var_expr = query[4:]  # Skip 'SET '
-                    var_name, value = [s.strip() for s in var_expr.split("=", 1)]
-                    var_name = var_name.lstrip("@")
-                    try:
-                        value = json.loads(value)
-                    except Exception:
-                        pass
-                    self._session_data["vars"][var_name] = value
-                    return [], []
-                except Exception:
-                    logger.warning(f"Bad SET @var query: {sql}")
-                    raise Exception("Malformed SET query")
-
-            # Handle SELECT @var
-            if query.lower().startswith("select @"):
-                try:
-                    var_name = query[7:].strip().lstrip("@")
-                    value = self._session_data["vars"].get(var_name)
-                    if value is None:
-                        raise Exception(f"Variable @{var_name} not found")
-                    return [(value,)], [f"@{var_name}"]
-                except Exception:
-                    logger.warning(f"Bad SELECT @var query: {sql}")
-                    raise Exception("Malformed SELECT query")
-
-            # Try default MySQL mimic first
+            # First try default mysql_mimic behavior
             result = await super().handle_query(sql, attrs)
-            if result and result[0]:
+            if len(result[0]) > 0:
                 return result
 
-            # LLM fallback
-            context = dict(session=self._session_data, **(self._honeypot_session or {}))
-            response = self._action.query(sql, context, **attrs)
-
-            if response == "[]":
+            response = self._action.query(sql, self._honeypot_session, **attrs)
+            try:
+                json_arr = json.loads(response)
+            except Exception as e:
+                logger.warning(f"Failed to parse JSON from response: {e}")
                 return [], []
 
-            try:
-                parsed = json.loads(response)
-                if isinstance(parsed, list) and parsed:
-                    return [tuple(row.values()) for row in parsed], list(
-                        parsed[0].keys()
-                    )
-            except Exception as e:
-                logger.warning(f"Failed to parse LLM response: {e}")
-            return [], []
+            if not isinstance(json_arr, list) or not json_arr:
+                logger.warning(f"Returned JSON is not a list or is empty: {json_arr}")
+                return [], []
+            if len(json_arr) == 0:
+                logger.warning("Returned JSON is empty")
+                return [], []
+            return [tuple(row.values()) for row in json_arr], list(json_arr[0].keys())
 
     def create_session_factory(self) -> LoggingSession:
         return self.LoggingSession(action=self._action, log_data=self.log_data)
