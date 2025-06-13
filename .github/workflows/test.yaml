@@ -22,15 +22,14 @@ jobs:
         with:
           path: .venv  # Cache the virtual environment
           key: ${{ runner.os }}-venv-v2-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
-
           restore-keys: |
-            ${{ runner.os }}-venv-            
+            ${{ runner.os }}-venv-
 
       - name: Remove broken .venv if pip is missing
         run: test -x .venv/bin/pip || rm -rf .venv
 
       - name: Create virtual environment
-        if: steps.cache-venv.outputs.cache-hit != 'true'  # Only create if cache is missing
+        if: steps.cache-venv.outputs.cache-hit != 'true'
         run: python -m venv .venv
 
       - name: Install dependencies
