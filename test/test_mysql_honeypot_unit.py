@@ -1,4 +1,6 @@
 import json
+
+
 import tempfile
 from typing import Generator
 
@@ -8,7 +10,7 @@ import pytest
 from conftest import get_honeypot_main
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.data_handler import DataHandler
-from mysql_honeypot import MySQLHoneypot
+from src.mysql_honeypot import MySQLHoneypot
 from infra.interfaces import HoneypotAction
 from base_honeypot import BaseHoneypot, HoneypotSession
 from sql_data_handler import SqlDataHandler
@@ -139,3 +141,11 @@ def test_mysql_multiple_statements_same_session(monkeypatch, mysql_cnn):
         cursor.execute("SELECT user, host FROM mysql.user")
         result2 = cursor.fetchone()
         assert result2 == ("admin", "localhost")
+
+
+def test_mysql_session_variable(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SET @my_var = 123")
+        cursor.execute("SELECT @my_var")
+        result = cursor.fetchone()
+        assert result == (123,)
