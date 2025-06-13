@@ -25,6 +25,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-venv-            
 
+      - name: Remove broken .venv if pip is missing
+        run: test -x .venv/bin/pip || rm -rf .venv
+
       - name: Create virtual environment
         if: steps.cache-venv.outputs.cache-hit != 'true'  # Only create if cache is missing
         run: python -m venv .venv
@@ -41,7 +44,6 @@ jobs:
         run: |
           source .venv/bin/activate
           pip install pytest
-
 
       - name: Run unit tests
         timeout-minutes: 2
