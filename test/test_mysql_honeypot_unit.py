@@ -141,3 +141,11 @@ def test_mysql_multiple_statements_same_session(monkeypatch, mysql_cnn):
         cursor.execute("SELECT user, host FROM mysql.user")
         result2 = cursor.fetchone()
         assert result2 == ("admin", "localhost")
+
+
+def test_mysql_session_variable(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SET @my_var = 123")
+        cursor.execute("SELECT @my_var")
+        result = cursor.fetchone()
+        assert result == (123,)
