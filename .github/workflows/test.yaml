@@ -26,6 +26,12 @@ jobs:
           pip install -r requirements.txt
           pip install -r test/test.requirements.txt
 
+      - name: Install Playwright Browsers
+        run: |
+          source .venv/bin/activate
+          python -m playwright install --with-deps
+
+
       - name: Run unit tests
         timeout-minutes: 2
         run: |
