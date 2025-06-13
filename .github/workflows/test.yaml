@@ -20,13 +20,10 @@ jobs:
         id: cache-venv
         uses: actions/cache@v4
         with:
-          path: .venv  # Cache the virtual environment
-          key: ${{ runner.os }}-venv-v2-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
+          path: .venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-venv-
-
-      - name: Remove broken .venv if pip is missing
-        run: test -x .venv/bin/pip || rm -rf .venv
 
       - name: Create virtual environment
         if: steps.cache-venv.outputs.cache-hit != 'true'
