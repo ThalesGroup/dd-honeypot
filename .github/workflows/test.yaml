@@ -20,13 +20,13 @@ jobs:
         id: cache-venv
         uses: actions/cache@v4
         with:
-          path: .venv
+          path: .venv  # Cache the virtual environment
           key: ${{ runner.os }}-venv-${{ hashFiles('requirements.txt', 'test/test.requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-venv-
+            ${{ runner.os }}-venv-            
 
       - name: Create virtual environment
-        if: steps.cache-venv.outputs.cache-hit != 'true'
+        if: steps.cache-venv.outputs.cache-hit != 'true'  # Only create if cache is missing
         run: python -m venv .venv
 
       - name: Install dependencies
@@ -36,11 +36,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r test/test.requirements.txt
-
-      - name: Ensure pytest is installed
-        run: |
-          source .venv/bin/activate
-          pip install pytest
 
       - name: Run unit tests
         timeout-minutes: 2
