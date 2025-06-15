@@ -11,8 +11,7 @@ from conftest import get_honeypot_main
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.data_handler import DataHandler
 from src.mysql_honeypot import MySQLHoneypot
-from infra.interfaces import HoneypotAction
-from base_honeypot import BaseHoneypot, HoneypotSession
+from base_honeypot import BaseHoneypot
 from sql_data_handler import SqlDataHandler
 
 
@@ -156,3 +155,41 @@ def test_select_missing_variable(mysql_cnn):
         cursor.execute("SELECT @missing_var")
         result = cursor.fetchone()
         assert result == (None,)  # Expecting NULL for unset variable
+
+
+def test_var_json_object(mysql_cnn):
+    json_obj = '{"key1": "value1", "key2": 42}'
+    set_query = f"SET @myvar = {json_obj}"
+
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute(set_query)
+        result = cursor.fetchall()
+        assert result == []
+
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT @myvar")
+        result = cursor.fetchall()
+        # result is ((json_str,),)
+        returned_json_str = result[0][0]
+        returned_obj = json.loads(returned_json_str)
+        expected_obj = json.loads(json_obj)
+        assert returned_obj == expected_obj
+
+
+async def test_set_and_select_null(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SET @x = NULL")
+        cursor.execute("SELECT @x")
+        result = cursor.fetchone()
+        assert result[0] is None
+
+
+async def test_set_invalid_json_fallbacks(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SET @x = not_json")
+        cursor.execute("SELECT @x")
+        assert cursor.fetchone()[0] == "not_json"
+
+        cursor.execute("SET @y = quoted str")
+        cursor.execute("SELECT @y")
+        assert cursor.fetchone()[0] == "quoted str"

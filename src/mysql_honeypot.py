@@ -96,32 +96,10 @@ class MySQLHoneypot(BaseHoneypot):
 
             query = sql.strip().rstrip(";")
 
-            # Handle SET @var = value
-            if query.lower().startswith("set @"):
-                try:
-                    var_expr = query[4:]  # Skip 'SET '
-                    var_name, value = [s.strip() for s in var_expr.split("=", 1)]
-                    var_name = var_name.lstrip("@")
-                    try:
-                        value = json.loads(value)
-                    except Exception:
-                        pass
-                    self._session_data["vars"][var_name] = value
-                    return [], []
-                except Exception:
-                    logger.warning(f"Bad SET @var query: {sql}")
-                    raise Exception("Malformed SET query")
-
-            # Handle SELECT @var
-            if query.lower().startswith("select @"):
-                try:
-                    var_name = query[7:].strip().lstrip("@")
-                    value = self._session_data["vars"].get(var_name)
-                    return [(value,)], [f"@{var_name}"]
-
-                except Exception:
-                    logger.warning(f"Bad SELECT @var query: {sql}")
-                    raise Exception("Malformed SELECT query")
+            # Handle session variable operations
+            var_result = self._handle_session_variable(query, sql)
+            if var_result is not None:
+                return var_result
 
             # Try default MySQL mimic first
             result = await super().handle_query(sql, attrs)
@@ -132,9 +110,6 @@ class MySQLHoneypot(BaseHoneypot):
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             response = self._action.query(sql, context, **attrs)
 
-            if response == "[]":
-                return [], []
-
             try:
                 parsed = json.loads(response)
                 if isinstance(parsed, list) and parsed:
@@ -143,7 +118,46 @@ class MySQLHoneypot(BaseHoneypot):
                     )
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
+
             return [], []
+
+        def _handle_session_variable(
+            self, query: str, raw_sql: str
+        ) -> Optional[AllowedResult]:
+            try:
+                cmd, _, rest = query.partition(" ")
+                if cmd.lower() == "set" and rest.startswith("@"):
+                    var, val = map(str.strip, rest.split("=", 1))
+                    val = {"null": None, "true": True, "false": False}.get(
+                        val.lower(), val
+                    )
+                    if isinstance(val, str):
+                        try:
+                            val = json.loads(val)
+                        except:
+                            val = val.strip("'\"")
+                    self._session_data.setdefault("vars", {})[var.lstrip("@")] = val
+                    return [], []
+                if cmd.lower() == "select" and rest.startswith("@"):
+                    name = rest.strip().lstrip("@")
+                    val = self._session_data.get("vars", {}).get(name)
+                    return [
+                        (
+                            (
+                                None
+                                if val is None
+                                else (
+                                    json.dumps(val)
+                                    if isinstance(val, (dict, list))
+                                    else val
+                                )
+                            ),
+                        )
+                    ], [f"@{name}"]
+            except Exception:
+                logger.warning(f"Malformed session variable query: {raw_sql}")
+                raise Exception("Malformed session variable query")
+            return None
 
     def create_session_factory(self) -> LoggingSession:
         return self.LoggingSession(action=self._action, log_data=self.log_data)
