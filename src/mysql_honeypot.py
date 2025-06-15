@@ -117,9 +117,8 @@ class MySQLHoneypot(BaseHoneypot):
                 try:
                     var_name = query[7:].strip().lstrip("@")
                     value = self._session_data["vars"].get(var_name)
-                    if value is None:
-                        raise Exception(f"Variable @{var_name} not found")
                     return [(value,)], [f"@{var_name}"]
+
                 except Exception:
                     logger.warning(f"Bad SELECT @var query: {sql}")
                     raise Exception("Malformed SELECT query")

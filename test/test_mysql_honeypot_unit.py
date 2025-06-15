@@ -149,3 +149,10 @@ def test_mysql_session_variable(mysql_cnn):
         cursor.execute("SELECT @my_var")
         result = cursor.fetchone()
         assert result == (123,)
+
+
+def test_select_missing_variable(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT @missing_var")
+        result = cursor.fetchone()
+        assert result == (None,)  # Expecting NULL for unset variable
