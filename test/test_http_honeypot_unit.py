@@ -7,7 +7,6 @@ from typing import Generator
 
 import pytest
 import requests
-from playwright.sync_api import sync_playwright
 
 from base_honeypot import HoneypotSession, BaseHoneypot
 from conftest import get_config, get_honeypots_folder
@@ -86,6 +85,8 @@ def test_webdriver_http_request(php_my_admin):
             print(f">> {request.method} {request.url} ({request.resource_type})")
             if request.post_data:
                 print(f"POST data: {request.post_data}")
+
+    from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p, p.chromium.launch(
         headless=False
