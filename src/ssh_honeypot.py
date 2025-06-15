@@ -1,4 +1,6 @@
 import logging
+import os
+import shlex
 import socket
 import threading
 import time
@@ -34,38 +36,92 @@ class SSHServerInterface(paramiko.ServerInterface):
             else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
         )
 
+    def handle_scp_upload(self, channel, command_str):
+        try:
+            channel.send(b"\x00")  # Initial null byte
+            logging.info("Sent initial null byte to acknowledge SCP -t")
+
+            # Receive file header
+            header = b""
+            while not header.endswith(b"\n"):
+                chunk = channel.recv(1)
+                if not chunk:
+                    logging.warning("Client closed before sending header.")
+                    return
+                header += chunk
+
+            logging.info(f"Received header: {header!r}")
+            if not header.startswith(b"C"):
+                logging.error("Invalid SCP header, expected 'C...'")
+                return
+
+            parts = header.strip().split(b" ")
+            if len(parts) != 3:
+                logging.error("Invalid SCP header format.")
+                return
+
+            mode = parts[0].decode()  # e.g., C0644
+            size = int(parts[1])  # file size
+            filename = parts[2].decode()
+
+            logging.info(f"SCP Uploading file: {filename} ({size} bytes)")
+            channel.send(b"\x00")  # Ack header
+
+            # Receive file content
+            file_data = b""
+            while len(file_data) < size:
+                chunk = channel.recv(size - len(file_data))
+                if not chunk:
+                    logging.warning("Client closed before full file sent.")
+                    return
+                file_data += chunk
+
+            # Receive final null byte
+            final_ack = channel.recv(1)
+            if final_ack != b"\x00":
+                logging.warning(f"Expected final ack null byte, got {final_ack!r}")
+
+            # Save file to honeypot path
+            upload_dir = self.config.get("upload_dir", "./uploaded_files")
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, os.path.basename(filename))
+            with open(file_path, "wb") as f:
+                f.write(file_data)
+
+            logging.info(f"File {filename} saved to {file_path}")
+            channel.send(b"\x00")  # Final ack
+        except Exception as e:
+            logging.error(f"Error handling SCP upload: {e}")
+            try:
+                channel.send(b"\x01")  # Send error byte
+            except:
+                pass
+
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
 
-        # Log the command
-        self.honeypot.log_data(self.session, {"method": "exec", "command": command_str})
+        try:
+            parts = shlex.split(command_str)
+        except ValueError:
+            parts = []
+        if parts and parts[0] == "scp" and "-t" in parts:
+            logging.info("Detected SCP upload request.")
+            self.handle_scp_upload(channel, command_str)
+            return True
 
+        self.honeypot.log_data(self.session, {"method": "exec", "command": command_str})
         response = self.action.query(command_str, self.session)
 
         try:
-            channel.send((response.strip() + "\n").encode())
-            channel.send_exit_status(0)  # client know we finished
+            channel.sendall((response.strip() + "\n").encode())
+            channel.send_exit_status(0)
+            channel.shutdown_write()
+            return True
         except Exception as e:
             logging.error(f"Error sending response: {e}")
-        finally:
-            # Defer close a little to ensure client finishes reading
-            def close_channel_later(chan, delay=0.5):
-                time.sleep(delay)
-                try:
-                    chan.close()
-                except EOFError:
-                    logging.warning(
-                        "Channel already closed before close_channel_later could run"
-                    )
-
-            import threading
-
-            threading.Thread(
-                target=close_channel_later, args=(channel,), daemon=True
-            ).start()
-
-        return True
+            channel.send_exit_status(1)
+            return False
 
     def check_channel_pty_request(
         self, channel, term, width, height, pixelwidth, pixelheight, modes

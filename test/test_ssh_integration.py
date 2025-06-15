@@ -50,3 +50,35 @@ def test_ssh_download_wget(monkeypatch, ssh_honeypot_with_fs_download):
         expected_path = os.path.join(tmpdir, "README.md")
         assert os.path.exists(expected_path)
         client.close()
+
+
+from scp import SCPClient
+
+
+def test_scp_upload():
+    hostname = "localhost"
+    port = 2222
+    username = "test"
+    password = "test"
+
+    test_file = "test_scp.txt"
+    with open(test_file, "w") as f:
+        f.write("This is a test")
+
+    # Connect and upload via SCP
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname, port=port, username=username, password=password)
+
+    with SCPClient(client.get_transport(), sanitize=lambda x: x) as scp:
+        scp.put(test_file, "/test_uploaded.txt")
+
+    client.close()
+
+    upload_dir = os.path.abspath("./uploaded_files")
+
+    found = any("test_uploaded.txt" in f for f in os.listdir(upload_dir))
+    assert found
+
+    # Clean up
+    os.remove(test_file)
