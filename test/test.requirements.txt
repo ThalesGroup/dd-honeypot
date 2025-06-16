@@ -4,3 +4,4 @@ pytest-mock>=3.12.0
 pymysql
 PyMySQL==1.1.1
 mysql-connector-python==9.2.0
+scp

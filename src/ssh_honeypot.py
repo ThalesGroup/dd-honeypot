@@ -38,7 +38,11 @@ class SSHServerInterface(paramiko.ServerInterface):
 
     def handle_scp_upload(self, channel, command_str):
         try:
-            channel.send(b"\x00")  # Initial null byte
+            channel.settimeout(10.0)
+            logging.info(f"Handling SCP upload: {command_str}")
+            channel.sendall(b"\x00")
+            channel.recv_ready()  # ensure something is waiting
+            time.sleep(0.1)
             logging.info("Sent initial null byte to acknowledge SCP -t")
 
             # Receive file header
@@ -46,9 +50,12 @@ class SSHServerInterface(paramiko.ServerInterface):
             while not header.endswith(b"\n"):
                 chunk = channel.recv(1)
                 if not chunk:
-                    logging.warning("Client closed before sending header.")
+                    logging.warning(
+                        "SCP upload aborted: received empty chunk while reading header"
+                    )
                     return
                 header += chunk
+                logging.debug(f"Header so far: {header!r}")
 
             logging.info(f"Received header: {header!r}")
             if not header.startswith(b"C"):
@@ -65,7 +72,7 @@ class SSHServerInterface(paramiko.ServerInterface):
             filename = parts[2].decode()
 
             logging.info(f"SCP Uploading file: {filename} ({size} bytes)")
-            channel.send(b"\x00")  # Ack header
+            channel.sendall(b"\x00")  # Ack header
 
             # Receive file content
             file_data = b""
@@ -89,13 +96,18 @@ class SSHServerInterface(paramiko.ServerInterface):
                 f.write(file_data)
 
             logging.info(f"File {filename} saved to {file_path}")
-            channel.send(b"\x00")  # Final ack
+            channel.sendall(b"\x00")  # Final ack
+            channel.shutdown_write()
+        except socket.timeout:
+            logging.error("SCP upload timed out while waiting for header")
         except Exception as e:
             logging.error(f"Error handling SCP upload: {e}")
             try:
                 channel.send(b"\x01")  # Send error byte
             except:
                 pass
+        finally:
+            channel.close()
 
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()

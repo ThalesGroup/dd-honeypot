@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import List
 from unittest.mock import patch
 
+from scp import SCPClient
+
 from infra.honeypot_wrapper import create_honeypot
 
 logging.basicConfig(level=logging.INFO)
@@ -207,3 +209,23 @@ def test_ssh_ls_with_fake_fs(ssh_honeypot_with_fakefs):
 
     assert "bin" in output
     assert "etc" in output
+
+
+@pytest.mark.skip(reason="skipping for now")
+def test_scp_upload(ssh_honeypot_with_fakefs, tmp_path):
+    test_file = tmp_path / "test_scp.txt"
+    test_file.write_text("This is a test")
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(
+        "localhost",
+        port=ssh_honeypot_with_fakefs.port,
+        username="test",
+        password="test",
+    )
+
+    with SCPClient(client.get_transport(), sanitize=lambda x: x) as scp:
+        scp.put(str(test_file), "/test_uploaded.txt")
+
+    client.close()
