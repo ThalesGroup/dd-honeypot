@@ -193,3 +193,32 @@ async def test_set_invalid_json_fallbacks(mysql_cnn):
         cursor.execute("SET @y = quoted str")
         cursor.execute("SELECT @y")
         assert cursor.fetchone()[0] == "quoted str"
+
+
+def test_show_databases(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SHOW DATABASES")
+        result = cursor.fetchall()
+        assert result  # or assert something about the format
+
+
+def test_commit_command(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("COMMIT")
+        result = cursor.fetchall()
+        assert result == []
+
+
+def test_use_database(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("USE RECOVER_YOUR_DATA")
+        result = cursor.fetchall()
+        assert result == []
+
+
+def test_set_json_object(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute('SET @data = JSON_OBJECT("x", 42)')
+        cursor.execute("SELECT @data")
+        result = cursor.fetchone()
+        assert result[0] == 'JSON_OBJECT("x", 42)'  # No evaluation happens in honeypot
