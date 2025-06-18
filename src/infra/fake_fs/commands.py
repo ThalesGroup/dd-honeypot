@@ -61,7 +61,11 @@ def handle_download(session, url: str) -> str:
     DOWNLOAD_DIR = os.getenv("HONEYPOT_DOWNLOAD_DIR", "/data/downloaded_files")
     fs = session["fs"]
     logging.info(f"[handle_download] session['fs'] type: {type(fs)}")
-    fs = fs.fakefs
+    if hasattr(fs, "fakefs"):  # e.g., FakeFSDataHandler
+        logging.warning(
+            "[handle_download] session['fs'] is a handler, unwrapping .fakefs"
+        )
+        fs = fs.fakefs
     cwd = session.get("cwd", "/")
     filename = url.strip().split("/")[-1]
     virtual_path = normalize_path(filename, cwd)
