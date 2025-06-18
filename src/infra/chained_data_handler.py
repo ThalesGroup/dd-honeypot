@@ -8,8 +8,11 @@ class ChainedDataHandler:
         self.handlers = handlers  # List of handler instances
 
     def connect(self, auth_info: dict) -> HoneypotSession:
-        # Assume all handlers use the same session model — delegate to first
-        return self.handlers[0].connect(auth_info)
+        session = self.handlers[0].connect(auth_info)
+        for handler in self.handlers[1:]:
+            if hasattr(handler, "attach_session"):
+                handler.attach_session(session)
+        return session
 
     def query(self, command: str, session: HoneypotSession, **kwargs) -> str:
         for handler in self.handlers:

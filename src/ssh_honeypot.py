@@ -1,5 +1,6 @@
 import logging
 import os
+import select
 import shlex
 import socket
 import threading
@@ -40,24 +41,32 @@ class SSHServerInterface(paramiko.ServerInterface):
         try:
             channel.settimeout(10.0)
             logging.info(f"Handling SCP upload: {command_str}")
+
+            # Step 1: Initial handshake
             channel.sendall(b"\x00")
-            channel.recv_ready()  # ensure something is waiting
-            time.sleep(0.1)
             logging.info("Sent initial null byte to acknowledge SCP -t")
 
-            # Receive file header
+            # Step 2: Wait until header is ready to be read
+            start_time = time.time()
+            while True:
+                rlist, _, _ = select.select([channel], [], [], 0.5)
+                if rlist:
+                    break
+                if time.time() - start_time > 10:
+                    raise TimeoutError("Timeout waiting for SCP header.")
+
+            # Step 3: Read SCP header (e.g., C0644 1234 filename.txt\n)
             header = b""
             while not header.endswith(b"\n"):
                 chunk = channel.recv(1)
                 if not chunk:
                     logging.warning(
-                        "SCP upload aborted: received empty chunk while reading header"
+                        "SCP upload aborted: empty chunk while reading header"
                     )
                     return
                 header += chunk
-                logging.debug(f"Header so far: {header!r}")
-
             logging.info(f"Received header: {header!r}")
+
             if not header.startswith(b"C"):
                 logging.error("Invalid SCP header, expected 'C...'")
                 return
@@ -67,46 +76,52 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.error("Invalid SCP header format.")
                 return
 
-            mode = parts[0].decode()  # e.g., C0644
+            mode = parts[0].decode()  # C0644
             size = int(parts[1])  # file size
             filename = parts[2].decode()
 
             logging.info(f"SCP Uploading file: {filename} ({size} bytes)")
-            channel.sendall(b"\x00")  # Ack header
+            channel.sendall(b"\x00")  # Acknowledge file header
 
-            # Receive file content
+            # Step 4: Receive file content
             file_data = b""
             while len(file_data) < size:
-                chunk = channel.recv(size - len(file_data))
+                chunk = channel.recv(min(4096, size - len(file_data)))
                 if not chunk:
                     logging.warning("Client closed before full file sent.")
                     return
                 file_data += chunk
 
-            # Receive final null byte
+            # Step 5: Expect and check final null byte
             final_ack = channel.recv(1)
             if final_ack != b"\x00":
                 logging.warning(f"Expected final ack null byte, got {final_ack!r}")
 
-            # Save file to honeypot path
+            # Step 6: Save the file
             upload_dir = self.config.get("upload_dir", "./uploaded_files")
             os.makedirs(upload_dir, exist_ok=True)
             file_path = os.path.join(upload_dir, os.path.basename(filename))
             with open(file_path, "wb") as f:
                 f.write(file_data)
-
             logging.info(f"File {filename} saved to {file_path}")
-            channel.sendall(b"\x00")  # Final ack
-            channel.shutdown_write()
-        except socket.timeout:
-            logging.error("SCP upload timed out while waiting for header")
+
+            # Step 7: Final ACK to sender
+            channel.sendall(b"\x00")
+
+        except TimeoutError as te:
+            logging.error(f"SCP upload timed out: {te}")
         except Exception as e:
             logging.error(f"Error handling SCP upload: {e}")
             try:
-                channel.send(b"\x01")  # Send error byte
+                channel.send(b"\x01")
             except:
                 pass
         finally:
+            try:
+                channel.shutdown_write()
+            except Exception:
+                pass
+            time.sleep(0.2)
             channel.close()
 
     def check_channel_exec_request(self, channel, command):
