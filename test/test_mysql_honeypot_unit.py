@@ -230,3 +230,10 @@ def test_select_current_date(mysql_cnn):
         cursor.execute("SELECT CURRENT_DATE")
         result = cursor.fetchone()
         assert result is not None
+
+
+def test_select_quoted_dollar_string(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT '$$'")
+        result = cursor.fetchone()
+        assert result == ("$$",)
