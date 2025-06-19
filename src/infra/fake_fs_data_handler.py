@@ -10,7 +10,10 @@ from infra.interfaces import HoneypotSession
 
 class FakeFSDataHandler(DataHandler):
     def __init__(self, data_file: str, system_prompt: str, model_id: str, fs_file: str):
-        super().__init__(data_file, system_prompt, model_id)
+        # super().__init__() if it preloads self.data
+        self.data_file = Path(data_file)
+        self.system_prompt = system_prompt
+        self.model_id = model_id
 
         # Load fake filesystem from fs_file
         fs_path = Path(fs_file)
@@ -52,6 +55,18 @@ class FakeFSDataHandler(DataHandler):
                     return handle_download(session, url)
                 logging.warning("[FakeFSDataHandler] Invalid wget/curl syntax")
                 return "Usage: wget <url> or curl <url>"
-        else:
-            # fallback to default behavior (cached or LLM)
-            return super().query(query, session, **kwargs)
+        return self.query_from_file(query)
+
+    def query_from_file(self, input_str: str) -> str:
+        try:
+            with self.data_file.open("r") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line)
+                        if entry.get("input") == input_str:
+                            return entry.get("response", "")
+                    except json.JSONDecodeError:
+                        continue
+        except FileNotFoundError:
+            logging.warning(f"Data file not found: {self.data_file}")
+        return "Command not found\n"
