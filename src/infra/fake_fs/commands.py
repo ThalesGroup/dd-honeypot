@@ -54,9 +54,6 @@ def handle_mkdir(session: dict, path: str) -> str:
     return ""
 
 
-from textwrap import dedent
-
-
 def handle_download(session, url: str) -> str:
     DOWNLOAD_DIR = os.getenv("HONEYPOT_DOWNLOAD_DIR", "/data/downloaded_files")
     fs = session["fs"]
