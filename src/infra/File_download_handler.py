@@ -56,7 +56,7 @@ class FileDownloadHandler:
                 )
 
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            fake_file_size = len(content_bytes.encode())  # size in bytes
+            fake_file_size = len(content_bytes)  # size in bytes
 
             return (
                 f"--{now}--  {url}\n"
@@ -68,7 +68,6 @@ class FileDownloadHandler:
                 f"{filename}              100%[{fake_file_size}/{fake_file_size}]   1.21K/s   in 0.01s\r\n\n"
                 f"{now} (1.21 KB/s) - ‘{filename}’ saved [{fake_file_size}/{fake_file_size}]"
             )
-
 
         except Exception as e:
             return f"Download failed: {e}\n"
