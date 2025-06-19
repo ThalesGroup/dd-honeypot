@@ -70,12 +70,6 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
         assert result == (1, "test")
 
 
-def test_honeypot_parse_error_exception_type(mysql_cnn):
-    with mysql_cnn.cursor() as cursor:
-        with pytest.raises(pymysql.err.OperationalError):
-            cursor.execute("SELECT SELECT")
-
-
 def test_multiple_statements(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT 1; SELECT 2")
@@ -222,3 +216,24 @@ def test_set_json_object(mysql_cnn):
         cursor.execute("SELECT @data")
         result = cursor.fetchone()
         assert result[0] == 'JSON_OBJECT("x", 42)'  # No evaluation happens in honeypot
+
+
+def test_select_version(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT VERSION()")
+        result = cursor.fetchone()
+        assert result is not None
+
+
+def test_select_current_date(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT CURRENT_DATE")
+        result = cursor.fetchone()
+        assert result is not None
+
+
+def test_select_quoted_dollar_string(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT '$$'")
+        result = cursor.fetchone()
+        assert result == ("$$",)

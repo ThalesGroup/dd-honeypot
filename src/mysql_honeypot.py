@@ -96,6 +96,15 @@ class MySQLHoneypot(BaseHoneypot):
 
             query = sql.strip().rstrip(";")
 
+            # Handle SELECT of a single quoted string (e.g., SELECT '$$')
+            if (
+                query.lower().startswith("select '")
+                and query.endswith("'")
+                and query.count("'") == 2
+            ):
+                val = query[len("select '") : -1]
+                return [(val,)], [val]
+
             # Handle session variable operations
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
