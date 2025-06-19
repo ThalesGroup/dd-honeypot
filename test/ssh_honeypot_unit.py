@@ -234,12 +234,12 @@ def test_scp_upload(ssh_honeypot_with_fakefs, tmp_path):
     client.close()
 
 
-def test_fakefs_session_unwrapped():
+def test_fakefs_session_unwrapped(ssh_honeypot_with_fakefs):
     handler = FakeFSDataHandler(
         data_file="testdata/data.jsonl",
         system_prompt="dummy",
         model_id="gpt-3.5",
-        fs_file=Path("honeypots/busybox/fs_busybox.json").resolve(),
+        fs_file="honeypots/busybox/fs_busybox.json",
     )
     chained = ChainedDataHandler([handler])
     session = chained.connect({"username": "u", "password": "p"})
