@@ -10,6 +10,7 @@ class HTTPDataHandler(DataHandler):
             data_file,
             "\n".join(system_prompt) + "\n".join(self.base_system_prompt()),
             model_id,
+            {"path": "TEXT", "args": "TEXT", "body": "TEXT"},
         )
 
     @staticmethod
@@ -23,15 +24,14 @@ class HTTPDataHandler(DataHandler):
             "Login should always succeed",
         ]
 
-    def request_user_prompt(self, info: dict) -> str:
-        r = info["request"]
-        result = f"""Method: {r.method}
-    path: {info["path"]}
-    args: {dict(r.args)}
-    resource_type: {info["resource_type"]}
-    Headers: {dict(r.headers)}
-    Body: {r.get_data() if r.get_data() else 'No body'}"""
-        hint = self.user_prompt_hint(info)
+    def request_user_prompt(self, req: dict) -> str:
+        result = f"""Method: {req["method"]}
+    path: {req["path"]}
+    args: {req["args"]}
+    resource_type: {req["resource_type"]}
+    Headers: {req["headers"]}
+    Body: {req["body"]}"""
+        hint = self.user_prompt_hint(req)
         if hint:
             result += f"\nHere is AN IMPORTANT Hint regarding this request. You MUST follow it:\n{hint}"
         return result

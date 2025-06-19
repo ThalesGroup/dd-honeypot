@@ -60,26 +60,28 @@ class HTTPHoneypot(BaseHoneypot):
             if resource_type not in ["document", "xhr", "fetch"]:
                 return not_found_error(None)
             try:
+                data = {
+                    "host": request.host,
+                    "port": (
+                        80
+                        if ":" not in request.host
+                        else int(request.host.split(":")[1])
+                    ),
+                    "path": path,
+                    "args": request.args.to_dict(),
+                    "method": request.method,
+                    "body": request.get_data(as_text=True),
+                    "headers": dict(request.headers),
+                    "resource_type": resource_type,
+                }
                 self.log_data(
                     session["h_session"],
                     {
-                        "http-request": {
-                            "host": request.host,
-                            "port": (
-                                80
-                                if ":" not in request.host
-                                else int(request.host.split(":")[1])
-                            ),
-                            "path": path,
-                            "query-string": request.query_string.decode(),
-                            "method": request.method,
-                            "body": request.get_data(as_text=True),
-                            "headers": dict(request.headers),
-                        },
+                        "http-request": data,
                     },
                 )
                 result = self._action.request(
-                    {"request": request, "path": path, "resource_type": resource_type},
+                    data,
                     session.get("h_session"),
                 )
                 return Response(result, 200)
