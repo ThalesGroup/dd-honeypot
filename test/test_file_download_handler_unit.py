@@ -17,6 +17,10 @@ class DummySession:
         self.files = {}
 
 
+from freezegun import freeze_time
+
+
+@freeze_time("2025-06-19 13:58:02")
 @patch("infra.File_download_handler.requests.get")
 def test_wget_success(mock_get, tmp_path):
     mock_response = MagicMock()
@@ -32,7 +36,18 @@ def test_wget_success(mock_get, tmp_path):
     response = handler.query(command, session)
 
     assert dummy_fs.files["/tmp/fake.txt"] == "fake content"
-    assert "Downloaded fake.txt" in response
+    assert (
+        "--2025-06-19 13:58:02--  http://example.com/fake.txt\n"
+        "Resolving example.com... done.\r\n"
+        "Connecting to example.com|192.0.2.1|:80... connected.\r\n"
+        "HTTP request sent, awaiting response... 200 OK\r\n"
+        "Length: 12 [text/plain]\r\n"
+        "Saving to: ‘fake.txt’\r\n"
+        "\n"
+        "fake.txt              100%[12/12]   1.21K/s   in 0.01s\r\n"
+        "\n"
+        "2025-06-19 13:58:02 (1.21 KB/s) - ‘fake.txt’ saved [12/12]"
+    ) in response
 
 
 @pytest.mark.parametrize(
