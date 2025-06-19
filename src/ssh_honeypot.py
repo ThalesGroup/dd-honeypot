@@ -173,16 +173,39 @@ class SSHServerInterface(paramiko.ServerInterface):
             while not channel.closed:
                 buffer = ""
                 channel.send(prompt)
+                escape_seq = ""
+
                 while True:
                     data = channel.recv(1)
                     if not data:
                         return
+
                     char = data.decode("utf-8", errors="ignore")
+
+                    if char == "\x1b":
+                        escape_seq = char
+                        continue
+
+                    if escape_seq:
+                        escape_seq += char
+                        if len(escape_seq) == 2 and char != "[":
+                            channel.send(escape_seq)
+                            escape_seq = ""
+                        elif len(escape_seq) == 3:
+                            # Ignore arrow keys: ↑↓←→
+                            if escape_seq in ("\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D"):
+                                pass  # Ignore silently
+                            else:
+                                channel.send(escape_seq)
+                            escape_seq = ""
+                        continue
+
                     if char in ("\r", "\n"):
                         break
-                    elif char == "\x7f":
-                        buffer = buffer[:-1]
-                        channel.send("\b \b")
+                    elif char == "\x7f":  # Backspace
+                        if buffer:
+                            buffer = buffer[:-1]
+                            channel.send("\b \b")
                     else:
                         buffer += char
                         channel.send(char)
