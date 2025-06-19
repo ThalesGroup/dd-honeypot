@@ -45,10 +45,12 @@ class FakeFSDataHandler(DataHandler):
                     return handle_mkdir(session, parts[1])
                 return "Usage: mkdir <dir>"
             elif "wget" in query.lower() or "curl" in query.lower():
-                parts = query.split()
+                parts = query.strip().split()
                 if len(parts) >= 2:
-                    url = parts[-1]  # supports: wget -p http://...
+                    url = parts[-1]
+                    logging.info(f"[FakeFSDataHandler] Handling download: {url}")
                     return handle_download(session, url)
+                logging.warning("[FakeFSDataHandler] Invalid wget/curl syntax")
                 return "Usage: wget <url> or curl <url>"
         else:
             # fallback to default behavior (cached or LLM)

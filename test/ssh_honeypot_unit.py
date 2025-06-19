@@ -10,6 +10,9 @@ from unittest.mock import patch
 
 from scp import SCPClient
 
+from infra.chained_data_handler import ChainedDataHandler
+from infra.fake_fs.filesystem import FakeFileSystem
+from infra.fake_fs_data_handler import FakeFSDataHandler
 from infra.honeypot_wrapper import create_honeypot
 
 logging.basicConfig(level=logging.INFO)
@@ -229,3 +232,16 @@ def test_scp_upload(ssh_honeypot_with_fakefs, tmp_path):
         scp.put(str(test_file), "/test_uploaded.txt")
 
     client.close()
+
+
+def test_fakefs_session_unwrapped():
+    handler = FakeFSDataHandler(
+        data_file="testdata/data.jsonl",
+        system_prompt="dummy",
+        model_id="gpt-3.5",
+        fs_file="honeypots/busybox/fs_busybox.json",
+    )
+    chained = ChainedDataHandler([handler])
+    session = chained.connect({"username": "u", "password": "p"})
+
+    assert isinstance(session["fs"], FakeFileSystem), "session['fs'] was not unwrapped"

@@ -45,7 +45,7 @@ def test_ssh_download_wget(monkeypatch, ssh_honeypot_with_fs_download):
             "wget https://raw.githubusercontent.com/vinta/awesome-python/master/README.md"
         )
         output = stdout.read().decode()
-        assert "saved" in output
+        assert "Downloaded README.md\n" in output
 
         expected_path = os.path.join(tmpdir, "README.md")
         assert os.path.exists(expected_path)

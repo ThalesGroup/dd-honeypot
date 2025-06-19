@@ -6,9 +6,11 @@ from base_honeypot import HoneypotSession
 
 
 class FileDownloadHandler:
-    def __init__(
-        self, fakefs_handler=None, log_callback=None, download_dir="/honeypot/downloads"
-    ):
+    def __init__(self, fakefs_handler=None, log_callback=None, download_dir=None):
+        if download_dir is None:
+            download_dir = os.environ.get(
+                "HONEYPOT_DOWNLOAD_DIR", "/honeypot/downloads"
+            )
         self.fakefs_handler = fakefs_handler
         self.log_callback = log_callback
         self.download_dir = download_dir
@@ -28,14 +30,16 @@ class FileDownloadHandler:
         filename = os.path.basename(urlparse(url).path) or "index.html"
         try:
             resp = requests.get(url, timeout=3)
-            content = resp.text
+            content_bytes = resp.content
+            content_str = resp.text
 
             # Save to FakeFS
-            if self.fakefs_handler:
-                self.fakefs_handler.create_file(session, filename, content)
+            fs = session.get("fs")
+            if fs and hasattr(fs, "create_file"):
+                fs.create_file(f"/tmp/{filename}", content_str)
 
             # Save to disk
-            self._save_to_host(filename, content)
+            self._save_to_host(filename, content_bytes)
 
             # Log
             if self.log_callback:
@@ -63,7 +67,8 @@ class FileDownloadHandler:
         return None
 
     def _save_to_host(self, filename, content):
-        os.makedirs(self.download_dir, exist_ok=True)
-        path = os.path.join(self.download_dir, filename)
-        with open(path, "w") as f:
+        download_dir = os.environ.get("HONEYPOT_DOWNLOAD_DIR", self.download_dir)
+        os.makedirs(download_dir, exist_ok=True)
+        path = os.path.join(download_dir, filename)
+        with open(path, "wb") as f:
             f.write(content)
