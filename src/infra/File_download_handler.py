@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import requests
 from urllib.parse import urlparse
@@ -54,7 +55,20 @@ class FileDownloadHandler:
                     },
                 )
 
-            return f"Downloaded {filename}\n"
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            fake_file_size = len(content_bytes.encode())  # size in bytes
+
+            return (
+                f"--{now}--  {url}\n"
+                f"Resolving {url.split('/')[2]}... done.\r\n"
+                f"Connecting to {url.split('/')[2]}|192.0.2.1|:80... connected.\r\n"
+                f"HTTP request sent, awaiting response... 200 OK\r\n"
+                f"Length: {fake_file_size} [text/plain]\r\n"
+                f"Saving to: ‘{filename}’\r\n\n"
+                f"{filename}              100%[{fake_file_size}/{fake_file_size}]   1.21K/s   in 0.01s\r\n\n"
+                f"{now} (1.21 KB/s) - ‘{filename}’ saved [{fake_file_size}/{fake_file_size}]"
+            )
+
 
         except Exception as e:
             return f"Download failed: {e}\n"
