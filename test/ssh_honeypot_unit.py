@@ -234,7 +234,7 @@ def test_scp_upload(ssh_honeypot_with_fakefs, tmp_path):
     client.close()
 
 
-def test_fakefs_session_unwrapped(ssh_honeypot_with_fakefs):
+def test_fakefs_session_unwrapped(ssh_honeypot_with_fakefs, tmp_path):
     handler = FakeFSDataHandler(
         data_file="testdata/data.jsonl",
         system_prompt="dummy",
