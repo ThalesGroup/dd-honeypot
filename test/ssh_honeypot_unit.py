@@ -239,7 +239,7 @@ def test_fakefs_session_unwrapped():
         data_file="testdata/data.jsonl",
         system_prompt="dummy",
         model_id="gpt-3.5",
-        fs_file="honeypots/busybox/fs_busybox.json",
+        fs_file=Path("honeypots/busybox/fs_busybox.json").resolve(),
     )
     chained = ChainedDataHandler([handler])
     session = chained.connect({"username": "u", "password": "p"})
