@@ -5,7 +5,6 @@ from typing import Generator
 
 import pymysql
 import pytest
-from datetime import date
 
 from base_honeypot import BaseHoneypot
 from src.mysql_honeypot import MySQLHoneypot

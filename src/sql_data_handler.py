@@ -2,7 +2,7 @@ import json
 from typing import Optional
 
 import sqlglot
-from sqlglot.expressions import Identifier, Literal, Select
+from sqlglot.expressions import Identifier, Literal, Select, Expression
 from infra.interfaces import HoneypotAction
 
 
@@ -33,12 +33,30 @@ class SqlDataHandler(HoneypotAction):
         # Handle: SELECT @var
         if isinstance(expression, Select):
             result = {}
+            only_literals = True
             for proj in expression.expressions:
+                # SELECT @var -> session variable
                 if isinstance(proj, Identifier) and proj.name.startswith("@"):
                     var_name = proj.name.lstrip("@")
                     result[proj.name] = session["vars"].get(var_name)
+                # Evaluate literal-only expressions (e.g., SELECT 1, SELECT 2 + 3)
+                elif isinstance(proj, Expression):
+                    try:
+                        compiled = proj.sql(dialect=self._dialect)
+                        if any(
+                            token in compiled.upper()
+                            for token in ["FROM", "ILIKE", "LIKE"]
+                        ):
+                            return None
+                        val = proj.evaluate()
+                        return json.dumps([[val]])
+                    except:
+                        only_literals = False
+
             if result:
                 return json.dumps([result])
+            if only_literals:
+                return None
 
         # Accept common transactional / SET commands
         safe_commands = {

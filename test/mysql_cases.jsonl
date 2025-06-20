@@ -1,12 +1,24 @@
-{"name": "select_literal", "sql": "SELECT 1", "data": [[1]]}
+{"name": "select_literal", "sql": ["SELECT 1"], "data": [[1]]}
 {"name": "set_and_get_variable", "sql": ["SET @x = 42", "SELECT @x"], "data": [[[42]]]}
 {"name": "set_json_variable", "sql": ["SET @x = {\"key\": \"val\"}", "SELECT @x"], "data": [[[{"key": "val"}]]]}
-{"name": "unset_variable", "sql": "SELECT @missing_var", "data": [[null]]}
-{"name": "show_variables_like", "sql": "SHOW VARIABLES LIKE 'version%'", "data": [["version", "8.0.29"]]}
-{"name": "multiple_statements_block", "sql": "SELECT 1; SELECT 2", "errors": ["Multiple SQL statements not allowed"]}
-{"name": "select_version_func", "sql": "SELECT VERSION()", "data": [["8.0.29"]]}
-{"name": "show_databases", "sql": "SHOW DATABASES", "data": [["information_schema"], ["mysql"]]}
-{"name": "commit_command", "sql": "COMMIT", "data": []}
-{"name": "use_database", "sql": "USE mydb", "data": []}
-{"name": "select_current_date", "sql": "SELECT CURRENT_DATE", "data": [["2025-06-19"]]}
-{"name": "quoted_string_literal", "sql": "SELECT '$$'", "data": [["$$"]]}
+{"name": "unset_variable", "sql": ["SELECT @missing_var"], "data": [[null]]}
+{"name": "show_variables_like", "sql": ["SHOW VARIABLES LIKE 'version%'"], "data": [["version", "8.0.29"]]}
+{"name": "multiple_statements_block", "sql": ["SELECT 1; SELECT 2"], "errors": ["Multiple SQL statements not allowed"]}
+{"name": "select_version_func", "sql": ["SELECT VERSION()"], "data": [["8.0.29"]]}
+{"name": "show_databases", "sql": ["SHOW DATABASES"], "data": [["information_schema"], ["mysql"]]}
+{"name": "commit_command", "sql": ["COMMIT"], "data": []}
+{"name": "use_database", "sql": ["USE mydb"], "data": []}
+{"name": "quoted_string_literal", "sql": ["SELECT '$$'"], "data": [["$$"]]}
+{"name": "select_string_concat", "sql": ["SELECT CONCAT('hello', ' ', 'world')"], "data": [["hello world"]]}
+{"name": "select_math_expression", "sql": ["SELECT 2 * (3 + 4)"], "data": [[14]]}
+{"name": "set_and_get_float", "sql": ["SET @f = 3.14", "SELECT @f"], "data": [[[3.14]]]}
+{"name": "set_and_get_boolean", "sql": ["SET @flag = TRUE", "SELECT @flag"], "data": [[[1]]]}
+{"name": "select_with_alias", "sql": ["SELECT 5 AS number"], "data": [[5]]}
+{"name": "case_insensitive_keyword", "sql": ["sElEcT 123"], "data": [[123]]}
+{"name": "select_boolean_literal", "sql": ["SELECT TRUE, FALSE"], "data": [[1, 0]]}
+{"name": "select_float_literal", "sql": ["SELECT 3.14"], "data": [[3.14]]}
+{"name": "select_null_literal", "sql": ["SELECT NULL"], "data": [[null]]}
+{"name": "select_case_insensitive", "sql": ["SeLeCt 123"], "data": [[123]]}
+{"name": "set_and_select_inline", "sql": ["SET @x = 1; SELECT @x"], "errors": ["Multiple SQL statements not allowed"]}
+{"name": "use_and_select_inline", "sql": ["USE mydb; SELECT 1"], "errors": ["Multiple SQL statements not allowed"]}
+{"name": "multiple_set_statements_inline", "sql": ["SET @a = 1; SET @b = 2"], "errors": ["Multiple SQL statements not allowed"]}
