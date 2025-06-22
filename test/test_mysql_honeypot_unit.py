@@ -18,14 +18,14 @@ from sql_data_handler import SqlDataHandler
 
 @pytest.fixture
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
-    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"  # ✅ Required for Bedrock model
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
     with tempfile.NamedTemporaryFile() as f:
         action = ChainedHoneypotAction(
             DataHandler(
                 f.name,
                 "You are MYSQL honeypot.",
-                "anthropic.claude-3-sonnet-20240229-v1:0",  # ✅ Valid model_id
+                "anthropic.claude-3-sonnet-20240229-v1:0",
             ),
             SqlDataHandler(dialect="mysql"),
         )
@@ -46,7 +46,7 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
 
 
 def test_mysql_honeypot_main(monkeypatch):
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")  # 🔥 This fixes the issue
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
         monkeypatch.setattr(
             "infra.data_handler.invoke_llm",
