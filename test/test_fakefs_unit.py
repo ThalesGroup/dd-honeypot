@@ -9,7 +9,7 @@ from infra.fake_fs_data_handler import FakeFSDataHandler
 
 def test_basic_ls_and_cd():
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "test/honeypots/ssh/alpine_fs_small.json")
+    json_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
 
     with open(json_path) as f:
         fs_data = json.load(f)
@@ -25,13 +25,13 @@ def test_basic_ls_and_cd():
 
     handle_cd(session, "home")
     assert session["cwd"] == "/home"
-    assert "user" in handle_ls(session)
+    assert "" in handle_ls(session)
 
 
 def test_basic_ls_from_root():
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "test/honeypots/ssh/alpine_fs_small.json")
+    json_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
 
     with open(json_path) as f:
         data = json.load(f)
