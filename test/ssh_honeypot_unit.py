@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import time
 import pytest
 import paramiko
@@ -20,28 +21,30 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def ssh_honeypot(tmp_path: Path):
-    data_file = tmp_path / "data.jsonl"
-    key_file = tmp_path / "host.key"
+def ssh_honeypot():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        data_file = temp_path / "data.jsonl"
+        key_file = temp_path / "host.key"
 
-    os.environ["HONEYPOT_HOST_KEY"] = str(
-        key_file
-    )  # Tell honeypot where to write the key
+        os.environ["HONEYPOT_HOST_KEY"] = str(
+            key_file
+        )  # Tell honeypot where to write the key
 
-    config = {
-        "type": "ssh",
-        "port": 0,
-        "data_file": str(data_file),
-        "system_prompt": "You are a Linux terminal emulator.",
-        "model_id": "test-model",
-    }
-    with patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
-        honeypot = create_honeypot(config)
-        honeypot.start()
-        time.sleep(0.2)
-        yield honeypot
-        honeypot.stop()
-    del os.environ["HONEYPOT_HOST_KEY"]  # Cleanup
+        config = {
+            "type": "ssh",
+            "port": 0,
+            "data_file": str(data_file),
+            "system_prompt": "You are a Linux terminal emulator.",
+            "model_id": "test-model",
+        }
+        with patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
+            honeypot = create_honeypot(config)
+            honeypot.start()
+            time.sleep(0.2)
+            yield honeypot
+            honeypot.stop()
+        del os.environ["HONEYPOT_HOST_KEY"]  # Cleanup
 
 
 def test_basic_command_execution(ssh_honeypot):
@@ -215,8 +218,10 @@ def test_ssh_ls_with_fake_fs(ssh_honeypot_with_fakefs):
 
 
 @pytest.mark.skip(reason="skipping for now")
-def test_scp_upload(ssh_honeypot_with_fakefs, tmp_path):
-    test_file = tmp_path / "test_scp.txt"
+def test_scp_upload(ssh_honeypot_with_fakefs):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+    test_file = temp_path / "test_scp.txt"
     test_file.write_text("This is a test")
 
     client = paramiko.SSHClient()
