@@ -24,6 +24,3 @@ downloaded_files/*
 
 uploaded_files/*
 !uploaded_files/.gitkeep
-host.key
-test_scp.txt
-test/test_scp.txt

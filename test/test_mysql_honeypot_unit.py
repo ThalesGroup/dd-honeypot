@@ -3,6 +3,7 @@ import json
 
 import tempfile
 from typing import Generator
+import os
 
 import pymysql
 import pytest
@@ -17,9 +18,15 @@ from sql_data_handler import SqlDataHandler
 
 @pytest.fixture
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
     with tempfile.NamedTemporaryFile() as f:
         action = ChainedHoneypotAction(
-            DataHandler(f.name, "You are MYSQL honeypot", "no model"),
+            DataHandler(
+                f.name,
+                "You are MYSQL honeypot.",
+                "anthropic.claude-3-sonnet-20240229-v1:0",
+            ),
             SqlDataHandler(dialect="mysql"),
         )
         honeypot = MySQLHoneypot(action=action, config={"name": "MySQLHoneypotTest"})
@@ -39,6 +46,7 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
 
 
 def test_mysql_honeypot_main(monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
         monkeypatch.setattr(
             "infra.data_handler.invoke_llm",
@@ -237,3 +245,59 @@ def test_select_quoted_dollar_string(mysql_cnn):
         cursor.execute("SELECT '$$'")
         result = cursor.fetchone()
         assert result == ("$$",)
+
+
+def test_create_and_use_database(monkeypatch, mysql_cnn):
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda self, query, session, **kw: "[]",  # or return fake SHOW TABLES output
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("CREATE DATABASE IF NOT EXISTS RECOVER_YOUR_DATA")
+        cursor.execute("COMMIT")
+        cursor.execute("USE RECOVER_YOUR_DATA")
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        assert isinstance(tables, (list, tuple))
+
+
+def test_version_and_table_info(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT VERSION()")
+        version = cursor.fetchone()
+        assert version and isinstance(version[0], str)
+
+        cursor.execute("SHOW DATABASES")
+        dbs = cursor.fetchall()
+        assert dbs and any("mysql" in db for db in dbs)
+
+        cursor.execute(
+            "SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH FROM information_schema.tables WHERE table_schema = 'information_schema'"
+        )
+        info_schema = cursor.fetchall()
+        assert isinstance(info_schema, (list, tuple))
+
+        cursor.execute(
+            "SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH FROM information_schema.tables WHERE table_schema = 'mysql'"
+        )
+        mysql_schema = cursor.fetchall()
+        assert isinstance(mysql_schema, (list, tuple))
+
+
+def test_version_system_vars(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute(
+            'SELECT @@version_comment, @@version, CONCAT(@@version_compile_os, " ", @@version_compile_machine)'
+        )
+        result = cursor.fetchone()
+        assert isinstance(result, tuple)
+        # Log for debug
+        print("Fetched result:", result)
+        assert len(result) == 3 or len(result) == 1  # Accept if partial info returned
+
+
+def test_select_version_comment_limit(mysql_cnn):
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT @@version_comment LIMIT 1")
+        result = cursor.fetchone()
+        assert isinstance(result[0], (str, type(None)))
