@@ -24,3 +24,11 @@ downloaded_files/*
 
 uploaded_files/*
 !uploaded_files/.gitkeep
+
+# macOS
+.DS_Store
+test/honeypots/*/data_store.db
+
+host.key
+test_scp.txt
+test/test_scp.txt
