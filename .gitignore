@@ -27,3 +27,4 @@ uploaded_files/*
 
 # macOS
 .DS_Store
+test/honeypots/*/data_store.db
