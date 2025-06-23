@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -27,9 +28,15 @@ def _get_jsonl_tests() -> list[dict]:
 
 @pytest.fixture(scope="module")
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
     with tempfile.NamedTemporaryFile() as f:
         action = ChainedHoneypotAction(
-            DataHandler(f.name, "You are MYSQL honeypot", "no model"),
+            DataHandler(
+                f.name,
+                "You are MYSQL honeypot.",
+                "anthropic.claude-3-sonnet-20240229-v1:0",
+            ),
             SqlDataHandler(dialect="mysql"),
         )
         honeypot = MySQLHoneypot(action=action, config={"name": "MySQLHoneypotTest"})
