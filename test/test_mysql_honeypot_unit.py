@@ -245,3 +245,17 @@ def test_select_quoted_dollar_string(mysql_cnn):
         cursor.execute("SELECT '$$'")
         result = cursor.fetchone()
         assert result == ("$$",)
+
+
+def test_create_and_use_database(monkeypatch, mysql_cnn):
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda self, query, session, **kw: "[]",  # or return fake SHOW TABLES output
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("CREATE DATABASE IF NOT EXISTS RECOVER_YOUR_DATA")
+        cursor.execute("COMMIT")
+        cursor.execute("USE RECOVER_YOUR_DATA")
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        assert isinstance(tables, (list, tuple))

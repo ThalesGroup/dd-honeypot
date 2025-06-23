@@ -71,8 +71,4 @@ class SqlDataHandler(HoneypotAction):
         if any(query.upper().startswith(cmd) for cmd in safe_commands):
             return "[]"
 
-        # Handle: SHOW TABLES
-        if query.strip().upper().startswith("SHOW TABLES"):
-            return json.dumps([])
-
         return None
