@@ -255,6 +255,7 @@ class SSHHoneypot(BaseHoneypot):
         return RSAKey(filename=str(key_path))
 
     def start(self):
+        logging.getLogger("paramiko.transport").setLevel(logging.WARNING)
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(("0.0.0.0", self.port))
@@ -295,8 +296,11 @@ class SSHHoneypot(BaseHoneypot):
                 if channel:
                     channel.event.wait()
 
-        except (SSHException, Exception) as e:
-            logging.error(f"SSH error: {e}")
+        except SSHException as e:
+            logging.warning(f"SSHException from {addr}: {e}")
+        except Exception as e:
+            logging.error(f"Unhandled error from {addr}: {e.__class__.__name__}: {e}")
+
         finally:
             if transport:
                 transport.close()
