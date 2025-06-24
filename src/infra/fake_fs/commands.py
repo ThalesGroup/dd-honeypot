@@ -13,13 +13,13 @@ def handle_ls(session: dict, flags: str = "") -> str:
     node = fs.resolve_path(cwd, "/")
     logging.info(f"[handle_ls] Node resolved: {node}")
 
-    if not node or not node.is_dir:
+    if not node or not node["is_dir"]:
         return f"ls: cannot access '{cwd}': No such directory"
 
-    children = node.list_children()
+    children = fs.list_children(cwd)
     logging.info(f"[handle_ls] Children: {children}")
 
-    return "  ".join(sorted(child.strip() for child in children))
+    return "  ".join(sorted(child["name"] for child in children))
 
 
 def handle_cd(session: dict, path: str) -> str:
@@ -29,7 +29,7 @@ def handle_cd(session: dict, path: str) -> str:
     for candidate in [p.strip() for p in path.split("||")]:
         new_path = normalize_path(candidate, current_path)
         node = fs.resolve_path(new_path, "/")
-        if node and node.is_dir:
+        if node and node["is_dir"]:
             session["cwd"] = new_path
             return new_path
 
@@ -39,18 +39,19 @@ def handle_cd(session: dict, path: str) -> str:
 def handle_mkdir(session: dict, path: str) -> str:
     fs: FakeFileSystem = session["fs"]
     cwd = session.get("cwd", "/")
-    parts = path.strip("/").split("/")
-    name = parts[-1]
-    parent_path = "/".join(parts[:-1]) or cwd
+    full_path = normalize_path(path, cwd)
 
-    parent_node = fs.resolve_path(parent_path, cwd)
-    if not parent_node or not parent_node.is_dir:
-        return f"mkdir: cannot create directory '{path}': No such file or directory"
-
-    if name in parent_node.children:
+    # Check if already exists
+    if fs.resolve_path(full_path):
         return f"mkdir: cannot create directory '{path}': File exists"
 
-    parent_node.add_child(FileSystemNode(name, is_dir=True))
+    # Ensure parent exists and is a directory
+    parent_path = os.path.dirname(full_path)
+    parent_node = fs.resolve_path(parent_path)
+    if not parent_node or not parent_node["is_dir"]:
+        return f"mkdir: cannot create directory '{path}': No such file or directory"
+
+    fs.mkdir(full_path)
     return ""
 
 

@@ -1,4 +1,7 @@
+import os
 from typing import Dict, List, Optional
+
+from infra.fake_fs_datastore import FakeFSDataStore
 
 
 class FileSystemNode:
@@ -20,72 +23,25 @@ class FileSystemNode:
 
 
 class FakeFileSystem:
-    def __init__(self, root: FileSystemNode):
-        self.root = root
-        self.content = ""
-
-    @staticmethod
-    def from_json(data: dict) -> "FakeFileSystem":
-        def build_node(name, node_data):
-            is_dir = node_data["type"] == "dir"
-            node = FileSystemNode(name, is_dir=is_dir)
-            if is_dir:
-                for child_name, child_data in node_data.get("content", {}).items():
-                    node.add_child(build_node(child_name, child_data))
-            return node
-
-        root_data = data["/"]
-        root_node = build_node("/", root_data)
-        return FakeFileSystem(root_node)
-
-    def create_file(self, path: str, content: str = ""):
-        from infra.fake_fs.commands import normalize_path
-
-        path = normalize_path(path, cwd="/")
-        parts = path.strip("/").split("/")
-        node = self.root
-        for part in parts[:-1]:
-            if part not in node.children:
-                node.children[part] = FileSystemNode(part, is_dir=True)
-            node = node.children[part]
-
-        file_name = parts[-1]
-        node.children[file_name] = FileSystemNode(file_name, is_dir=False)
-        node.children[file_name].content = content
+    def __init__(self, store: FakeFSDataStore):
+        self.store = store
 
     def resolve_path(
-        self,
-        path: str,
-        cwd: str = "/",
-        create_missing: bool = False,
-        expect_dir: bool = False,
-    ) -> Optional[FileSystemNode]:
-        import os
-
-        # Normalize the combined path (e.g. cwd="/etc", path="../bin" => "/bin")
-        full_path = os.path.normpath(os.path.join(cwd, path))
-        if not full_path.startswith("/"):
-            full_path = "/" + full_path
-
-        parts = full_path.strip("/").split("/")
-        current = self.root
-
-        for part in parts:
-            if part in ("", "."):
-                continue
-            if part == "..":
-                # Not handled in tree traversal — skip here because we already normalized the path above
-                continue
-            child = current.get_child(part)
-            if child is None:
-                if create_missing:
-                    child = FileSystemNode(part, is_dir=True)
-                    current.add_child(child)
-                else:
-                    return None
-            current = child
-
-        if expect_dir and not current.is_dir:
+        self, path: str, cwd: str = "/", expect_dir=False
+    ) -> Optional[dict]:
+        norm_path = os.path.normpath(os.path.join(cwd, path))
+        if not norm_path.startswith("/"):
+            norm_path = "/" + norm_path
+        node = self.store.get_node(norm_path)
+        if expect_dir and node and not node["is_dir"]:
             return None
+        return node
 
-        return current
+    def create_file(self, path: str, content=""):
+        self.store.write_file(path, content)
+
+    def mkdir(self, path: str):
+        self.store.mkdir(path)
+
+    def list_children(self, path: str):
+        return self.store.list_dir(path)

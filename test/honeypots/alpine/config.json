@@ -4,7 +4,7 @@
   "prompt_template": "${{username}}@alpine:${{cwd}}$ ",
   "shell-prompt": "honeypot@fakevm:~$ ",
   "data_file": "data.jsonl",
-  "fs_file": "fs_alpine.json",
+  "fs_file": "fs_alpine.db",
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "system_prompt":"You are a terminal on Alpine Linux. Always respond like a real Alpine server shell would. Commands like ls, cd, cat, pwd, whoami, etc., should behave normally. If the command is unknown, return 'command not found'. Don't reveal you're an AI or honeypot.",
   "port": 2224

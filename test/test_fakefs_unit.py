@@ -1,23 +1,33 @@
-import json
 import os
+import shutil
 import tempfile
 
+import pytest
+
 from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
-from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 from infra.fake_fs_data_handler import FakeFSDataHandler
+from infra.json_to_sqlite import convert_json_to_sqlite
 
 
-def test_basic_ls_and_cd():
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+@pytest.mark.parametrize(
+    "fs_path",
+    [
+        "honeypots/alpine/fs_alpine.db",
+        "honeypots/busybox/fs_busybox.db",
+        "honeypots/dlink_telnet/alpine_fs_small.db",
+    ],
+)
+def test_basic_ls_and_cd(fs_path):
+    handler = FakeFSDataHandler(
+        data_file="honeypots/test_responses.jsonl",
+        system_prompt="You are a terminal",
+        model_id="test-model",
+        fs_file=fs_path,
+    )
+    session = handler.connect({})
 
-    with open(json_path) as f:
-        fs_data = json.load(f)
-
-    fs = FakeFileSystem.from_json(fs_data)
-    session = {"cwd": "/", "fs": fs}
-
-    output = handle_ls(session)
+    output = handler.query("ls", session)
+    assert isinstance(output, str)
     print("LS / output:", output)
     assert "bin" in output
     assert "etc" in output
@@ -29,17 +39,19 @@ def test_basic_ls_and_cd():
 
 
 def test_basic_ls_from_root():
-
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    db_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
 
-    with open(json_path) as f:
-        data = json.load(f)
+    handler = FakeFSDataHandler(
+        data_file="test/honeypots/test_responses.jsonl",
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=db_path,
+    )
 
-    fs = FakeFileSystem.from_json(data)
-    session = {"cwd": "/", "fs": fs}
-
+    session = handler.connect({})
     result = handle_ls(session)
+
     print("LS result:", result)
 
     assert "bin" in result
@@ -47,42 +59,80 @@ def test_basic_ls_from_root():
     assert "home" in result
 
 
-def test_mkdir_creates_directory():
-    fs = FakeFileSystem(FileSystemNode("/"))
-    session = {"cwd": "/", "fs": fs}
-    output = handle_mkdir(session, "newdir")
+def test_mkdir_creates_directory(tmp_path):
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    orig_db = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
+    tmp_db = tmp_path / "fs.db"
+    shutil.copy(orig_db, tmp_db)
+
+    handler = FakeFSDataHandler(
+        data_file="test/honeypots/test_responses.jsonl",
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=str(tmp_db),
+    )
+
+    session = handler.connect({})
+    output = handle_mkdir(session, "newdir_temp")
+
     assert output == ""
-    assert "newdir" in fs.root.list_children()
+    children = session["fs"].store.list_dir(session["cwd"])
+    names = [child["name"] for child in children]
+    assert "newdir_temp" in names
 
 
-def test_ls_long_format():
-    fs = FakeFileSystem(FileSystemNode("/"))
-    fs.root.add_child(FileSystemNode("bin", is_dir=True))
-    fs.root.add_child(FileSystemNode("file.txt", is_dir=False))
-    session = {"cwd": "/", "fs": fs}
+def test_ls_long_format(tmp_path):
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    orig_db = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
+    tmp_db = tmp_path / "fs.db"
+    shutil.copy(orig_db, tmp_db)
+
+    handler = FakeFSDataHandler(
+        data_file="test/honeypots/test_responses.jsonl",
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=str(tmp_db),
+    )
+
+    session = handler.connect({})
     result = handle_ls(session, flags="-l")
     assert "bin" in result
 
 
-def test_handle_wget_creates_file(monkeypatch):
+def test_handle_wget_creates_file(tmp_path, monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
-    fs = FakeFileSystem(FileSystemNode("/"))
-    session = {"cwd": "/", "fs": fs}
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    orig_db = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
+    tmp_db = tmp_path / "fs.db"
+    shutil.copy(orig_db, tmp_db)
+
+    handler = FakeFSDataHandler(
+        data_file="test/honeypots/test_responses.jsonl",
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=str(tmp_db),
+    )
+
+    session = handler.connect({})
+
     url = "http://test.com/malware.sh"
     output = handle_download(session, url)
 
-    assert "malware.sh" in fs.root.list_children()
+    children = session["fs"].store.list_dir(session["cwd"])
+    names = [child["name"] for child in children]
+    assert "malware.sh" in names
+
     assert "saved" in output
     assert session["downloads"][0]["url"] == url
 
 
 def test_fakefs_query_fallback(tmp_path):
-    # Create a minimal fake data.jsonl file
+    # Create test data
     data_file = tmp_path / "data.jsonl"
     data_file.write_text('{"input": "whoami", "response": "root\\n"}\n')
 
-    # Valid minimal FS with root directory
     fs_file = tmp_path / "fs.json"
     fs_file.write_text(
         r"""{
@@ -93,57 +143,62 @@ def test_fakefs_query_fallback(tmp_path):
     }"""
     )
 
+    fs_db = tmp_path / "fs.db"
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
+
+    convert_json_to_sqlite(fs_file, fs_db)
+
     handler = FakeFSDataHandler(
         data_file=str(data_file),
         system_prompt="irrelevant",
-        model_id="gpt-3.5",
-        fs_file=str(fs_file),
+        model_id="irrelevant",
+        fs_file=str(fs_db),
     )
 
-    session = {}  # No fs in session => fallback
-
+    session = {}  # no FS context => triggers fallback
     response = handler.query("whoami", session)
 
     assert response == "root\n"
 
 
 def test_fakefs_unknown_command(tmp_path):
-    data_file = tmp_path / "data.jsonl"
-    data_file.write_text('{"input": "echo test", "response": "test\\n"}\n')
-    fs_file = tmp_path / "fs.json"
-    fs_file.write_text(
-        r"""{
-        "/": {
-            "type": "dir",
-            "content": {}
-        }
-    }"""
-    )
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    orig_db = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
+    tmp_db = tmp_path / "fs.db"
+    shutil.copy(orig_db, tmp_db)
 
     handler = FakeFSDataHandler(
-        data_file=str(data_file), system_prompt="", model_id="", fs_file=str(fs_file)
+        data_file="test/honeypots/test_responses.jsonl",
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=str(tmp_db),
     )
 
-    response = handler.query("nonexistent", {})
+    session = handler.connect({})
+
+    response = handler.query("nonexistent", session)
     assert response == "Command not found\n"
 
 
 def test_fakefs_invalid_json_line(tmp_path):
     data_file = tmp_path / "data.jsonl"
-    data_file.write_text('{"input": "uptime", "response": "up 5 days"}\nINVALID LINE\n')
-    fs_file = tmp_path / "fs.json"
-    fs_file.write_text(
-        r"""{
-        "/": {
-            "type": "dir",
-            "content": {}
-        }
-    }"""
-    )
+    data_file.write_text('invalid-line\n{"input": "uptime", "response": "up 5 days"}\n')
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    orig_db = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.db")
+    tmp_db = tmp_path / "fs.db"
+    shutil.copy(orig_db, tmp_db)
 
     handler = FakeFSDataHandler(
-        data_file=str(data_file), system_prompt="", model_id="", fs_file=str(fs_file)
+        data_file=str(data_file),
+        system_prompt="irrelevant",
+        model_id="irrelevant",
+        fs_file=str(tmp_db),
     )
 
-    response = handler.query("uptime", {})
+    session = handler.connect({})
+
+    response = handler.query("uptime", session)
     assert response == "up 5 days"

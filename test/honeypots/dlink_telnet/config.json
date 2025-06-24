@@ -17,7 +17,7 @@
   ],
   "port": 2323,
   "data_file": "data.jsonl",
-  "fs_file": "alpine_fs_small.json",
+  "fs_file": "alpine_fs_small.db",
   "telnet": {
     "banner": "D-Link Corporation",
     "login-prompt": "Login: ",

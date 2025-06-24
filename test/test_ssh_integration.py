@@ -1,34 +1,57 @@
+import json
 import os
 import tempfile
-
-import freezegun
-import paramiko
-import pytest
+import time
 from pathlib import Path
 
+import paramiko
+import pytest
 from freezegun import freeze_time
 
 from infra.honeypot_wrapper import create_honeypot
+from infra.json_to_sqlite import convert_json_to_sqlite
 
 
 @pytest.fixture
 def ssh_honeypot_with_fs_download(tmp_path: Path):
-    fs_file = tmp_path / "fs.json"
-    fs_file.write_text('{"\\/": {"type": "dir", "content": {}}}')
+    fs_json = tmp_path / "alpine_fs_small.json"
+    fs_db = tmp_path / "alpine_fs_small.db"
+
+    fs_data = {
+        "/": {
+            "type": "dir",
+            "content": {
+                "bin": {"type": "dir", "content": {}},
+                "etc": {"type": "dir", "content": {}},
+                "home": {
+                    "type": "dir",
+                    "content": {"user": {"type": "dir", "content": {}}},
+                },
+            },
+        }
+    }
+    fs_json.write_text(json.dumps(fs_data))
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
+
+    convert_json_to_sqlite(fs_json, fs_db)
 
     data_file = tmp_path / "data.jsonl"
+    data_file.touch()
 
     config = {
         "type": "ssh",
         "port": 0,
         "data_file": str(data_file),
-        "system_prompt": "Fake Terminal",
+        "system_prompt": "You are a Linux emulator",
         "model_id": "test-model",
-        "fs_file": str(fs_file),
+        "fs_file": str(fs_db),  # use the converted DB here
     }
 
     honeypot = create_honeypot(config)
     honeypot.start()
+    time.sleep(0.2)
     yield honeypot
     honeypot.stop()
 

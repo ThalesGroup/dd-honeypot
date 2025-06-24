@@ -15,6 +15,7 @@ from infra.chained_data_handler import ChainedDataHandler
 from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs_data_handler import FakeFSDataHandler
 from infra.honeypot_wrapper import create_honeypot
+from infra.json_to_sqlite import convert_json_to_sqlite
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -165,21 +166,30 @@ def test_concurrent_connections(ssh_honeypot):
 
 @pytest.fixture
 def ssh_honeypot_with_fakefs(tmp_path: Path):
-    # Create fake file system json
-    fake_fs_data = {
+    fs_json = tmp_path / "alpine_fs_small.json"
+    fs_db = tmp_path / "alpine_fs_small.db"
+
+    # Write fake FS JSON
+    fs_data = {
         "/": {
             "type": "dir",
             "content": {
                 "bin": {"type": "dir", "content": {}},
                 "etc": {"type": "dir", "content": {}},
+                "home": {
+                    "type": "dir",
+                    "content": {"user": {"type": "dir", "content": {}}},
+                },
             },
         }
     }
-    fs_file = tmp_path / "fs.json"
-    with fs_file.open("w") as f:
-        json.dump(fake_fs_data, f)
+    fs_json.write_text(json.dumps(fs_data))
 
-    # Create dummy data.jsonl
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
+
+    convert_json_to_sqlite(fs_json, fs_db)
+
     data_file = tmp_path / "data.jsonl"
     data_file.touch()
 
@@ -187,9 +197,9 @@ def ssh_honeypot_with_fakefs(tmp_path: Path):
         "type": "ssh",
         "port": 0,
         "data_file": str(data_file),
-        "system_prompt": "You are a fake terminal",
+        "system_prompt": "You are a Linux emulator",
         "model_id": "test-model",
-        "fs_file": str(fs_file),
+        "fs_file": str(fs_db),  # use the converted DB here
     }
 
     honeypot = create_honeypot(config)

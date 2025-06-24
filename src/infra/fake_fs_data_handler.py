@@ -5,6 +5,7 @@ from pathlib import Path
 from infra.data_handler import DataHandler
 from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
+from infra.fake_fs_datastore import FakeFSDataStore
 from infra.interfaces import HoneypotSession
 
 
@@ -19,9 +20,9 @@ class FakeFSDataHandler(DataHandler):
         fs_path = Path(fs_file)
         if not fs_path.exists():
             raise FileNotFoundError(f"Missing fake fs file: {fs_file}")
-        with fs_path.open() as f:
-            fs_data = json.load(f)
-        self.fakefs = FakeFileSystem.from_json(fs_data)
+
+        store = FakeFSDataStore(str(fs_path))
+        self.fakefs = FakeFileSystem(store)
 
     def connect(self, auth_info: dict) -> HoneypotSession:
         logging.info(f"FakeFSDataHandler.connect: {auth_info}")
