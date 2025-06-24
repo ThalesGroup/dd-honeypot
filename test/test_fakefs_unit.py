@@ -12,14 +12,14 @@ from infra.json_to_sqlite import convert_json_to_sqlite
 @pytest.mark.parametrize(
     "fs_path",
     [
-        "honeypots/alpine/fs_alpine.db",
-        "honeypots/busybox/fs_busybox.db",
-        "honeypots/dlink_telnet/alpine_fs_small.db",
+        "test/honeypots/alpine/fs_alpine.db",
+        "test/honeypots/busybox/fs_busybox.db",
+        "test/honeypots/dlink_telnet/alpine_fs_small.db",
     ],
 )
 def test_basic_ls_and_cd(fs_path):
     handler = FakeFSDataHandler(
-        data_file="honeypots/test_responses.jsonl",
+        data_file="test/honeypots/test_responses.jsonl",
         system_prompt="You are a terminal",
         model_id="test-model",
         fs_file=fs_path,
