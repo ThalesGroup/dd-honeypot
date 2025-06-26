@@ -101,4 +101,96 @@ test/honeypots/busybox/fs_busybox.json
 
 ---
 
-✅ You’re now ready to integrate this into your SSH honeypot with FakeFS support!
+## 🔄 Step 6: Automatic SQLite Conversion (No need to manually create .db)
+
+You only need to create the `.json` file.
+
+At runtime, honeypot will:
+
+- Detect that `fs_file` ends with `.json`
+- Automatically convert it into a temporary `.db` file using `sqlite-utils`
+- Load it using `FakeFSDataStore`
+
+So you do not need to commit or manage `.db` files in Git.
+
+### 🛠 Script used for JSON ->️ SQLite conversion
+
+Internally, the honeypot runs this script:
+
+```python
+# src /infra/json_to_sqlite.py
+
+import json
+import sys
+from pathlib import Path
+import sqlite_utils
+
+fs_json_path, db_path = sys.argv[1], sys.argv[2]
+db = sqlite_utils.Database(db_path)
+
+with open(fs_json_path, "r", encoding="utf-8") as f:
+    fs_data = json.load(f)
+
+records = []
+for path, node in fs_data.items():
+    records.append({
+        "path": path,
+        "parent_path": str(Path(path).parent) if path != "/" else None,
+        "name": Path(path).name,
+        "is_dir": node["type"] == "dir",
+        "permissions": node.get("permissions", "drwxr-xr-x"),
+        "owner": node.get("owner", "root"),
+        "size": node.get("size", 0),
+        "modified_at": None,
+        "content": (
+            json.dumps(node.get("content", {}))
+            if node["type"] == "dir" else node.get("content", "")
+        ),
+    })
+
+db["fs_nodes"].insert_all(records, pk="path", alter=True)
+```
+
+---
+
+## Example Honeypot Config
+
+```json
+{
+  "type": "ssh",
+  "port": 2222,
+  "data_file": "test/honeypots/test_responses.jsonl",
+  "system_prompt": "You are a Linux emulator",
+  "model_id": "test-model",
+  "fs_file": "test/honeypots/alpine/fs_alpine.json"
+}
+
+```
+
+---
+
+## 🧹 Git Ignore .db Files
+
+Make sure to ignore `.db` files generated from the `.json`:
+
+```gitignore
+test/honeypots/*/*.db
+```
+
+---
+
+## 📈 Supporting `.jsonl.gz`
+
+Example:
+```python
+import gzip, json
+import sqlite_utils
+
+with gzip.open("fs_data.jsonl.gz", "rt") as f:
+    db = sqlite_utils.Database("fs.db")
+    db["fs_nodes"].insert_all((json.loads(line) for line in f), batch_size=1000, alter=True)
+```
+
+---
+
+✅ You’re now ready to use JSON-configured FakeFS with auto-generated SQLite support in your honeypots!
