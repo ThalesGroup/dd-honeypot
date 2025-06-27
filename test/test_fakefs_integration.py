@@ -1,5 +1,9 @@
 import json
 import os
+from pathlib import Path
+
+import sqlite_utils
+
 from infra.fake_fs.filesystem import FileSystemNode, FakeFileSystem
 from infra.fake_fs.commands import handle_download
 
@@ -13,19 +17,15 @@ def test_real_wget_download(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
 
-        fs_json = os.path.join(tmpdir, "fs.json")
-        fs_data = {"/": {"type": "dir", "content": {}}}
-        with open(fs_json, "w") as f:
-            json.dump(fs_data, f)
-
-        fs_db = os.path.join(tmpdir, "fs.db")
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
+        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
 
-        convert_json_to_sqlite(fs_json, fs_db)
+        tmp_db_path = Path(tmpdir) / "fs.db"
+        db = sqlite_utils.Database(str(tmp_db_path))
+        convert_json_to_sqlite(fs_path, db)
 
         # Step 3: Use real store and FS
-        store = FakeFSDataStore(fs_db)
+        store = FakeFSDataStore(str(tmp_db_path))
         fs = FakeFileSystem(store)
 
         session = {
@@ -45,18 +45,14 @@ def test_real_curl_download(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
 
-        fs_json = os.path.join(tmpdir, "fs.json")
-        fs_data = {"/": {"type": "dir", "content": {}}}
-        with open(fs_json, "w") as f:
-            json.dump(fs_data, f)
-
-        fs_db = os.path.join(tmpdir, "fs.db")
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
+        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
 
-        convert_json_to_sqlite(fs_json, fs_db)
+        tmp_db_path = Path(tmpdir) / "fs.db"
+        db = sqlite_utils.Database(str(tmp_db_path))
+        convert_json_to_sqlite(fs_path, db)
 
-        store = FakeFSDataStore(fs_db)
+        store = FakeFSDataStore(str(tmp_db_path))
         fs = FakeFileSystem(store)
 
         session = {
