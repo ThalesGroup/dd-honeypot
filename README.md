@@ -1,45 +1,64 @@
-# DataTrap - Data Driven LLM based Honeypot
+# DataTrap - Data Driven LLM-based Honeypot
 
-DataTrap is an innovative and extensible honeypot system that emulates realistic behavior across TCP, HTTP, SSH, and various database protocols. Designed to simulate web applications, IoT devices, and databases, DataTrap goes beyond traditional honeypots by combining recorded payloads, metadata, and a large language model (LLM) to dynamically generate responses that closely mimic genuine application output.
+DataTrap is an innovative and extensible honeypot system that emulates realistic behavior across TCP, HTTP, SSH, and various database protocols. Designed to simulate web applications, IoT devices, and databases, DataTrap goes beyond traditional honeypots by combining recorded payloads, metadata, and a large language model (LLM) to dynamically generate responses that closely mimic real application behavior.
 
-This unique approach not only effectively deceives attackers but also delivers actionable insights—all while maintaining high performance, low cost of ownership, and operational efficiency. The system supports multiple applications and their different versions, and allows selective emulation of application components. Its modular architecture enables seamless extension of the network protocol layer to support additional applications and services over time.
+This unique approach not only effectively deceives attackers but also delivers actionable insights—all while maintaining high performance, low cost of ownership, and operational efficiency. The system supports multiple applications and their different versions, and allows selective emulation of specific components. Its modular architecture enables easy extension of the protocol layer to support new services over time.
 
-At the heart of DataTrap is a continuously evolving dataset, which powers the LLM-based response generation. This dataset is central to the system’s effectiveness and is actively maintained as part of the framework. LLM-generated responses are automatically integrated into the dataset, ensuring that the system adapts to emerging threats and stays up to date.
+At the heart of DataTrap is a continuously evolving dataset that powers LLM-based response generation. This dataset is actively maintained as part of the framework. When no exact match is found in the dataset, LLM-generated responses are used and logged for later review or integration. This ensures the system stays effective against emerging threats and continues to improve over time.
 
-DataTrap is open-source, encouraging community contributions to enrich both the dataset and system capabilities. To simplify deployment, it is packaged as a Docker image, allowing users to run the honeypot system as a single container in any environment with minimal setup.
+DataTrap is open-source and welcomes community contributions to enrich both the dataset and the system’s capabilities. Deployment is simplified through a Docker container, enabling users to run the honeypot system in any environment with minimal setup.
+
+---
 
 ## Features
 
-- Mimics real application behavior for HTTP, HTTPS, SSH, and database access
-- Uses recorded application payloads, metadata, and a large language model (LLM)
-- Dynamically generates responses indistinguishable from real application outputs
-- Provides actionable intelligence
-- High performance and cost efficiency
-- Easy to install (single container installation) and supports multiple applications and versions
+- Simulates real behavior for HTTP, HTTPS, SSH, and database protocols (e.g., MySQL)
+- Uses recorded payloads, metadata, and large language models (LLMs) to generate responses
+- Dynamically returns responses indistinguishable from real applications
+- Captures valuable attacker insights for analysis
+- High performance and cost-effective design
+- Easy container-based installation, supports multiple applications and versions
+- Modular design makes it easy to add or customize honeypots
 
-# Architecture
-The honeypot system is build on a modular architecture, with the following components:
-- Network infrastructure, which support basic protocols like HTTP, HTTPS, SSH
-- Specific application network protocol and handshake implementation, based on 3rd party libraries
-- Dataset and lookup functions. The dataset contains the application payloads and metadata
-- Large language model (LLM) for generating responses, using the dataset as a RAG (Retrieval-Augmented Generation) model
+---
 
+## Architecture
+
+The honeypot system is built using a modular architecture with the following components:
+
+- **Network Layer**: Handles raw connections for supported protocols (HTTP, SSH, MySQL, etc.)
+- **Protocol Handler**: Implements protocol-specific logic (e.g., MySQL handshake)
+- **Dataset & Lookup Engine**: Maps incoming requests to known payloads and responses
+- **LLM Engine**: Fallback for unknown requests using LLM with system prompts and RAG (Retrieval-Augmented Generation)
+
+---
 
 ## Dataset
+The dataset is the most critical component in the system. It evolves with usage and is designed for active maintenance and contribution. Each dataset file contains payloads for a specific application and version, where each payload includes:
 
-The dataset powering the framework is the most critical component of the system. It is designed to evolve continuously and will be maintained as part of the tool, ensuring that the system stays relevant and effective against emerging threats. The tool is open-source, enabling community contributions to enrich the dataset and enhance functionality. Operations for adding and updating the dataset data are an integral part of the framework.
+- A **request**: the attacker’s input
+- A **response**: the emulated reply
+- Optional placeholders like `${user}` or `${host}` for dynamic substitution
+- Context-aware fields (e.g., current working directory in a shell, or inserted rows in a database)
 
-The dataset is a set of files, each containing a set of payloads for a specific application and version. Each payload consists of a request and a response. The request is the input to the application, and the response is the output. Each payload can also be context aware (like current directory in a file system, or data added to the database), and can contain placeholders for dynamic values (like user name, host name, etc.).
+The dataset is a set of JSONL files, each containing one or more request-response pairs. These payloads can simulate different behaviors of a particular version of an application or device.
 
-A dataset file can also link to other dataset files, allowing a honeypot to use multiple datasets (like common MySql commands, and ones related to specific versions) for different applications and versions.
+Datasets may also be layered or linked. For example, a honeypot can combine a general dataset for common MySQL queries with a version-specific dataset to reflect the exact behavior of MySQL 5.7 or 8.0. This modular structure enables reuse and fine-grained emulation.
 
-Simple dataset file example:
+The dataset is central to how DataTrap handles both known and unknown interactions:
+- **Known requests** → matched and returned directly from the dataset.
+- **Unknown requests** → handled by the LLM and logged for future inclusion in the dataset.
+
+This continuous enrichment process ensures that DataTrap evolves with attacker behavior, and remains relevant over time.
+
+### Example dataset file:
+
 ```json
 {
   "application": "mysql",
   "version": "5.7",
   "payloads": [
-   {
+    {
       "request": "DROP TABLE users;",
       "response": "Error: DROP command denied to user '${user}'@'${host}' for table 'users'"
     },
@@ -50,44 +69,77 @@ Simple dataset file example:
   ]
 }
 ```
-## LLM Interaction and dataset update
 
-The large language model (LLM) enables the generation of realistic responses. When a honeypot gets a request, there is a lookup in the dataset to find the most relevant response. If the response is not found, the LLM generates a response based on the request. The generated response is then stored in a dedicated log, which is later merged into the dataset. This allows incremental building of the dataset and ensures that the system continuously improves its responses.
+---
 
-LLM access is done by API, the following LLM
+## LLM Interaction and Dataset Update
 
-## Configuration folder
+If a request does not match an existing entry in the dataset, the system uses a large language model (LLM) to generate a realistic response. These responses are:
 
-The configuration folder defines the honeypots and port mappings. Each honeypot has an ID, type, port and other configuration details.
+- Generated using the `system_prompt` configured per honeypot
+- Logged in a separate file for review
+- Optionally merged into the dataset for future reuse
+
+This incremental learning model allows the honeypot to grow smarter over time while preserving a high degree of realism.
+
+LLM access is handled via API using supported providers (e.g., OpenAI, Anthropic).
+
+---
+
+## Configuration Folder
+
+The configuration folder contains the main `honeypot.conf` file, which defines:
+
+- All honeypots to load at runtime
+- Paths to their individual config files
+- Global settings (e.g., logging, ports)
+
+Each honeypot is defined with a unique ID, type, and path to its `config.json`.
+
+
+---
 
 ## Installation
 
-For ease of deployment, the tool is provided as a Docker image, allowing users to quickly install and operate the honeypot system in any environment.
+DataTrap is packaged as a Docker image for quick and reproducible deployment.
 
 ### Using Docker
 
-#### Pull the Docker image:
+#### Pull the Docker image
 
 ```sh
 docker pull ghcr.io/thalesgroup/dd-honeypot
 ```
-Run the Docker container:
+
+#### Run the Docker container (default setup)
+
 ```sh
 docker run -d -p 80:80 -p 2222:2222 ghcr.io/thalesgroup/dd-honeypot
 ```
-Run the Docker container with a configuration file:
+
+#### Run with a custom configuration
+
 ```sh
-docker run -d -p 80:80 -p 443:443 -p 2222:2222 -v /host/path/honeypot.conf:/etc/honeypot/honeypot.conf:ro ghcr.io/thalesgroup/dd-honeypot
+docker run -d \
+  -p 80:80 -p 443:443 -p 2222:2222 \
+  -v /host/path/honeypot.conf:/etc/honeypot/honeypot.conf:ro \
+  ghcr.io/thalesgroup/dd-honeypot
 ```
 
-### Quick Installation on an AWS EC2 Instance
+---
+
+### Quick Installation on AWS EC2
 
 1. Create an instance role with permissions to write to CloudWatch logs
-2. Create a security group with open ports according to your honeypots configuration
-3. Bring up an EC2 instance with the instance role and the security group
-4. Install docker and run the Docker container as described above. Add the following parameters to the docker run command:
-```sh
-docker run -it --log-driver=awslogs --log-opt awslogs-region=us-east1 --log-opt awslogs-group=yourLogGroup --log-opt awslogs-create-group=true ghcr.io/thalesgroup/dd-honeypot
-```
+2. Create a security group with open ports (e.g., 22, 80, 443, 13306, etc.)
+3. Launch an EC2 instance with the role and group
+4. Install Docker and run the container:
 
-Other logging options are provided in the configuration file. See the [logging readme](docs/logging-readme.md) for more details.
+```sh
+docker run -it \
+  --log-driver=awslogs \
+  --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group=yourLogGroup \
+  --log-opt awslogs-create-group=true \
+  ghcr.io/thalesgroup/dd-honeypot
+```
