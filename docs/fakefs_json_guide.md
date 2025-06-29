@@ -12,58 +12,17 @@ This guide explains how to extract the directory structure from Alpine or BusyBo
 
 ---
 
-## 🐧 Step 1: Run the Docker Container
+## 📄 Run the Docker Container and extract the File system
 
-### Alpine:
-
-```bash
-docker run --rm -it alpine
-```
-
-### BusyBox:
+Run an Alpine container and save the file system structure to a text file:
 
 ```bash
-docker run --rm -it busybox
+  docker run -v ${PWD}:/fakefs-output/ --rm alpine sh -c "find / -type d > /fakefs-output/fs.txt"
 ```
 
 ---
 
-## 📂 Step 2: Explore the File System
-
-Inside the container, use shell commands to explore:
-
-```sh
-cd /
-ls -R
-```
-
-Or script it:
-
-```sh
-find / -type d
-```
-
----
-
-## 📄 Step 3: Save Structure to a Text File
-
-Inside the container:
-
-```bash
-find / -type d > /tmp/fs.txt
-```
-
-Then from another terminal (host machine):
-
-```bash
-docker cp <container_id>:/tmp/fs.txt ./fs.txt
-```
-
-Replace `<container_id>` with the actual container ID from `docker ps`.
-
----
-
-## 🔄 Step 4: Convert to JSON
+## 🔄 Convert to JSON
 
 Use the following Python script to convert the file system text to a nested JSON:
 
@@ -86,70 +45,35 @@ with open("fs_alpine.json", "w") as out:
     json.dump({"/": fs}, out, indent=2)
 ```
 
----
+Otherwise, create a file in the container and convert it.
 
-## 📦 Step 5: Save and Use
-
-Save the final JSON as `fs_alpine.json` or `fs_busybox.json`.
-
-Place it inside the correct honeypot config folder:
+Example using a containerized Python environment:
 
 ```bash
-test/honeypots/alpine/fs_alpine.json
-test/honeypots/busybox/fs_busybox.json
+  docker run -v ${PWD}:/data --rm python:alpine python /data/convert_to_json.py
 ```
 
 ---
 
-## 🔄 Step 6: Automatic SQLite Conversion (No need to manually create .db)
+## 💾 Supported Formats:
 
-You only need to create the `.json` file.
+- `.json`: A nested JSON structure representing the fake file system. This is the preferred and editable format.
 
-At runtime, honeypot will:
 
-- Detect that `fs_file` ends with `.json`
-- Automatically convert it into a temporary `.db` file using `sqlite-utils`
-- Load it using `FakeFSDataStore`
+- `.jsonl.gz`: Compressed newline-delimited JSON, used for larger structures and efficient storage.
 
-So you do not need to commit or manage `.db` files in Git.
+---
 
-### 🛠 Script used for JSON ->️ SQLite conversion
+## 📦 Save and Use
 
-Internally, the honeypot runs this script:
+Place the final `.json` or `.jsonl.gz` file in the appropriate honeypot folder, for example:
 
-```python
-# src /infra/json_to_sqlite.py
 
-import json
-import sys
-from pathlib import Path
-import sqlite_utils
-
-fs_json_path, db_path = sys.argv[1], sys.argv[2]
-db = sqlite_utils.Database(db_path)
-
-with open(fs_json_path, "r", encoding="utf-8") as f:
-    fs_data = json.load(f)
-
-records = []
-for path, node in fs_data.items():
-    records.append({
-        "path": path,
-        "parent_path": str(Path(path).parent) if path != "/" else None,
-        "name": Path(path).name,
-        "is_dir": node["type"] == "dir",
-        "permissions": node.get("permissions", "drwxr-xr-x"),
-        "owner": node.get("owner", "root"),
-        "size": node.get("size", 0),
-        "modified_at": None,
-        "content": (
-            json.dumps(node.get("content", {}))
-            if node["type"] == "dir" else node.get("content", "")
-        ),
-    })
-
-db["fs_nodes"].insert_all(records, pk="path", alter=True)
+```bash
+  test/honeypots/alpine/fs_alpine.json
 ```
+
+Update your honeypot config to point to this file via the `fs_file` parameter.
 
 ---
 
@@ -193,4 +117,4 @@ with gzip.open("fs_data.jsonl.gz", "rt") as f:
 
 ---
 
-✅ You’re now ready to use JSON-configured FakeFS with auto-generated SQLite support in your honeypots!
+✅ You're now ready to simulate a real Alpine Linux file system using FakeFS!

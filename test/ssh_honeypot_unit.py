@@ -166,8 +166,6 @@ def test_concurrent_connections(ssh_honeypot):
 
 @pytest.fixture
 def ssh_honeypot_with_fakefs(tmp_path: Path):
-    fs_json = tmp_path / "alpine_fs_small.json"
-    fs_db = tmp_path / "alpine_fs_small.db"
 
     # Write fake FS JSON
     fs_data = {
@@ -183,12 +181,8 @@ def ssh_honeypot_with_fakefs(tmp_path: Path):
             },
         }
     }
-    fs_json.write_text(json.dumps(fs_data))
-
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    json_to_sqlite_script = os.path.join(base_dir, "src/infra/json_to_sqlite.py")
-
-    convert_json_to_sqlite(fs_json, fs_db)
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
 
     data_file = tmp_path / "data.jsonl"
     data_file.touch()
@@ -199,7 +193,7 @@ def ssh_honeypot_with_fakefs(tmp_path: Path):
         "data_file": str(data_file),
         "system_prompt": "You are a Linux emulator",
         "model_id": "test-model",
-        "fs_file": str(fs_db),  # use the converted DB here
+        "fs_file": fs_path,
     }
 
     honeypot = create_honeypot(config)
