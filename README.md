@@ -32,7 +32,6 @@ The honeypot system is built using a modular architecture with the following com
 - **LLM Engine**: Fallback for unknown requests using LLM with system prompts and RAG (Retrieval-Augmented Generation)
 
 ---
-
 ## Dataset
 The dataset is the most critical component in the system. It evolves with usage and is designed for active maintenance and contribution. Each dataset file contains payloads for a specific application and version, where each payload includes:
 
