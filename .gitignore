@@ -28,7 +28,3 @@ uploaded_files/*
 # macOS
 .DS_Store
 test/honeypots/*/data_store.db
-
-host.key
-test_scp.txt
-test/test_scp.txt
