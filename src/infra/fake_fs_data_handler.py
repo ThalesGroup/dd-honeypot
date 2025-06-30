@@ -8,10 +8,10 @@ from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_do
 from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs.fs_utils import create_db_from_jsonl_gz
 from infra.fake_fs_datastore import FakeFSDataStore
-from infra.interfaces import HoneypotSession
+from infra.interfaces import HoneypotSession, HoneypotAction
 
 
-class FakeFSDataHandler(DataHandler):
+class FakeFSDataHandler(HoneypotAction):
     def __init__(self, data_file: str, system_prompt: str, model_id: str, fs_file: str):
         # super().__init__(data_file, system_prompt, model_id)
         self.data_file = Path(data_file)

@@ -26,30 +26,13 @@ This creates a `fs.txt.gz` file containing directory paths.
 
 ## 🔄 Step 2: Convert to `.jsonl.gz`
 
-Use this Python script to convert the extracted text into `.jsonl.gz` format:
+Use the provided script to convert the file system structure to a format consumable by the honeypot:
 
-```python
-import json
-
-fs = {"type": "dir", "content": {}}
-
-with open("fs.txt") as f:
-    for line in f:
-        parts = line.strip("/\n").split("/")
-        node = fs["content"]
-        for part in parts:
-            if part not in node:
-                node[part] = {"type": "dir", "content": {}}
-            node = node[part]["content"]
-
-with open("fs_alpine.json", "w") as out:
-    json.dump({"/": fs}, out, indent=2)
-```
-
-Save this as `convert_fs_to_jsonl.py` and run:
+### 🔄 Convert text → JSONL.GZ:
 
 ```bash
-  python convert_fs_to_jsonl.py
+  docker run -v ${PWD}:/data --rm python:3-alpine \
+  python /data/src/infra/fake_fs/convert_fs_txt_to_jsonl_gz.py /data/fs.txt.gz /data/fs_alpine.jsonl.gz
 ```
 
 ---

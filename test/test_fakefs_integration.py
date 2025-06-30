@@ -18,14 +18,9 @@ def test_real_wget_download(monkeypatch):
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
 
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
-        tmp_db_path = Path(tmpdir) / "fs.db"
-        db = sqlite_utils.Database(str(tmp_db_path))
-        convert_json_to_sqlite(fs_path, db)
-
-        # Step 3: Use real store and FS
-        store = FakeFSDataStore(str(tmp_db_path))
+        store = FakeFSDataStore(fs_path)
         fs = FakeFileSystem(store)
 
         session = {
@@ -46,13 +41,9 @@ def test_real_curl_download(monkeypatch):
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
 
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+        fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
-        tmp_db_path = Path(tmpdir) / "fs.db"
-        db = sqlite_utils.Database(str(tmp_db_path))
-        convert_json_to_sqlite(fs_path, db)
-
-        store = FakeFSDataStore(str(tmp_db_path))
+        store = FakeFSDataStore(fs_path)
         fs = FakeFileSystem(store)
 
         session = {

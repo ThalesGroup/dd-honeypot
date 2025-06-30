@@ -92,6 +92,7 @@ class TelnetHoneypot(BaseHoneypot):
 
     async def run_server(self):
         logger.info(f"Telnet Honeypot started. Port: {self.port}")
+        logging.getLogger("telnetlib3").setLevel(logging.ERROR)
         server = await telnetlib3.create_server(
             host="0.0.0.0", port=self.port, shell=self.shell, encoding="utf8"
         )

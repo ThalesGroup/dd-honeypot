@@ -3,15 +3,17 @@ import json
 import pytest
 
 from infra.fake_fs.commands import handle_cd
-from infra.fake_fs.filesystem import FakeFileSystem
+import json
+
+from src.infra.fake_fs_datastore import FakeFSDataStore
+from src.infra.fake_fs.filesystem import FakeFileSystem
 
 
-# reuse the FS
 @pytest.fixture(scope="module")
 def fake_fs():
-    with open("honeypots/ssh/alpine_fs_small.json") as f:
-        data = json.load(f)
-    return FakeFileSystem.from_json(data)
+    fs_path = "honeypots/dlink_telnet/alpine_fs_small.jsonl.gz"
+    store = FakeFSDataStore(fs_path)
+    return FakeFileSystem(store)
 
 
 def load_cd_test_cases():

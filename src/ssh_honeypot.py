@@ -16,6 +16,14 @@ from infra.interfaces import HoneypotAction  # Define this interface
 from infra.prompt_utils import render_prompt
 
 
+class SuppressEOFErrorFilter(logging.Filter):
+    def filter(self, record):
+        return "EOFError" not in record.getMessage()
+
+
+logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
+
+
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
         self.username = None
