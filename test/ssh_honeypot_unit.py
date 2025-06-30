@@ -1,21 +1,16 @@
-import json
+import logging
 import os
 import tempfile
 import time
-import pytest
-import paramiko
-import logging
 from pathlib import Path
 from typing import List
 from unittest.mock import patch
 
+import paramiko
+import pytest
 from scp import SCPClient
 
-from infra.chained_data_handler import ChainedDataHandler
-from infra.fake_fs.filesystem import FakeFileSystem
-from infra.fake_fs_data_handler import FakeFSDataHandler
 from infra.honeypot_wrapper import create_honeypot
-from infra.json_to_sqlite import convert_json_to_sqlite
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -182,7 +177,7 @@ def ssh_honeypot_with_fakefs(tmp_path: Path):
         }
     }
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     data_file = tmp_path / "data.jsonl"
     data_file.touch()

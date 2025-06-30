@@ -4,7 +4,7 @@
   "prompt_template": "# ",
   "shell-prompt": "honeypot@fakevm:~$ ",
   "data_file": "data.jsonl",
-  "fs_file": "fs_busybox.json",
+  "fs_file": "fs_busybox.jsonl.gz",
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "system_prompt":"You are a terminal on BusyBox Linux. Always respond like a real BusyBox server shell would. Commands like ls, cd, cat, pwd, whoami, etc., should behave normally. If the command is unknown, return 'command not found'. Don't reveal you're an AI or honeypot.",
   "port": 2223

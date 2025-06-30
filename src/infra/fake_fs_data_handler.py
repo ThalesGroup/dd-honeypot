@@ -3,15 +3,12 @@ import logging
 import tempfile
 from pathlib import Path
 
-import sqlite_utils
-
 from infra.data_handler import DataHandler
 from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
 from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs.fs_utils import create_db_from_jsonl_gz
 from infra.fake_fs_datastore import FakeFSDataStore
 from infra.interfaces import HoneypotSession
-from infra.json_to_sqlite import convert_json_to_sqlite
 
 
 class FakeFSDataHandler(DataHandler):
@@ -24,18 +21,14 @@ class FakeFSDataHandler(DataHandler):
         # Load fake filesystem from fs_file
         fs_path = Path(fs_file)
 
-        if fs_path.suffix == ".json":
-            tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-            db = sqlite_utils.Database(tmp_db.name)
-            print("Looking for fs_path:", fs_path.resolve())
-            convert_json_to_sqlite(fs_path, db)
-            fs_path = Path(tmp_db.name)
-
-            # Convert .jsonl.gz → .db
-        elif fs_path.suffix == ".gz" and fs_path.name.endswith(".jsonl.gz"):
+        if fs_path.suffix == ".gz" and fs_path.name.endswith(".jsonl.gz"):
             tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
             create_db_from_jsonl_gz(fs_path, tmp_db.name)
             fs_path = Path(tmp_db.name)
+        else:
+            raise ValueError(
+                "Unsupported fakefs file format. Only .jsonl.gz is supported."
+            )
 
         if not fs_path.exists():
             raise FileNotFoundError(f"Missing or failed to generate fs DB: {fs_file}")

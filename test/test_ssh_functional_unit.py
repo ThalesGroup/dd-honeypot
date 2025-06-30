@@ -1,4 +1,3 @@
-import json
 import os
 import time
 from pathlib import Path
@@ -7,7 +6,6 @@ import paramiko
 import pytest
 
 from infra.honeypot_wrapper import create_honeypot
-from infra.json_to_sqlite import convert_json_to_sqlite
 
 
 @pytest.fixture
@@ -28,7 +26,7 @@ def ssh_honeypot(tmp_path: Path):
         }
     }
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     data_file = tmp_path / "data.jsonl"
     data_file.touch()

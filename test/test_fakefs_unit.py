@@ -11,9 +11,9 @@ from infra.fake_fs_data_handler import FakeFSDataHandler
 @pytest.mark.parametrize(
     "fs_path",
     [
-        "test/honeypots/alpine/fs_alpine.json",
-        "test/honeypots/busybox/fs_busybox.json",
-        "test/honeypots/dlink_telnet/alpine_fs_small.json",
+        "test/honeypots/alpine/fs_alpine.jsonl.gz",
+        "test/honeypots/busybox/fs_busybox.jsonl.gz",
+        "test/honeypots/dlink_telnet/alpine_fs_small.jsonl.gz",
     ],
 )
 def test_basic_ls_and_cd(fs_path):
@@ -40,7 +40,7 @@ def test_basic_ls_and_cd(fs_path):
 
 def test_basic_ls_from_root():
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
@@ -61,7 +61,7 @@ def test_basic_ls_from_root():
 
 def test_mkdir_creates_directory(tmp_path):
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
@@ -81,7 +81,7 @@ def test_mkdir_creates_directory(tmp_path):
 
 def test_ls_long_format(tmp_path):
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
@@ -100,7 +100,7 @@ def test_handle_wget_creates_file(tmp_path, monkeypatch):
         monkeypatch.setenv("HONEYPOT_DOWNLOAD_DIR", tmpdir)
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
@@ -138,7 +138,7 @@ def test_fakefs_query_fallback(tmp_path):
     )
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file=str(data_file),
@@ -155,7 +155,7 @@ def test_fakefs_query_fallback(tmp_path):
 
 def test_fakefs_unknown_command(tmp_path):
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
@@ -175,7 +175,7 @@ def test_fakefs_invalid_json_line(tmp_path):
     data_file.write_text('invalid-line\n{"input": "uptime", "response": "up 5 days"}\n')
 
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.json")
+    fs_path = os.path.join(base_dir, "test/honeypots/alpine/fs_alpine.jsonl.gz")
 
     handler = FakeFSDataHandler(
         data_file=str(data_file),

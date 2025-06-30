@@ -1,13 +1,34 @@
+import gzip
+import json
 import sqlite3
 import os
 import time
 from typing import Optional, List
 
+import sqlite_utils
+
 
 class FakeFSDataStore:
-    def __init__(self, db_path: str):
-        self.db_path = db_path
+    def __init__(self, fs_path: str):
+        self.is_jsonl_gz = fs_path.endswith(".jsonl.gz")
+        self.db_path = (
+            fs_path.replace(".jsonl.gz", ".db") if self.is_jsonl_gz else fs_path
+        )
+
+        if self.is_jsonl_gz and not os.path.exists(self.db_path):
+            self._load_jsonl_gz(fs_path, self.db_path)
+
         self._init_db()
+
+    def _load_jsonl_gz(self, jsonl_gz_path, db_path):
+        print(
+            f"[FakeFSDataStore] Loading JSONL.GZ → SQLite: {jsonl_gz_path} → {db_path}"
+        )
+        with gzip.open(jsonl_gz_path, "rt") as f:
+            db = sqlite_utils.Database(db_path)
+            db["fs_nodes"].insert_all(
+                (json.loads(line) for line in f), batch_size=1000, alter=True
+            )
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:

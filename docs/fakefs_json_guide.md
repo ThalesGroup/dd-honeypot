@@ -6,12 +6,13 @@ This guide shows how to extract a container’s file system and convert it into 
 
 ## 🔧 Requirements
 
-- Docker installed
-- Python 3
+- Docker installed and running  
+- Basic knowledge of shell commands
+- Python 3.x
 
 ---
 
-## 📁 Step 1: Extract File System Structure
+## 📁 Step 1: Run the Docker Container and Extract File System Structure
 
 Use Docker to extract the directory tree and save it compressed:
 
@@ -28,11 +29,21 @@ This creates a `fs.txt.gz` file containing directory paths.
 Use this Python script to convert the extracted text into `.jsonl.gz` format:
 
 ```python
-import gzip, json
+import json
 
-with gzip.open("fs.txt.gz", "rt") as f_in, gzip.open("fs.jsonl.gz", "wt") as f_out:
-    for line in f_in:
-        f_out.write(json.dumps({"path": line.strip()}) + "\n")
+fs = {"type": "dir", "content": {}}
+
+with open("fs.txt") as f:
+    for line in f:
+        parts = line.strip("/\n").split("/")
+        node = fs["content"]
+        for part in parts:
+            if part not in node:
+                node[part] = {"type": "dir", "content": {}}
+            node = node[part]["content"]
+
+with open("fs_alpine.json", "w") as out:
+    json.dump({"/": fs}, out, indent=2)
 ```
 
 Save this as `convert_fs_to_jsonl.py` and run:

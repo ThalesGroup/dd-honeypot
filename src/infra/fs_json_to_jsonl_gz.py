@@ -33,10 +33,23 @@ def convert(json_path: str, out_path: str):
     nodes = flatten_tree(tree)
 
     with gzip.open(out_path, "wt") as f:
+        root_node = {
+            "path": "/",
+            "parent_path": None,
+            "name": "/",
+            "is_dir": True,
+            "permissions": "drwxr-xr-x",
+            "owner": "root",
+            "size": 0,
+            "modified_at": None,
+            "content": None,
+        }
+        f.write(json.dumps(root_node) + "\n")
+
         for node in nodes:
             f.write(json.dumps(node) + "\n")
 
-    print(f"✅ Converted {json_path} → {out_path} with {len(nodes)} entries")
+    print(f"✅ Converted {json_path} → {out_path} with {len(nodes) + 1} entries")
 
 
 if __name__ == "__main__":
