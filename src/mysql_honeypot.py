@@ -105,6 +105,14 @@ class MySQLHoneypot(BaseHoneypot):
                 val = query[len("select '") : -1]
                 return [(val,)], [val]
 
+            if query.upper().startswith("SET NAMES"):
+                parts = query.split()
+                if len(parts) >= 3:
+                    charset = parts[2].lower()
+                    if charset not in {"utf8", "utf8mb4", "latin1"}:
+                        logger.warning(f"Unsupported charset received: {charset}")
+                        return [], []  # Or raise a simulated MySQL error if desired
+
             # Handle session variable operations
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
