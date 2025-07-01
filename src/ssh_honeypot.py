@@ -12,7 +12,7 @@ from paramiko import Transport
 from paramiko.ssh_exception import SSHException
 
 from base_honeypot import BaseHoneypot
-from infra.interfaces import HoneypotAction  # Define this interface
+from infra.interfaces import HoneypotAction
 from infra.prompt_utils import render_prompt
 
 

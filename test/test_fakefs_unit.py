@@ -20,8 +20,6 @@ def test_basic_ls_and_cd(fs_path):
     fs_path = str(Path(__file__).parent.parent / fs_path)
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="You are a terminal",
-        model_id="test-model",
         fs_file=fs_path,
     )
     session = handler.connect({})
@@ -44,8 +42,6 @@ def test_basic_ls_from_root():
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -65,8 +61,6 @@ def test_mkdir_creates_directory(tmp_path):
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -85,8 +79,6 @@ def test_ls_long_format(tmp_path):
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -104,8 +96,6 @@ def test_handle_wget_creates_file(tmp_path, monkeypatch):
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -142,8 +132,6 @@ def test_fakefs_query_fallback(tmp_path):
 
     handler = FakeFSDataHandler(
         data_file=str(data_file),
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -159,8 +147,6 @@ def test_fakefs_unknown_command(tmp_path):
 
     handler = FakeFSDataHandler(
         data_file="test/honeypots/test_responses.jsonl",
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 
@@ -179,8 +165,6 @@ def test_fakefs_invalid_json_line(tmp_path):
 
     handler = FakeFSDataHandler(
         data_file=str(data_file),
-        system_prompt="irrelevant",
-        model_id="irrelevant",
         fs_file=fs_path,
     )
 

@@ -11,13 +11,13 @@ def handle_ls(session: dict, flags: str = "") -> str:
     logging.info(f"[handle_ls] Resolving path: {cwd}")
 
     node = fs.resolve_path(cwd, "/")
-    logging.info(f"[handle_ls] Node resolved: {node}")
+    logging.info(f"[handle_ls] Node resolved: path={node['path']} name={node['name']}")
 
     if not node or not node["is_dir"]:
         return f"ls: cannot access '{cwd}': No such directory"
 
     children = fs.list_children(cwd)
-    logging.info(f"[handle_ls] Children: {children}")
+    logging.info(f"[handle_ls] {len(children)} children found under {node['path']}")
 
     return "  ".join(sorted(child["name"] for child in children))
 

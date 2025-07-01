@@ -25,8 +25,6 @@ def build_data_handler(config: dict, log_callback=None):
     if fs_file:
         fakefs_handler = FakeFSDataHandler(
             data_file=data_file,
-            system_prompt=system_prompt,
-            model_id=model_id,
             fs_file=fs_file,
         )
         llm_handler = DataHandler(

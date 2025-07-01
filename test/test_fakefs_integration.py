@@ -1,16 +1,9 @@
-import json
 import os
-from pathlib import Path
-
-import sqlite_utils
-
-from infra.fake_fs.filesystem import FileSystemNode, FakeFileSystem
-from infra.fake_fs.commands import handle_download
-
 import tempfile
 
+from infra.fake_fs.commands import handle_download
+from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs_datastore import FakeFSDataStore
-from infra.json_to_sqlite import convert_json_to_sqlite
 
 
 def test_real_wget_download(monkeypatch):

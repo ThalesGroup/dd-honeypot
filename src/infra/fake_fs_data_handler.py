@@ -3,7 +3,6 @@ import logging
 import tempfile
 from pathlib import Path
 
-from infra.data_handler import DataHandler
 from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
 from infra.fake_fs.filesystem import FakeFileSystem
 from infra.fake_fs.fs_utils import create_db_from_jsonl_gz
@@ -12,11 +11,8 @@ from infra.interfaces import HoneypotSession, HoneypotAction
 
 
 class FakeFSDataHandler(HoneypotAction):
-    def __init__(self, data_file: str, system_prompt: str, model_id: str, fs_file: str):
-        # super().__init__(data_file, system_prompt, model_id)
-        self.data_file = Path(data_file)
-        self.system_prompt = system_prompt
-        self.model_id = model_id
+    def __init__(self, data_file: str, fs_file: str):
+        self._data_file = Path(data_file)
 
         # Load fake filesystem from fs_file
         fs_path = Path(fs_file)
@@ -72,7 +68,7 @@ class FakeFSDataHandler(HoneypotAction):
 
     def query_from_file(self, input_str: str) -> str:
         try:
-            with self.data_file.open("r") as f:
+            with self._data_file.open("r") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
@@ -81,5 +77,5 @@ class FakeFSDataHandler(HoneypotAction):
                     except json.JSONDecodeError:
                         continue
         except FileNotFoundError:
-            logging.warning(f"Data file not found: {self.data_file}")
+            logging.warning(f"Data file not found: {self._data_file}")
         return "Command not found\n"
