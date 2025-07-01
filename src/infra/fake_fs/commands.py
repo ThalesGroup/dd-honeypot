@@ -4,10 +4,10 @@ from datetime import datetime
 
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
-import datetime
-
 
 def format_ls_l(entry: dict) -> str:
+    import datetime
+
     permissions = entry.get("permissions", "drwxr-xr-x")
     links = 1
     owner = entry.get("owner", "root")
