@@ -4,6 +4,26 @@ from datetime import datetime
 
 from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
 
+import datetime
+
+
+def format_ls_l(entry: dict) -> str:
+    permissions = entry.get("permissions", "drwxr-xr-x")
+    links = 1
+    owner = entry.get("owner", "root")
+    group = "root"
+    size = entry.get("size", 0)
+
+    try:
+        dt = datetime.datetime.fromisoformat(entry["modified_at"])
+    except Exception:
+        dt = datetime.datetime(2024, 9, 26)
+
+    date_str = dt.strftime("%b %d %Y")
+    name = entry["name"]
+
+    return f"{permissions} {links:>2} {owner:<8} {group:<8} {size:>6} {date_str} {name}"
+
 
 def handle_ls(session: dict, flags: str = "") -> str:
     fs: FakeFileSystem = session["fs"]
@@ -19,7 +39,16 @@ def handle_ls(session: dict, flags: str = "") -> str:
     children = fs.list_children(cwd)
     logging.info(f"[handle_ls] {len(children)} children found under {node['path']}")
 
-    return "  ".join(sorted(child["name"] for child in children))
+    if "-l" in flags:
+        return (
+            "\r\n".join(
+                format_ls_l(child)
+                for child in sorted(children, key=lambda c: c["name"])
+            )
+            + "\r\n"
+        )
+    else:
+        return "  ".join(sorted(child["name"] for child in children)) + "\r\n"
 
 
 def handle_cd(session: dict, path: str) -> str:

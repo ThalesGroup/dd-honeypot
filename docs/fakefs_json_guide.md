@@ -26,6 +26,8 @@ This creates a `fs.txt.gz` file containing directory paths.
 
 Use the provided script to convert the file system structure to a format consumable by the honeypot:
 
+❗️**Script has to be in the current dir to run the docker commands**
+
 ### 🔄 Convert text → JSONL.GZ:
 
 ```bash
