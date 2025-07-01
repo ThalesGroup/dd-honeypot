@@ -6,9 +6,7 @@ This guide shows how to extract a container’s file system and convert it into 
 
 ## 🔧 Requirements
 
-- Docker installed and running  
-- Basic knowledge of shell commands
-- Python 3.x
+- Docker installed and running
 
 ---
 
