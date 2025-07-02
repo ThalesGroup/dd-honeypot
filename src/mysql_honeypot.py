@@ -109,14 +109,26 @@ class MySQLHoneypot(BaseHoneypot):
                 parts = query.split()
                 if len(parts) >= 3:
                     charset = parts[2].lower()
-                    if charset not in {"utf8", "utf8mb4", "latin1"}:
+                    if charset in {"utf8mb3", "utf8", "utf8mb4", "latin1"}:
+                        logger.debug(f"Ignoring SET NAMES for known charset: {charset}")
+                        return [], []
+                    else:
                         logger.warning(f"Unsupported charset received: {charset}")
-                        return [], []  # Or raise a simulated MySQL error if desired
+                        return [], []
 
             # Handle session variable operations
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
                 return var_result
+
+            # Handle built-in MySQL functions like DATABASE() safely
+            upper_query = query.upper()
+            if upper_query in {
+                "SELECT DATABASE()",
+                "SELECT CURRENT_SCHEMA()",
+                "SELECT SCHEMA()",
+            }:
+                return [("test",)], ["DATABASE()"]
 
             # Try default MySQL mimic first
             result = await super().handle_query(sql, attrs)
