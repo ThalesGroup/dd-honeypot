@@ -95,34 +95,25 @@ class MySQLHoneypot(BaseHoneypot):
                 self._log_data(self._honeypot_session, {"query": sql})
 
             query = sql.strip().rstrip(";")
+            upper_query = query.upper()
 
-            # Handle SELECT of a single quoted string (e.g., SELECT '$$')
-            if (
-                query.lower().startswith("select '")
-                and query.endswith("'")
-                and query.count("'") == 2
-            ):
-                val = query[len("select '") : -1]
-                return [(val,)], [val]
-
-            if query.upper().startswith("SET NAMES"):
+            # Handle SET NAMES
+            if upper_query.startswith("SET NAMES"):
                 parts = query.split()
                 if len(parts) >= 3:
                     charset = parts[2].lower()
                     if charset in {"utf8mb3", "utf8", "utf8mb4", "latin1"}:
                         logger.debug(f"Ignoring SET NAMES for known charset: {charset}")
-                        return [], []
                     else:
                         logger.warning(f"Unsupported charset received: {charset}")
-                        return [], []
+                return [], []
 
             # Handle session variable operations
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
                 return var_result
 
-            # Handle built-in MySQL functions like DATABASE() safely
-            upper_query = query.upper()
+            # Handle built-in MySQL functions
             if upper_query in {
                 "SELECT DATABASE()",
                 "SELECT CURRENT_SCHEMA()",
@@ -131,15 +122,17 @@ class MySQLHoneypot(BaseHoneypot):
                 return [("test",)], ["DATABASE()"]
 
             # Try default MySQL mimic first
-            result = await super().handle_query(sql, attrs)
-            if result and result[0]:
-                return result
+            try:
+                result = await super().handle_query(sql, attrs)
+                if result and result[0]:
+                    return result
+            except Exception as e:
+                logger.debug(f"super().handle_query() failed for query={sql}: {e}")
 
             # LLM fallback
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
-            response = self._action.query(sql, context, **attrs)
-
             try:
+                response = self._action.query(sql, context, **attrs)
                 parsed = json.loads(response)
                 if isinstance(parsed, list) and parsed:
                     return [tuple(row.values()) for row in parsed], list(
@@ -147,6 +140,7 @@ class MySQLHoneypot(BaseHoneypot):
                     )
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
+                logger.debug(f"LLM raw response: {response}")
 
             return [], []
 
