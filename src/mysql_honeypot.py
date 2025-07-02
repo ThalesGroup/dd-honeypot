@@ -18,6 +18,7 @@ from mysql_mimic.connection import Connection
 from mysql_mimic.stream import ConnectionClosed
 from mysql_mimic.variables import Variables
 from mysql_mimic.session import AllowedResult
+from mysql_mimic.errors import MysqlError  # Add this at the top if not already
 
 from base_honeypot import BaseHoneypot
 from honeypot_utils import wait_for_port
@@ -34,6 +35,8 @@ def patch_client_connected_cb_to_avoid_log_errors():
             await orig_cb(self, reader, writer)
         except (ConnectionClosed, ConnectionResetError):
             logger.info("Client disconnected cleanly")
+        except MysqlError as e:
+            logger.warning(f"MySQL protocol error: {e}")
         except Exception as e:
             logger.error("Unhandled exception in client_connected_cb", exc_info=True)
 
@@ -95,8 +98,9 @@ class MySQLHoneypot(BaseHoneypot):
                 self._log_data(self._honeypot_session, {"query": sql})
 
             query = sql.strip().rstrip(";")
+            upper_query = query.upper()
 
-            # Handle SELECT of a single quoted string (e.g., SELECT '$$')
+            # SELECT 'literal'
             if (
                 query.lower().startswith("select '")
                 and query.endswith("'")
@@ -105,24 +109,21 @@ class MySQLHoneypot(BaseHoneypot):
                 val = query[len("select '") : -1]
                 return [(val,)], [val]
 
-            if query.upper().startswith("SET NAMES"):
-                parts = query.split()
-                if len(parts) >= 3:
-                    charset = parts[2].lower()
-                    if charset in {"utf8mb3", "utf8", "utf8mb4", "latin1"}:
-                        logger.debug(f"Ignoring SET NAMES for known charset: {charset}")
-                        return [], []
-                    else:
-                        logger.warning(f"Unsupported charset received: {charset}")
-                        return [], []
+            # SET NAMES charset
+            if upper_query.startswith("SET NAMES"):
+                charset = query.split()[2].lower() if len(query.split()) >= 3 else ""
+                if charset in {"utf8mb3", "utf8", "utf8mb4", "latin1"}:
+                    logger.debug(f"Ignoring SET NAMES for known charset: {charset}")
+                else:
+                    logger.warning(f"Unsupported charset received: {charset}")
+                return [], []
 
-            # Handle session variable operations
-            var_result = self._handle_session_variable(query, sql)
-            if var_result is not None:
-                return var_result
+            # Session variable operations
+            result = self._handle_session_variable(query, sql)
+            if result is not None:
+                return result
 
-            # Handle built-in MySQL functions like DATABASE() safely
-            upper_query = query.upper()
+            # Schema-related functions
             if upper_query in {
                 "SELECT DATABASE()",
                 "SELECT CURRENT_SCHEMA()",
@@ -130,21 +131,26 @@ class MySQLHoneypot(BaseHoneypot):
             }:
                 return [("test",)], ["DATABASE()"]
 
-            # Try default MySQL mimic first
+            # Handle expected seq or error 1835 safely
+            if "1835" in query or "EXPECTED SEQ" in upper_query:
+                logger.info("Simulating safe response for error-prone sequence query")
+                return [], []
+
+            # Try mimic handler first
             result = await super().handle_query(sql, attrs)
             if result and result[0]:
                 return result
 
-            # LLM fallback
+            # Fallback to LLM
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             response = self._action.query(sql, context, **attrs)
 
             try:
                 parsed = json.loads(response)
                 if isinstance(parsed, list) and parsed:
-                    return [tuple(row.values()) for row in parsed], list(
-                        parsed[0].keys()
-                    )
+                    columns = list(parsed[0].keys())
+                    rows = [tuple(row.get(col) for col in columns) for row in parsed]
+                    return rows, columns
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
 
