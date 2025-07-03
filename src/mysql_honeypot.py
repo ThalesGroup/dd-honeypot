@@ -90,38 +90,20 @@ class MySQLHoneypot(BaseHoneypot):
                 )
             return await super().init(connection)
 
-        async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
+        def _log_query(self, sql: str):
             if self._log_data:
                 self._log_data(self._honeypot_session, {"query": sql})
 
+        async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
+            self._log_query(sql)
             query = sql.strip().rstrip(";")
-            upper_query = query.upper()
 
-            # Handle SET NAMES
-            if upper_query.startswith("SET NAMES"):
-                parts = query.split()
-                if len(parts) >= 3:
-                    charset = parts[2].lower()
-                    if charset in {"utf8mb3", "utf8", "utf8mb4", "latin1"}:
-                        logger.debug(f"Ignoring SET NAMES for known charset: {charset}")
-                    else:
-                        logger.warning(f"Unsupported charset received: {charset}")
-                return [], []
-
-            # Handle session variable operations
+            # Session variable operations
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
                 return var_result
 
-            # Handle built-in MySQL functions
-            if upper_query in {
-                "SELECT DATABASE()",
-                "SELECT CURRENT_SCHEMA()",
-                "SELECT SCHEMA()",
-            }:
-                return [("test",)], ["DATABASE()"]
-
-            # Try default MySQL mimic first
+            # Default mysql_mimic handler
             try:
                 result = await super().handle_query(sql, attrs)
                 if result and result[0]:
@@ -129,7 +111,7 @@ class MySQLHoneypot(BaseHoneypot):
             except Exception as e:
                 logger.debug(f"super().handle_query() failed for query={sql}: {e}")
 
-            # LLM fallback
+            # Fallback to LLM
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             try:
                 response = self._action.query(sql, context, **attrs)
@@ -150,6 +132,7 @@ class MySQLHoneypot(BaseHoneypot):
             try:
                 cmd, _, rest = query.partition(" ")
                 if cmd.lower() == "set" and rest.startswith("@"):
+                    self._log_query(raw_sql)
                     var, val = map(str.strip, rest.split("=", 1))
                     val = {"null": None, "true": True, "false": False}.get(
                         val.lower(), val
@@ -161,7 +144,9 @@ class MySQLHoneypot(BaseHoneypot):
                             val = val.strip("'\"")
                     self._session_data.setdefault("vars", {})[var.lstrip("@")] = val
                     return [], []
+
                 if cmd.lower() == "select" and rest.startswith("@"):
+                    self._log_query(raw_sql)
                     name = rest.strip().lstrip("@")
                     val = self._session_data.get("vars", {}).get(name)
                     return [
