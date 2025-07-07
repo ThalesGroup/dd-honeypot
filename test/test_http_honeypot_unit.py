@@ -141,7 +141,8 @@ def test_http_honeypot_main(monkeypatch):
         try:
             assert wait_for_server(port)
             monkeypatch.setattr(
-                "infra.data_handler.invoke_llm", lambda *a, **kw: "mocked response"
+                "infra.data_handler.DataHandler.query",
+                lambda *a, **kw: "mocked response",
             )
             response = requests.get(
                 f"http://0.0.0.0:{port}/some_path", headers={"Accept": "text/html"}

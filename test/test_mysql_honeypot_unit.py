@@ -49,7 +49,7 @@ def test_mysql_honeypot_main(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
         monkeypatch.setattr(
-            "infra.data_handler.invoke_llm",
+            "infra.data_handler.DataHandler.query",
             lambda *a, **kw: '[{"user": "root", "host": "host1"}]',
         )
         with pymysql.connect(
@@ -110,7 +110,7 @@ def test_show_variables(monkeypatch, mysql_cnn):
 
 def test_mysql_fallback_multiple_rows(monkeypatch, mysql_cnn):
     monkeypatch.setattr(
-        "infra.data_handler.invoke_llm",
+        "infra.data_handler.DataHandler.query",
         lambda *_args, **_kwargs: json.dumps(
             [
                 {"id": 1, "name": "user_a"},
