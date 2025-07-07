@@ -49,7 +49,7 @@ def send_pg_startup_message(sock):
     params = b"user\x00postgres\x00database\x00postgres\x00\x00"
     length = len(params) + 4 + 4
     message = struct.pack("!I", length)
-    message += struct.pack("!I", 196608)  # protocol version 3.0
+    message += struct.pack("!I", 196608)
     message += params
     sock.sendall(message)
 
