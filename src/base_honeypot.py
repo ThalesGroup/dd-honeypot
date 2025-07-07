@@ -3,9 +3,12 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from honeypot_utils import allocate_port
+
+if TYPE_CHECKING:
+    from infra.interfaces import HoneypotAction
 
 
 class HoneypotSession(dict):
@@ -16,6 +19,7 @@ class HoneypotSession(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.active_honeypot: Optional[str] = None
         if "session_id" not in self:
             self["session_id"] = str(uuid.uuid4())
 
@@ -31,6 +35,14 @@ class BaseHoneypot(ABC):
         self._action = None
         self.__port = port if port else allocate_port()
         self.__config = config
+
+    @property
+    def action(self) -> "HoneypotAction":
+        return self._action
+
+    @action.setter
+    def action(self, value: "HoneypotAction"):
+        self._action = value
 
     @property
     def port(self):

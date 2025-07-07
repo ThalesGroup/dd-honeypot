@@ -146,10 +146,11 @@ class SSHServerInterface(paramiko.ServerInterface):
             return True
 
         self.honeypot.log_data(self.session, {"method": "exec", "command": command_str})
-        response = self.action.query(command_str, self.session)
+        result = self.action.query(command_str, self.session)
+        output = result["output"] if isinstance(result, dict) else str(result)
 
         try:
-            channel.sendall((response.strip() + "\n").encode())
+            channel.sendall((output.strip() + "\n").encode())
             channel.send_exit_status(0)
             channel.shutdown_write()
             return True

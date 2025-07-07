@@ -10,6 +10,7 @@ from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
 from infra.fake_fs_data_handler import FakeFSDataHandler
+from infra.session_router import SessionRouter
 from sql_data_handler import SqlDataHandler
 from telnet_honeypot import TelnetHoneypot
 
@@ -77,6 +78,24 @@ def create_honeypot(config: dict) -> BaseHoneypot:
             action.log_callback = honeypot.log_data
         return honeypot
 
+    if honeypot_type == "multi":
+        # recursively load all sub-honeypots
+        honeypots = {}
+        for name, sub_config in config["honeypots"].items():
+            sub_config["data_file"] = sub_config["data_file"]
+            sub_honeypot = create_honeypot(sub_config)
+            honeypots[name] = sub_honeypot.action  # only the action
+
+        from infra.chain_honeypot_action import MultiHoneypotAction
+
+        action = MultiHoneypotAction(honeypots=honeypots, default=config["default"])
+
+        # pick a base honeypot to handle port + config
+        base = create_honeypot(config["honeypots"][config["default"]])
+        base._action = action  # set the action on the base (internal protected use)
+
+        return base
+
     elif honeypot_type == "alpine":
         from ssh_honeypot import SSHHoneypot
 
@@ -113,10 +132,6 @@ def create_honeypot(config: dict) -> BaseHoneypot:
 
 
 def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
-    """
-    Load honeypot configuration and data from a folder.
-    Assumes folder contains config.json and data.jsonl
-    """
     config_path = os.path.join(folder_path, "config.json")
     data_file_path = os.path.join(folder_path, "data.jsonl")
 
@@ -126,6 +141,38 @@ def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
     with open(config_path) as f:
         config = json.load(f)
 
+    # handling for multi-honeypot folders
+    if config.get("type") == "multi":
+        honeypots = {}
+
+        for name, sub_config in config["honeypots"].items():
+            if isinstance(sub_config, str):
+                # Sub-path relative to main folder
+                full_path = os.path.join(folder_path, sub_config)
+                honeypot = create_honeypot_by_folder(full_path)
+            elif isinstance(sub_config, dict):
+                # Direct inline config
+                sub_config["data_file"] = os.path.join(
+                    folder_path, sub_config["data_file"]
+                )
+                if "fs_file" in sub_config:
+                    sub_config["fs_file"] = os.path.join(
+                        folder_path, sub_config["fs_file"]
+                    )
+                honeypot = create_honeypot(sub_config)
+            else:
+                raise ValueError(f"Invalid honeypot config for: {name}")
+
+            honeypots[name] = honeypot
+
+        default = config.get("default") or list(honeypots.keys())[0]
+        router = SessionRouter(honeypots, default)
+
+        base = honeypots[default]
+        base.action = router  # Inject session router
+        return base
+
+    # Standard (non-multi)
     if "fs_file" in config:
         fs_file_candidate = os.path.join(
             folder_path, os.path.basename(config["fs_file"])

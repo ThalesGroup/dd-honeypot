@@ -21,7 +21,7 @@ def data_handler():
 def test_llm_response_when_not_cached(mock_llm, data_handler):
     user_input = "whoami"
     response = data_handler.query(user_input, session=data_handler.connect({}))
-    assert response == "Mocked LLM response"
+    assert response["output"] == "Mocked LLM response"
     assert mock_llm.called
 
 
@@ -36,7 +36,7 @@ def test_returns_cached_response_first(mock_llm):
     handler = DataHandler(data_file, "system", "model")
     response = handler.query("ls", session=handler.connect({}))
 
-    assert response == "file1.txt\n"
+    assert response["output"] == "file1.txt\n"
     mock_llm.assert_not_called()
 
 
@@ -46,12 +46,12 @@ def test_memory_cache_is_used(mock_llm, data_handler):
 
     # First call - triggers LLM
     response1 = data_handler.query(cmd, session=data_handler.connect({}))
-    assert response1 == "Cached LLM response"
+    assert response1["output"] == "Cached LLM response"
     assert mock_llm.call_count == 1
 
     # Second call - uses memory cache
     response2 = data_handler.query(cmd, session=data_handler.connect({}))
-    assert response2 == "Cached LLM response"
+    assert response2["output"] == "Cached LLM response"
     assert mock_llm.call_count == 1  # Should not call again
 
 
@@ -60,7 +60,7 @@ def test_mysql_llm_response_when_not_cached(mock_llm, data_handler):
     query = "SELECT * FROM users"
     response = data_handler.query(query, session=data_handler.connect({}))
 
-    assert response == "Mocked LLM response for MySQL"
+    assert response["output"] == "Mocked LLM response for MySQL"
     assert mock_llm.called
 
 
@@ -76,7 +76,7 @@ def test_mysql_returns_file_cache(mock_llm):
     handler = DataHandler(data_file, "mysql sys", "mysql_model")
     response = handler.query("SHOW TABLES", session=handler.connect({}))
 
-    assert response == "users\norders\n"
+    assert response["output"] == "users\norders\n"
     mock_llm.assert_not_called()
 
 
@@ -86,7 +86,7 @@ def test_http_llm_response_when_not_cached(mock_llm, data_handler):
     http_request = "GET /admin?user=root"
     response = data_handler.query(http_request, session=data_handler.connect({}))
 
-    assert response == "Mocked LLM response for HTTP"
+    assert response["output"] == "Mocked LLM response for HTTP"
     assert mock_llm.called
 
 
@@ -102,5 +102,5 @@ def test_http_returns_file_cache(mock_llm):
     handler = DataHandler(data_file, "http sys", "http_model")
     response = handler.query("GET /status", session=handler.connect({}))
 
-    assert response == '{"status":"ok"}'
+    assert response["output"] == '{"status":"ok"}'
     mock_llm.assert_not_called()

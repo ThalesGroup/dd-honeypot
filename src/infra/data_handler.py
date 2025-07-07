@@ -58,7 +58,7 @@ class DataHandler(HoneypotAction):
         else:
             return False, "Internal error. Please try again later."
 
-    def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
+    def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
         return self.request({"command": query}, session, **kwargs)
 
     # noinspection PyPackageRequirements,PyMethodMayBeStatic
@@ -74,12 +74,14 @@ class DataHandler(HoneypotAction):
                 return entry["content"]
         return None
 
-    def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
+    def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
         result = self._data_store.search(info)
         if result:
             logging.info(f"DataHandler.request: Found cached response for {info}")
-            return result
+            return {"output": result}
+
         invoked, response = self.invoke_llm_with_limit(self.request_user_prompt(info))
         if invoked:
+            # Always store raw string
             self._data_store.store(info, response)
-        return response
+        return {"output": response}
