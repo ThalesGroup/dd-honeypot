@@ -1,42 +1,47 @@
 import socket
 import threading
 import logging
-from typing import Tuple
+from typing import Tuple, Dict, Optional
+from base_honeypot import BaseHoneypot  # ✅ Must exist
 
 logging.basicConfig(level=logging.INFO)
 
 
-class PostgresHoneypot:
-    def __init__(self, host="127.0.0.1", port=0):
+class PostgresHoneypot(BaseHoneypot):
+    def __init__(self, host="127.0.0.1", port=0, config=None):
+        super().__init__(config or {})
         self.host = host
-        self.port = port
+        self.listen_port = port  # ✅ renamed to avoid conflict with `BaseHoneypot.port`
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sessions: Dict[Tuple[str, int], Dict] = {}
 
     def start(self):
-        self.server_socket.bind((self.host, self.port))
+        self.server_socket.bind((self.host, self.listen_port))
         self.server_socket.listen()
-        self.bound_port = self.server_socket.getsockname()[
-            1
-        ]  #  Dynamic port after bind
+        self.bound_port = self.server_socket.getsockname()[1]
         self.running = True
-        logging.info(
-            f"PostgresHoneypot running on {self.host}:{self.bound_port}"
-        )  #  Use actual port
+        logging.info(f"PostgresHoneypot running on {self.host}:{self.bound_port}")
         threading.Thread(target=self._accept_loop, daemon=True).start()
+
+    def stop(self):
+        self.running = False
+        self.server_socket.close()
+        logging.info("PostgresHoneypot stopped")
 
     def _accept_loop(self):
         while self.running:
             try:
                 client_socket, addr = self.server_socket.accept()
                 logging.info(f"Connection from {addr}")
+                self.sessions[addr] = {"addr": addr}
                 threading.Thread(
-                    target=self._handle_client, args=(client_socket,), daemon=True
+                    target=self._handle_client, args=(client_socket, addr), daemon=True
                 ).start()
             except Exception as e:
                 logging.warning(f"Accept failed: {e}")
 
-    def _handle_client(self, client_socket: socket.socket):
+    def _handle_client(self, client_socket: socket.socket, addr: Tuple[str, int]):
         try:
             data = client_socket.recv(1024)
             if data:
@@ -44,26 +49,30 @@ class PostgresHoneypot:
                 query = self._extract_query(data)
                 logging.info(f"Simulated SQL: {query}")
 
-                # Always return a fake response
-                fake_response = self._build_fake_row("hello_from_fake_pg")
-                client_socket.sendall(fake_response)
+                session = self.sessions.get(addr, {})
+
+                if self.log_data:
+                    self.log_data(session, {"query": query})
+
+                if self.action:
+                    try:
+                        self.action.connect({"client": addr})
+                        response = self.action.query(query, session=session)
+                        logging.info(f"LLM response: {response}")
+                    except Exception as e:
+                        logging.warning(f"Action handler failed: {e}")
+
+                client_socket.sendall(self._build_fake_row("hello_from_fake_pg"))
         except Exception as e:
             logging.warning(f"Client error: {e}")
         finally:
             client_socket.close()
 
     def _extract_query(self, data: bytes) -> str:
-        # Very basic simulation for demo purposes only (not real protocol parsing)
         try:
             return data.decode("utf-8", errors="ignore")
         except Exception:
             return "<unreadable query>"
 
     def _build_fake_row(self, value: str) -> bytes:
-        # Not a real Postgres protocol response — just enough to fake psycopg2
-        return b"Z"  # Dummy 'ReadyForQuery' message (Z)
-
-    def stop(self):
-        self.running = False
-        self.server_socket.close()
-        logging.info("PostgresHoneypot stopped")
+        return b"Z"

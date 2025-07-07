@@ -1,3 +1,4 @@
+import pathlib
 import socket
 import struct
 import time
@@ -14,6 +15,8 @@ from infra.chain_honeypot_action import ChainedHoneypotAction
 @pytest.fixture(scope="session")
 def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
+    pathlib.Path("honeypots/postgres").mkdir(parents=True, exist_ok=True)
 
     action = ChainedHoneypotAction(
         DataHandler(
