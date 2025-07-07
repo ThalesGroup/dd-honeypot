@@ -66,7 +66,7 @@ def test_tcp_honeypot(tcp_honeypot):
 def test_tcp_honeypot_main(monkeypatch):
     with get_honeypot_main(monkeypatch, {"type": "tcp"}) as port:
         monkeypatch.setattr(
-            "infra.data_handler.invoke_llm", lambda *a, **kw: "mocked response"
+            "infra.data_handler.DataHandler.query", lambda *a, **kw: "mocked response"
         )
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             input_data = "hello"
