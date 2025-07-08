@@ -22,6 +22,7 @@ from mysql_mimic.session import AllowedResult
 from base_honeypot import BaseHoneypot
 from honeypot_utils import wait_for_port
 from infra.interfaces import HoneypotAction
+import mysql_mimic.errors as mysql_errors
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,9 @@ def patch_client_connected_cb_to_avoid_log_errors():
             await orig_cb(self, reader, writer)
         except (ConnectionClosed, ConnectionResetError):
             logger.info("Client disconnected cleanly")
-        except Exception as e:
+        except mysql_errors.MysqlError as e:
+            logger.warning("MySQL protocol error: %s", e)
+        except Exception:
             logger.error("Unhandled exception in client_connected_cb", exc_info=True)
 
     mysql_mimic.server.MysqlServer._client_connected_cb = safe_cb
@@ -97,6 +100,7 @@ class MySQLHoneypot(BaseHoneypot):
         async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
             self._log_query(sql)
             query = sql.strip().rstrip(";")
+            response = None  # Prevent UnboundLocalError
 
             # Session variable operations
             var_result = self._handle_session_variable(query, sql)
@@ -131,7 +135,10 @@ class MySQLHoneypot(BaseHoneypot):
 
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
-                logger.debug(f"LLM raw response: {response}")
+                logger.debug(f"LLM raw response: %s", response)
+
+            # Final fallback: return empty result
+            return [], []
 
         def _handle_session_variable(
             self, query: str, raw_sql: str
