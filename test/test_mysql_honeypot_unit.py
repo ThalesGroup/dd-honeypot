@@ -1,5 +1,5 @@
 import json
-
+import pathlib
 
 import tempfile
 from typing import Generator
@@ -20,21 +20,25 @@ from sql_data_handler import SqlDataHandler
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
-    with tempfile.NamedTemporaryFile() as f:
-        action = ChainedHoneypotAction(
-            DataHandler(
-                f.name,
-                "You are MYSQL honeypot.",
-                "anthropic.claude-3-sonnet-20240229-v1:0",
-            ),
-            SqlDataHandler(dialect="mysql"),
-        )
-        honeypot = MySQLHoneypot(action=action, config={"name": "MySQLHoneypotTest"})
-        try:
-            honeypot.start()
-            yield honeypot
-        finally:
-            honeypot.stop()
+    # Ensure the directory exists
+    pathlib.Path("honeypots/mysql").mkdir(parents=True, exist_ok=True)
+
+    # Use a real, consistent data file instead of a temp file
+    action = ChainedHoneypotAction(
+        DataHandler(
+            "honeypots/mysql/data.jsonl",
+            system_prompt=["You are a MySQL server."],
+            model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+        ),
+        SqlDataHandler(dialect="mysql"),
+    )
+
+    honeypot = MySQLHoneypot(action=action, config={"name": "MySQLHoneypotTest"})
+    try:
+        honeypot.start()
+        yield honeypot
+    finally:
+        honeypot.stop()
 
 
 @pytest.fixture

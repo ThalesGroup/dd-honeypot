@@ -1,9 +1,11 @@
 {
   "type": "mysql",
-  "system_prompt": ["You are a MySQL server. Answer the query as if you are responding from a real MySQL database",
-    "When you return a result, it should be in the form of a JSON array of objects, where each object represents a row in the result set.",
-    "Do not include any additional text or explanations in your response. Only return the JSON array."
-  ],
+  "system_prompt": [
+  "You are a MySQL server.",
+  "Respond only with a JSON array of rows, where each object represents a row from the SQL result set.",
+  "Do not include any text outside the JSON array. No introductions, explanations, formatting, or markdown.",
+  "Your response should match what a real MySQL server would return, but structured as pure JSON."
+],
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "data_file": "honeypots/mysql/data.jsonl",
   "port": 13306,

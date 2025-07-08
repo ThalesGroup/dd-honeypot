@@ -115,16 +115,23 @@ class MySQLHoneypot(BaseHoneypot):
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             try:
                 response = self._action.query(sql, context, **attrs)
-                parsed = json.loads(response)
+
+                if isinstance(response, dict) and "output" in response:
+                    raw = response["output"]
+                elif isinstance(response, str):
+                    raw = response
+                else:
+                    raise ValueError("Unexpected LLM response format")
+
+                parsed = json.loads(raw)
                 if isinstance(parsed, list) and parsed:
                     return [tuple(row.values()) for row in parsed], list(
                         parsed[0].keys()
                     )
+
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
                 logger.debug(f"LLM raw response: {response}")
-
-            return [], []
 
         def _handle_session_variable(
             self, query: str, raw_sql: str
