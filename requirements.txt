@@ -12,4 +12,3 @@ aiomysql>=0.1.0
 sqlglot==26.17.1
 telnetlib3
 sqlite_utils
-buenavista
