@@ -33,12 +33,21 @@ def patch_client_connected_cb_to_avoid_log_errors():
     async def safe_cb(self, reader, writer):
         try:
             await orig_cb(self, reader, writer)
-        except (ConnectionClosed, ConnectionResetError):
-            logger.info("Client disconnected cleanly")
+
+        except (
+            ConnectionClosed,
+            ConnectionResetError,
+            asyncio.IncompleteReadError,
+        ) as e:
+            logger.info("Client disconnected cleanly: %s", type(e).__name__)
+
         except mysql_errors.MysqlError as e:
             logger.warning("MySQL protocol error: %s", e)
-        except Exception:
-            logger.error("Unhandled exception in client_connected_cb", exc_info=True)
+
+        except Exception as e:
+            logger.error(
+                "Unhandled exception in client_connected_cb: %s", e, exc_info=True
+            )
 
     mysql_mimic.server.MysqlServer._client_connected_cb = safe_cb
 
