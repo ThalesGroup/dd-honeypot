@@ -1,4 +1,5 @@
 import json
+import os
 from tempfile import NamedTemporaryFile
 
 import pytest
@@ -80,3 +81,31 @@ def test_http_store_and_search(http_ds):
         == "<html>Mocked response ab</html>"
     )
     assert http_ds.search({"path": "/", "args": "a=1"}) is None
+
+
+def test_missing_db_file_recovers_gracefully():
+    """Test that SqliteDataStore works even if the DB file is deleted after creation."""
+    with NamedTemporaryFile(delete=False) as temp_file:
+        temp_path = temp_file.name
+
+    # Create initial store and add an entry
+    store = SqliteDataStore(
+        db_name=temp_path,
+        structure={"command": "TEXT"},
+        search_method={"command": SearchMethod.EXACT},
+    )
+    store.store({"command": "whoami"}, "user=root")
+
+    # Delete the underlying DB file
+    os.remove(temp_path)
+    assert not os.path.exists(temp_path)
+
+    # Re-initialize store - this should recreate the DB and NOT crash
+    store = SqliteDataStore(
+        db_name=temp_path,
+        structure={"command": "TEXT"},
+        search_method={"command": SearchMethod.EXACT},
+    )
+    # It should be empty now, but not crash
+    result = store.search({"command": "whoami"})
+    assert result is None
