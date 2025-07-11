@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import struct
 import threading
 from typing import Dict, Optional
 
@@ -40,6 +41,9 @@ def patch_client_connected_cb_to_avoid_log_errors():
             asyncio.IncompleteReadError,
         ) as e:
             logger.info("Client disconnected cleanly: %s", type(e).__name__)
+
+        except struct.error as e:
+            logger.warning("Malformed packet or early disconnect: %s", str(e))
 
         except mysql_errors.MysqlError as e:
             logger.warning("MySQL protocol error: %s", e)
