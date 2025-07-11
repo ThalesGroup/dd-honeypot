@@ -109,11 +109,26 @@ Each honeypot config must include the following fields:
      "request": "GET /admin",
      "response": "<html><h1>403 Forbidden</h1></html>"
    }
+
    ```
-
 4. **(Optional) Add File System**
-   For CLI honeypots (like SSH/Telnet), add an `fs_file` such as `fs_busybox.json`.
 
+For CLI honeypots (like SSH/Telnet), add an `fs_file` entry that points to a compressed fake file system file (with `.jsonl.gz` extension).
+
+These files simulate the output of commands like `ls`, `cd`, and `cat` by emulating a real container file system.
+
+Example:
+
+```json
+{
+  "type": "ssh",
+  "fs_file": "fs_alpine.jsonl.gz"
+}
+
+   ```
+ To learn how to generate and convert the fake file system, see the [fakefs_json_guide.md](fakefs_json_guide.md).
+
+ 
 5. **Port Mapping**
    Make sure the `port` in config:
 
