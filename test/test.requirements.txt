@@ -1,8 +1,8 @@
 pytest>=8.3.5
 pytest-timeout>=2.1.0
 pytest-mock>=3.12.0
-pymysql
 PyMySQL==1.1.1
 mysql-connector-python==9.2.0
-scp
-freezegun
+scp=0.15.0
+freezegun=1.5.2
+aiomysql>=0.1.0
