@@ -19,11 +19,14 @@ config/**
 logs
 **/aws.env.list
 
-downloaded_files/*
-!downloaded_files/.gitkeep
+downloaded_files/
+uploaded_files/
+temp/
+*.log
 
-uploaded_files/*
-!uploaded_files/.gitkeep
+test/test.log
+host.key
+host.key.pub
 
 # macOS
 .DS_Store
