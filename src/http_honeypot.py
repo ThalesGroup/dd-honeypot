@@ -84,7 +84,7 @@ class HTTPHoneypot(BaseHoneypot):
                     data,
                     session.get("h_session"),
                 )
-                return Response(result, 200)
+                return Response(result["output"], 200)
             except Exception as e:
                 logger.error(f"Error while handling request for path: {path} - {e}", e)
                 return Response("Internal Server Error", 500)

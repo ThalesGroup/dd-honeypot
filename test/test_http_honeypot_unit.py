@@ -30,8 +30,8 @@ def wait_for_server(port: int, retries=5, delay=1):
 @pytest.fixture
 def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
     class TestHTTPDataHandler(HoneypotAction):
-        def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
-            return "Request logged"
+        def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
+            return {"output": "Request logged"}
 
     honeypot = HTTPHoneypot(
         action=TestHTTPDataHandler(), config={"name": "TestHTTPHoneypot"}
@@ -142,7 +142,7 @@ def test_http_honeypot_main(monkeypatch):
             assert wait_for_server(port)
             monkeypatch.setattr(
                 "infra.data_handler.DataHandler.request",
-                lambda *a, **kw: "mocked response",
+                lambda *a, **kw: {"output": "mocked response"},
             )
             response = requests.get(
                 f"http://0.0.0.0:{port}/some_path", headers={"Accept": "text/html"}

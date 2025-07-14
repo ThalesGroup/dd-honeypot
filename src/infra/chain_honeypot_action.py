@@ -20,7 +20,7 @@ class ChainedHoneypotAction(HoneypotAction):
             result = self._inner_action.query(query, session, **kwargs)
         return result
 
-    def request(self, info: dict, session: HoneypotSession, **kwargs) -> str:
+    def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
         result = self._outer_action.request(info, session, **kwargs)
         if not result:
             result = self._inner_action.request(info, session, **kwargs)
