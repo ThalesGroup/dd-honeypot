@@ -14,7 +14,7 @@ class ChainedHoneypotAction(HoneypotAction):
             session = self._inner_action.connect(auth_info)
         return session
 
-    def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
+    def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
         result = self._outer_action.query(query, session, **kwargs)
         if not result:
             result = self._inner_action.query(query, session, **kwargs)
@@ -32,7 +32,7 @@ class MultiHoneypotAction(HoneypotAction):
         self.honeypots = honeypots
         self.default = default
 
-    def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
+    def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
         # Initialize session.active_honeypot if missing
         if not hasattr(session, "active_honeypot") or session.active_honeypot is None:
             session.active_honeypot = self.default

@@ -1,0 +1,3 @@
+{"command": "whoami", "expect": "Command not found"}
+{"command": "mysql -u root -p", "expect": "Command not found"}
+{"command": "select 1", "expect": "Command not found"}

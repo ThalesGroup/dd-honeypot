@@ -17,7 +17,7 @@ class ChainedDataHandler:
 
         return session
 
-    def query(self, command: str, session: HoneypotSession, **kwargs) -> str:
+    def query(self, command: str, session: HoneypotSession, **kwargs) -> dict:
         for handler in self.handlers:
             try:
                 result = handler.query(command, session, **kwargs)
@@ -25,4 +25,4 @@ class ChainedDataHandler:
                     return result
             except Exception as e:
                 logging.warning(f"{handler.__class__.__name__} failed: {e}")
-        return "Command not handled.\n"
+        return {"output": "Command not handled.\n"}

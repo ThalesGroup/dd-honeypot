@@ -1,0 +1,4 @@
+{"command": "ls", "expect": "bin"}
+{"command": "cd /etc", "expect": "/etc"}
+{"command": "mkdir testdir", "expect": "Command not handled."}
+{"command": "ls /", "expect": "testdir"}

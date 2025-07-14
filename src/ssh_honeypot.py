@@ -234,7 +234,10 @@ class SSHServerInterface(paramiko.ServerInterface):
                     break
 
                 response = self.action.query(command, self.session)
-                channel.send("\r\n" + response + "\r\n")
+                output = (
+                    response["output"] if isinstance(response, dict) else str(response)
+                )
+                channel.send(("\r\n" + output + "\r\n").encode())
 
         except Exception as e:
             logging.error(f"Shell error: {e}")

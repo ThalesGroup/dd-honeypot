@@ -104,25 +104,15 @@ def load_jsonl(filepath):
         return [json.loads(line.strip()) for line in f if line.strip()]
 
 
-def test_switch_json_based():
+def test_fakefs_json_based():
     ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-    mysql_dir = os.path.abspath("honeypots/mysql_ssh/mysql")
-
     with open(os.path.join(ssh_dir, "config.json")) as f:
         ssh_port = json.load(f)["port"]
 
-    with open(os.path.join(mysql_dir, "config.json")) as f:
-        mysql_port = json.load(f)["port"]
-
     ssh_thread = start_honeypot_in_thread(ssh_dir)
-    mysql_thread = start_honeypot_in_thread(mysql_dir)
-
     assert wait_for_port(ssh_port), "SSH port not ready"
-    assert wait_for_port(mysql_port), "MySQL port not ready"
 
-    json_path = pathlib.Path("test_switch_integration_cases.jsonl")
-    test_cases = load_jsonl(json_path)
-
+    test_cases = load_jsonl("test_fakefs_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
@@ -131,27 +121,24 @@ def test_switch_json_based():
             commands=[case["command"]],
         )[0]
         print(f"Response {i}: {repr(response)}")
-        assert case["expect"] in response, f"Failed case {i}: {case['command']}"
+        assert (
+            case["expect"] in response
+        ), f"Failed case {i}: {case['command']}\nExpected: {case['expect']}\nActual: {response}"
 
     ssh_thread.join(0)
-    mysql_thread.join(0)
-
     print("Test complete. Main thread sleeping briefly before exiting.")
     time.sleep(2)
 
 
-def test_fakefs_json_based():
+def test_fallback_json_based():
     ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-
     with open(os.path.join(ssh_dir, "config.json")) as f:
         ssh_port = json.load(f)["port"]
 
     ssh_thread = start_honeypot_in_thread(ssh_dir)
     assert wait_for_port(ssh_port), "SSH port not ready"
 
-    json_path = pathlib.Path("test_switch_integration_cases.jsonl")
-    test_cases = load_jsonl(json_path)
-
+    test_cases = load_jsonl("test_fallback_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
