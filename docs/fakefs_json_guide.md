@@ -32,7 +32,7 @@ Use the provided script to convert the file system structure to a format consuma
 
 ```bash
   docker run -v ${PWD}:/data --rm python:3-alpine \
-  python /data/src/infra/fake_fs/convert_fs_txt_to_jsonl_gz.py /data/fs.txt.gz /data/fs_alpine.jsonl.gz
+  python /data/convert_fs_txt_to_jsonl_gz.py /data/fs.txt.gz /data/fs_alpine.jsonl.gz
 ```
 
 ---
