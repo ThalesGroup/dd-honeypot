@@ -135,10 +135,9 @@ class MySQLHoneypot(BaseHoneypot):
 
                 if isinstance(response, dict) and "output" in response:
                     raw = response["output"]
-                elif isinstance(response, str):
-                    raw = response
                 else:
-                    raise ValueError("Unexpected LLM response format")
+                    logger.warning(f"Unexpected LLM response format: {response}")
+                    return [], []
 
                 parsed = json.loads(raw)
                 if isinstance(parsed, list) and parsed:

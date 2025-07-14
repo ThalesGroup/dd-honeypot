@@ -1,13 +1,9 @@
 import json
 import pathlib
-
-import tempfile
 from typing import Generator
 import os
-
 import pymysql
 import pytest
-
 from conftest import get_honeypot_main
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.data_handler import DataHandler
@@ -27,7 +23,7 @@ def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     action = ChainedHoneypotAction(
         DataHandler(
             "honeypots/mysql/data.jsonl",
-            system_prompt=["You are a MySQL server."],
+            system_prompt={"You are a MySQL server."},
             model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         ),
         SqlDataHandler(dialect="mysql"),
@@ -54,10 +50,11 @@ def test_mysql_honeypot_main(monkeypatch):
     with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
         monkeypatch.setattr(
             "infra.data_handler.DataHandler.query",
-            lambda *a, **kw: '[{"user": "root", "host": "host1"}]',
+            lambda *a, **kw: {"output": '[{"user": "root", "host": "host1"}]'},
         )
+
         with pymysql.connect(
-            host="0.0.0.0", port=port, user="root", password="root12"
+            host="localhost", port=port, user="root", password="root12"
         ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1")
@@ -84,21 +81,17 @@ def test_mysql_honeypot_parse_ok(mysql_cnn):
 
 def test_multiple_statements(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
-        cursor.execute("SELECT 1; SELECT 2")
+        cursor.execute("SELECT 1; SELECT 3 ")
         results = cursor.fetchall()
         assert results is not None
         assert isinstance(results, (list, tuple))
 
 
-def test_select_with_where(monkeypatch, mysql_cnn):
-    monkeypatch.setattr(
-        "infra.data_handler.DataHandler.query",
-        lambda self, query, session, **kw: '[{"id": 1, "name": "foo"}]',
-    )
+def test_select_with_where(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT id, name FROM users WHERE name = 'foo'")
         result = cursor.fetchone()
-        assert result == (1, "foo")
+        assert result == (1, "foo")  # This response must be in your data.jsonl
 
 
 def test_show_variables(monkeypatch, mysql_cnn):
@@ -115,13 +108,16 @@ def test_show_variables(monkeypatch, mysql_cnn):
 def test_mysql_fallback_multiple_rows(monkeypatch, mysql_cnn):
     monkeypatch.setattr(
         "infra.data_handler.DataHandler.query",
-        lambda *_args, **_kwargs: json.dumps(
-            [
-                {"id": 1, "name": "user_a"},
-                {"id": 2, "name": "user_b"},
-            ]
-        ),
+        lambda *_args, **_kwargs: {
+            "output": json.dumps(
+                [
+                    {"id": 1, "name": "user_a"},
+                    {"id": 2, "name": "user_b"},
+                ]
+            )
+        },
     )
+
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT id, name FROM trigger_fallback")
         result = cursor.fetchall()
@@ -131,11 +127,13 @@ def test_mysql_fallback_multiple_rows(monkeypatch, mysql_cnn):
 def test_mysql_multiple_statements_same_session(monkeypatch, mysql_cnn):
     monkeypatch.setattr(
         "infra.data_handler.DataHandler.query",
-        lambda self, query, session, **kw: (
-            json.dumps([{"dummy": 42}])
-            if "SELECT 42" in query
-            else json.dumps([{"user": "admin", "host": "localhost"}])
-        ),
+        lambda self, query, session, **kw: {
+            "output": (
+                json.dumps([{"dummy": 42}])
+                if "SELECT 42" in query
+                else json.dumps([{"user": "admin", "host": "localhost"}])
+            )
+        },
     )
 
     with mysql_cnn.cursor() as cursor:
@@ -263,3 +261,63 @@ def test_create_and_use_database(monkeypatch, mysql_cnn):
         cursor.execute("SHOW TABLES")
         tables = cursor.fetchall()
         assert isinstance(tables, (list, tuple))
+
+
+def test_llm_returns_valid_output(monkeypatch, mysql_cnn):
+    """LLM responds correctly with {'output': JSON string}"""
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda *_args, **_kwargs: {"output": json.dumps([{"col": "val"}])},
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT col FROM mock_table")
+        result = cursor.fetchall()
+        assert result == (("val",),)
+
+
+def test_llm_missing_output_key(monkeypatch, mysql_cnn):
+    """LLM returns a dict without 'output' — should safely fallback to empty result"""
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda *_args, **_kwargs: {"unexpected": "value"},
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT x FROM fallback_table")
+        result = cursor.fetchall()
+        assert result == []  # Handles broken contract gracefully
+
+
+def test_llm_returns_raw_string(monkeypatch, mysql_cnn):
+    """LLM returns a plain string instead of dict — should not crash, just fallback"""
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda *_args, **_kwargs: '[{"id": 1}]',
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT id FROM broken_contract")
+        result = cursor.fetchall()
+        assert result == []  # Invalid format, should fallback safely
+
+
+def test_llm_response_contract_invalid_json(monkeypatch, mysql_cnn):
+    """LLM output field has invalid JSON — triggers fallback"""
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda *_args, **_kwargs: {"output": "INVALID_JSON"},
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT anything FROM bad_json")
+        result = cursor.fetchall()
+        assert result == []  # JSON parsing fails gracefully
+
+
+def test_llm_returns_invalid_json_string(monkeypatch, mysql_cnn):
+    """LLM returns invalid JSON in 'output' field — should fallback to empty result"""
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda *_args, **_kwargs: {"output": "INVALID_JSON"},
+    )
+    with mysql_cnn.cursor() as cursor:
+        cursor.execute("SELECT anything FROM bad_json")
+        result = cursor.fetchall()
+        assert result == []  # Graceful fallback on JSON decode error
