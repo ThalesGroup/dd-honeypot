@@ -1,0 +1,21 @@
+{
+  "type": "multi",
+  "default": "ssh",
+  "honeypots": {
+    "ssh": {
+      "type": "ssh",
+      "name": "Alpine SSH Honeypot",
+      "port": 2222,
+      "prompt_template": "${{username}}@alpine:${{cwd}}$ ",
+      "shell_prompt": "honeypot@fakevm:~$ ",
+      "data_file": "honeypots/alpine/data.jsonl",
+      "fs_file": "honeypots/alpine/fs_alpine.jsonl.gz"
+    },
+    "mysql": {
+      "type": "mysql",
+      "name": "MySQL Honeypot",
+      "port": 3306,
+      "data_file": "honeypots/mysql/data.jsonl"
+    }
+  }
+}

@@ -1,0 +1,2 @@
+{"command": "select 1", "response": "1"}
+{"command": "exit", "response": "Bye", "switch_to": "ssh"}

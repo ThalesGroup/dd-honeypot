@@ -1,0 +1,12 @@
+{"command": "whoami", "expect": "Command not found"}
+{"command": "mysql -u root -p", "expect": "Command not found"}
+{"command": "select 1", "expect": "Command not found"}
+{"command": "exit", "expect": "Connection closed"}
+{"command": "ls", "expect": "bin"}
+{"command": "exit", "expect": "Connection closed"}
+{"command": "cd /etc", "expect": "/etc"}
+{"command": "ls /", "expect": "bin"}
+{"command": "mkdir testdir", "expect": "Command not handled."}
+{"command": "cd testdir", "expect": "testdir"}
+{"command": "ls", "expect": "testdir"}
+

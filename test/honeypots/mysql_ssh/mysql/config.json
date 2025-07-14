@@ -1,0 +1,11 @@
+{
+  "type": "mysql",
+  "name": "MySQL Honeypot",
+  "port": 3306,
+  "data_file": "data.jsonl",
+  "model_id": "mock-model",
+  "system_prompt": "You are a MySQL honeypot.",
+  "structure": {
+    "query": "TEXT"
+  }
+}

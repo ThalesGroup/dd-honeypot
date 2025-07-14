@@ -1,0 +1,2 @@
+{"command": "ls", "response": "file.txt"}
+{"command": "mysql -u root -p", "response": "Welcome to the MySQL shell. Type 'help;' for help.", "switch_to": "mysql"}

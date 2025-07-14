@@ -1,8 +1,11 @@
 import logging
 import os
 import socket
+import time
 from pathlib import Path
 from time import sleep
+
+import paramiko
 
 _PROJECT_FOLDER = Path(os.path.dirname(os.path.abspath(__file__))).parent.absolute()
 
@@ -44,3 +47,24 @@ def wait_for_port(port: int):
                 sleep(0.5 * i)
             else:
                 raise e
+
+
+def connect_and_run_ssh_commands(port, username, password, commands):
+    results = []
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect("127.0.0.1", port=port, username=username, password=password)
+
+    chan = client.invoke_shell()
+    time.sleep(1)
+    chan.recv(1024)
+
+    for cmd in commands:
+        chan.send(cmd + "\n")
+        time.sleep(1)
+        output = chan.recv(4096).decode()
+        results.append(output)
+
+    chan.close()
+    client.close()
+    return results
