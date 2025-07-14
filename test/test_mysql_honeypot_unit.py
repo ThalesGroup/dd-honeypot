@@ -87,11 +87,17 @@ def test_multiple_statements(mysql_cnn):
         assert isinstance(results, (list, tuple))
 
 
-def test_select_with_where(mysql_cnn):
+def test_select_with_where(monkeypatch, mysql_cnn):
+    monkeypatch.setattr(
+        "infra.data_handler.DataHandler.query",
+        lambda self, query, session, **kw: {
+            "output": json.dumps([{"id": 1, "name": "foo"}])
+        },
+    )
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT id, name FROM users WHERE name = 'foo'")
         result = cursor.fetchone()
-        assert result == (1, "foo")  # This response must be in your data.jsonl
+        assert result == (1, "foo")
 
 
 def test_show_variables(monkeypatch, mysql_cnn):
