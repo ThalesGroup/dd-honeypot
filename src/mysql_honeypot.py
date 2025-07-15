@@ -57,6 +57,8 @@ def patch_client_connected_cb_to_avoid_log_errors():
 
 
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
+    name = "mysql_native_password"
+
     async def auth(self, auth_info=None) -> AuthState:
         if not auth_info:
             auth_info = yield utils.nonce(20) + b"\x00"
@@ -97,13 +99,13 @@ class MySQLHoneypot(BaseHoneypot):
             self._action = action
             self._honeypot_session = None
             self._log_data = log_data
-            self._session_data = {"vars": {}}
 
         async def init(self, connection: Connection) -> None:
             if self._action:
                 self._honeypot_session = self._action.connect(
                     {"connection_id": connection.connection_id}
                 )
+                self._honeypot_session.setdefault("vars", {})
             return await super().init(connection)
 
         def _log_query(self, sql: str):
@@ -129,7 +131,7 @@ class MySQLHoneypot(BaseHoneypot):
                 logger.debug(f"super().handle_query() failed for query={sql}: {e}")
 
             # Fallback to LLM
-            context = dict(session=self._session_data, **(self._honeypot_session or {}))
+            context = self._honeypot_session or {}
             try:
                 response = self._action.query(sql, context, **attrs)
 
@@ -149,7 +151,6 @@ class MySQLHoneypot(BaseHoneypot):
                 logger.warning(f"Failed to parse LLM response: {e}")
                 logger.debug(f"LLM raw response: %s", response)
 
-            # Final fallback: return empty result
             return [], []
 
         def _handle_session_variable(
@@ -168,13 +169,13 @@ class MySQLHoneypot(BaseHoneypot):
                             val = json.loads(val)
                         except:
                             val = val.strip("'\"")
-                    self._session_data.setdefault("vars", {})[var.lstrip("@")] = val
+                    self._honeypot_session["vars"][var.lstrip("@")] = val
                     return [], []
 
                 if cmd.lower() == "select" and rest.startswith("@"):
                     self._log_query(raw_sql)
                     name = rest.strip().lstrip("@")
-                    val = self._session_data.get("vars", {}).get(name)
+                    val = self._honeypot_session["vars"].get(name)
                     return [
                         (
                             (

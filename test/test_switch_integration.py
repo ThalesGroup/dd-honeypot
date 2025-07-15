@@ -1,20 +1,12 @@
 import json
 import os
-import pathlib
 import socket
-import threading
 import time
 
+import pytest
 from paramiko import SSHClient, AutoAddPolicy
 
 from infra.honeypot_wrapper import create_honeypot_by_folder
-
-
-def start_honeypot_in_thread(config_dir):
-    honeypot = create_honeypot_by_folder(config_dir)
-    thread = threading.Thread(target=honeypot.start, daemon=True)
-    thread.start()
-    return thread
 
 
 def wait_for_port(port: int, retries: int = 10):
@@ -44,22 +36,38 @@ def connect_and_run_ssh_commands(port, username, password, commands):
     return output
 
 
-def test_switch_between_ssh_and_mysql():
+@pytest.fixture
+def ssh_honeypot():
     ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-    mysql_dir = os.path.abspath("honeypots/mysql_ssh/mysql")
-
     with open(os.path.join(ssh_dir, "config.json")) as f:
-        ssh_port = json.load(f)["port"]
+        port = json.load(f)["port"]
 
+    honeypot = create_honeypot_by_folder(ssh_dir)
+    honeypot.start()
+    assert wait_for_port(port), "SSH honeypot did not start"
+
+    yield honeypot
+
+    honeypot.stop()
+
+
+@pytest.fixture
+def mysql_honeypot():
+    mysql_dir = os.path.abspath("honeypots/mysql_ssh/mysql")
     with open(os.path.join(mysql_dir, "config.json")) as f:
-        mysql_port = json.load(f)["port"]
+        port = json.load(f)["port"]
 
-    ssh_thread = start_honeypot_in_thread(ssh_dir)
-    mysql_thread = start_honeypot_in_thread(mysql_dir)
+    honeypot = create_honeypot_by_folder(mysql_dir)
+    honeypot.start()
+    assert wait_for_port(port), "MySQL honeypot did not start"
 
-    assert wait_for_port(ssh_port), "SSH port not ready"
-    assert wait_for_port(mysql_port), "MySQL port not ready"
+    yield honeypot
 
+    honeypot.stop()
+
+
+def test_switch_between_ssh_and_mysql(ssh_honeypot, mysql_honeypot):
+    ssh_port = ssh_honeypot.config["port"]
     commands_1 = [
         "whoami",  # SSH
         "mysql -u root -p",  # triggers switch to MySQL
@@ -95,21 +103,14 @@ def test_switch_between_ssh_and_mysql():
         "ls" in r or "bin" in r.lower() for r in responses
     ), "Did not switch back to SSH"
 
-    ssh_thread.join(0)
-    mysql_thread.join(0)
-
 
 def load_jsonl(filepath):
     with open(filepath, "r") as f:
         return [json.loads(line.strip()) for line in f if line.strip()]
 
 
-def test_fakefs_json_based():
-    ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-    with open(os.path.join(ssh_dir, "config.json")) as f:
-        ssh_port = json.load(f)["port"]
-
-    ssh_thread = start_honeypot_in_thread(ssh_dir)
+def test_fakefs_json_based(ssh_honeypot):
+    ssh_port = ssh_honeypot.config["port"]
     assert wait_for_port(ssh_port), "SSH port not ready"
 
     test_cases = load_jsonl("test_fakefs_cases.jsonl")
@@ -125,17 +126,13 @@ def test_fakefs_json_based():
             case["expect"] in response
         ), f"Failed case {i}: {case['command']}\nExpected: {case['expect']}\nActual: {response}"
 
-    ssh_thread.join(0)
     print("Test complete. Main thread sleeping briefly before exiting.")
     time.sleep(2)
 
 
-def test_fallback_json_based():
-    ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-    with open(os.path.join(ssh_dir, "config.json")) as f:
-        ssh_port = json.load(f)["port"]
+def test_fallback_json_based(ssh_honeypot):
+    ssh_port = ssh_honeypot.config["port"]
 
-    ssh_thread = start_honeypot_in_thread(ssh_dir)
     assert wait_for_port(ssh_port), "SSH port not ready"
 
     test_cases = load_jsonl("test_fallback_cases.jsonl")
@@ -151,6 +148,5 @@ def test_fallback_json_based():
             case["expect"] in response
         ), f"Failed case {i}: {case['command']}\nExpected: {case['expect']}\nActual: {response}"
 
-    ssh_thread.join(0)
     print("Test complete. Main thread sleeping briefly before exiting.")
     time.sleep(2)

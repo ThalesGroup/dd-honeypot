@@ -20,9 +20,13 @@ honeypots/
 ├── alpine/
 │   ├── config.json
 │   ├── data.jsonl
-│   └── fs_alpine.json
-├── mysql-config.json
-├── php_my_admin-config.json
+│   └── fs_alpine.jsonl.gz
+├── mysql
+│   ├── config.json
+│   └── data.jsonl
+├── php_my_admin
+│   ├── config.json
+│   └── data.jsonl
 ```
 
 ---
