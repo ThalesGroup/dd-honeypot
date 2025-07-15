@@ -57,6 +57,8 @@ def patch_client_connected_cb_to_avoid_log_errors():
 
 
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
+    name = "mysql_native_password"
+
     async def auth(self, auth_info=None) -> AuthState:
         if not auth_info:
             auth_info = yield utils.nonce(20) + b"\x00"
