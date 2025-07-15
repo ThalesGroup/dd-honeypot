@@ -25,6 +25,7 @@ temp/
 *.log
 
 test/test.log
+test/host.key
 host.key
 host.key.pub
 
