@@ -6,6 +6,7 @@ import threading
 from typing import Dict, Optional
 
 import mysql_mimic
+from mysql_mimic.results import ResultSet, ResultColumn, infer_type
 import mysql_mimic.utils as utils
 from mysql_mimic import MysqlServer, Session
 from mysql_mimic.auth import (
@@ -117,16 +118,16 @@ class MySQLHoneypot(BaseHoneypot):
             query = sql.strip().rstrip(";")
             response = None  # Prevent UnboundLocalError
 
-            # Session variable operations
+            # Handle session variables
             var_result = self._handle_session_variable(query, sql)
             if var_result is not None:
                 return var_result
 
-            # Default mysql_mimic handler
+            # Attempt default mysql_mimic handling
             try:
                 result = await super().handle_query(sql, attrs)
                 if result and result[0]:
-                    return result
+                    return result  # Already in (rows, columns) format
             except Exception as e:
                 logger.debug(f"super().handle_query() failed for query={sql}: {e}")
 
@@ -139,19 +140,25 @@ class MySQLHoneypot(BaseHoneypot):
                     raw = response["output"]
                 else:
                     logger.warning(f"Unexpected LLM response format: {response}")
-                    return [], []
+                    return ResultSet(rows=[], columns=[])
 
                 parsed = json.loads(raw)
                 if isinstance(parsed, list) and parsed:
-                    return [tuple(row.values()) for row in parsed], list(
-                        parsed[0].keys()
-                    )
+                    columns = list(parsed[0].keys())
+                    rows = [tuple(row[col] for col in columns) for row in parsed]
+
+                    result_columns = [
+                        ResultColumn(name=col, type=infer_type(parsed[0][col]))
+                        for col in columns
+                    ]
+
+                    return ResultSet(rows=rows, columns=result_columns)
 
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
                 logger.debug(f"LLM raw response: %s", response)
 
-            return [], []
+            return ResultSet(rows=[], columns=[])
 
         def _handle_session_variable(
             self, query: str, raw_sql: str
