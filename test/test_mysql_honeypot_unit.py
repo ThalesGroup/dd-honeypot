@@ -294,7 +294,7 @@ def test_llm_missing_output_key(monkeypatch, mysql_cnn):
 
 
 def test_llm_returns_raw_string(monkeypatch, mysql_cnn):
-    """LLM returns a plain string instead of dict — should not crash, just fallback"""
+    """LLM returns a plain string instead of dict — should still parse successfully"""
     monkeypatch.setattr(
         "infra.data_handler.DataHandler.query",
         lambda *_args, **_kwargs: '[{"id": 1}]',
@@ -302,7 +302,7 @@ def test_llm_returns_raw_string(monkeypatch, mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SELECT id FROM broken_contract")
         result = cursor.fetchall()
-        assert result == []  # Invalid format, should fallback safely
+        assert list(result) == [(1,)]
 
 
 def test_llm_response_contract_invalid_json(monkeypatch, mysql_cnn):

@@ -1,14 +1,12 @@
 import asyncio
 import json
 import logging
-import struct
 import threading
 from typing import Dict, Optional
 
 import mysql_mimic
-from mysql_mimic.results import ResultSet, ResultColumn, infer_type
 import mysql_mimic.utils as utils
-from mysql_mimic import MysqlServer, Session
+from mysql_mimic import MysqlServer, Session, ResultColumn
 from mysql_mimic.auth import (
     IdentityProvider,
     User,
@@ -17,14 +15,15 @@ from mysql_mimic.auth import (
     NativePasswordAuthPlugin,
 )
 from mysql_mimic.connection import Connection
+from mysql_mimic.results import infer_type, ResultSet
 from mysql_mimic.stream import ConnectionClosed
 from mysql_mimic.variables import Variables
 from mysql_mimic.session import AllowedResult
+from mysql_mimic.errors import MysqlError
 
 from base_honeypot import BaseHoneypot
 from honeypot_utils import wait_for_port
 from infra.interfaces import HoneypotAction
-import mysql_mimic.errors as mysql_errors
 
 logger = logging.getLogger(__name__)
 
@@ -35,31 +34,17 @@ def patch_client_connected_cb_to_avoid_log_errors():
     async def safe_cb(self, reader, writer):
         try:
             await orig_cb(self, reader, writer)
-
-        except (
-            ConnectionClosed,
-            ConnectionResetError,
-            asyncio.IncompleteReadError,
-        ) as e:
-            logger.info("Client disconnected cleanly: %s", type(e).__name__)
-
-        except struct.error as e:
-            logger.warning("Malformed packet or early disconnect: %s", str(e))
-
-        except mysql_errors.MysqlError as e:
-            logger.warning("MySQL protocol error: %s", e)
-
+        except (ConnectionClosed, ConnectionResetError):
+            logger.info("Client disconnected cleanly")
+        except MysqlError as e:
+            logger.warning(f"MySQL protocol error: {e}")
         except Exception as e:
-            logger.error(
-                "Unhandled exception in client_connected_cb: %s", e, exc_info=True
-            )
+            logger.error("Unhandled exception in client_connected_cb", exc_info=True)
 
     mysql_mimic.server.MysqlServer._client_connected_cb = safe_cb
 
 
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
-    name = "mysql_native_password"
-
     async def auth(self, auth_info=None) -> AuthState:
         if not auth_info:
             auth_info = yield utils.nonce(20) + b"\x00"
@@ -100,13 +85,13 @@ class MySQLHoneypot(BaseHoneypot):
             self._action = action
             self._honeypot_session = None
             self._log_data = log_data
+            self._session_data = {"vars": {}}
 
         async def init(self, connection: Connection) -> None:
             if self._action:
                 self._honeypot_session = self._action.connect(
                     {"connection_id": connection.connection_id}
                 )
-                self._honeypot_session.setdefault("vars", {})
             return await super().init(connection)
 
         def _log_query(self, sql: str):
@@ -117,11 +102,12 @@ class MySQLHoneypot(BaseHoneypot):
             self._log_query(sql)
             query = sql.strip().rstrip(";")
 
-            # Handle session variable queries like SELECT @x or SET @x = 1
+            # Handle session variable queries
             session_result = self._handle_session_variable(query, sql)
             if session_result:
                 return session_result
 
+            # Try native MySQL mimic response first
             try:
                 result = await super().handle_query(sql, attrs)
                 if result and result[0]:
@@ -129,26 +115,32 @@ class MySQLHoneypot(BaseHoneypot):
             except Exception as e:
                 logger.debug(f"default handler failed: {e}")
 
-            context = self._honeypot_session or {}
-            local_response = self._action.query(sql, context, **attrs)
+            # Fallback: use LLM or static data
+            try:
+                context = self._honeypot_session or {}
+                response = self._action.query(sql, context, **attrs)
+                if isinstance(response, dict) and "output" in response:
+                    output = response["output"]
+                else:
+                    output = response
 
-            if isinstance(local_response, dict) and "output" in local_response:
-                try:
-                    parsed = json.loads(local_response["output"])
-                    if isinstance(parsed, list) and parsed:
-                        columns = list(parsed[0])
-                        rows = [tuple(row[col] for col in columns) for row in parsed]
-                        return ResultSet(
-                            rows=rows,
-                            columns=[
-                                ResultColumn(name=col, type=infer_type(parsed[0][col]))
-                                for col in columns
-                            ],
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to parse local/LLM response: {e}")
+                parsed = json.loads(output) if isinstance(output, str) else output
 
-            #  If nothing else, return empty valid response
+                if isinstance(parsed, list) and parsed:
+                    columns = list(parsed[0])
+                    rows = [tuple(row[col] for col in columns) for row in parsed]
+                    return ResultSet(
+                        rows=rows,
+                        columns=[
+                            ResultColumn(name=col, type=infer_type(parsed[0][col]))
+                            for col in columns
+                        ],
+                    )
+
+            except Exception as e:
+                logger.warning(f"Failed to parse LLM response: {e}")
+
+            # Return empty result if everything fails
             return ResultSet(rows=[], columns=[])
 
         def _handle_session_variable(
@@ -157,7 +149,6 @@ class MySQLHoneypot(BaseHoneypot):
             try:
                 cmd, _, rest = query.partition(" ")
                 if cmd.lower() == "set" and rest.startswith("@"):
-                    self._log_query(raw_sql)
                     var, val = map(str.strip, rest.split("=", 1))
                     val = {"null": None, "true": True, "false": False}.get(
                         val.lower(), val
@@ -167,13 +158,11 @@ class MySQLHoneypot(BaseHoneypot):
                             val = json.loads(val)
                         except:
                             val = val.strip("'\"")
-                    self._honeypot_session["vars"][var.lstrip("@")] = val
+                    self._session_data.setdefault("vars", {})[var.lstrip("@")] = val
                     return [], []
-
                 if cmd.lower() == "select" and rest.startswith("@"):
-                    self._log_query(raw_sql)
                     name = rest.strip().lstrip("@")
-                    val = self._honeypot_session["vars"].get(name)
+                    val = self._session_data.get("vars", {}).get(name)
                     return [
                         (
                             (
