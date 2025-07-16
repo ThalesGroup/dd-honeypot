@@ -1,1 +1,8 @@
 {"command": "SELECT * FROM users WHERE id = 1", "response": "[\n  {\n    \"id\": 1,\n    \"username\": \"johndoe\",\n    \"email\": \"johndoe@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"created_at\": \"2023-05-15 10:30:00\",\n    \"last_login\": \"2023-05-20 14:45:22\",\n    \"is_active\": true\n  }\n]"}
+{"command": "SELECT VERSION()", "response": "[{\"VERSION()\": \"8.0.33\"}]"}
+{"command": "SELECT @@version_comment", "response": "[{\"@@version_comment\": \"MySQL Community Server - GPL\"}]"}
+{"command": "SELECT DATABASE()", "response": "[{\"DATABASE()\": null}]"}
+{"command": "SELECT USER()", "response": "[{\"USER()\": \"root@localhost\"}]"}
+{"command": "SHOW VARIABLES", "response": "[{\"Variable_name\": \"autocommit\", \"Value\": \"ON\"}]"}
+{"command": "SELECT @@", "response": "[{\"@@\": \"dummy\"}]"}
+{"command": "SELECT 1", "response": "[{\"1\": 1}]"}

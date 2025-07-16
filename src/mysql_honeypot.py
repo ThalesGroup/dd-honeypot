@@ -116,48 +116,39 @@ class MySQLHoneypot(BaseHoneypot):
         async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
             self._log_query(sql)
             query = sql.strip().rstrip(";")
-            response = None  # Prevent UnboundLocalError
 
-            # Handle session variables
-            var_result = self._handle_session_variable(query, sql)
-            if var_result is not None:
-                return var_result
+            # Handle session variable queries like SELECT @x or SET @x = 1
+            session_result = self._handle_session_variable(query, sql)
+            if session_result:
+                return session_result
 
-            # Attempt default mysql_mimic handling
             try:
                 result = await super().handle_query(sql, attrs)
                 if result and result[0]:
-                    return result  # Already in (rows, columns) format
+                    return result
             except Exception as e:
-                logger.debug(f"super().handle_query() failed for query={sql}: {e}")
+                logger.debug(f"default handler failed: {e}")
 
-            # Fallback to LLM
             context = self._honeypot_session or {}
-            try:
-                response = self._action.query(sql, context, **attrs)
+            local_response = self._action.query(sql, context, **attrs)
 
-                if isinstance(response, dict) and "output" in response:
-                    raw = response["output"]
-                else:
-                    logger.warning(f"Unexpected LLM response format: {response}")
-                    return ResultSet(rows=[], columns=[])
+            if isinstance(local_response, dict) and "output" in local_response:
+                try:
+                    parsed = json.loads(local_response["output"])
+                    if isinstance(parsed, list) and parsed:
+                        columns = list(parsed[0])
+                        rows = [tuple(row[col] for col in columns) for row in parsed]
+                        return ResultSet(
+                            rows=rows,
+                            columns=[
+                                ResultColumn(name=col, type=infer_type(parsed[0][col]))
+                                for col in columns
+                            ],
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to parse local/LLM response: {e}")
 
-                parsed = json.loads(raw)
-                if isinstance(parsed, list) and parsed:
-                    columns = list(parsed[0].keys())
-                    rows = [tuple(row[col] for col in columns) for row in parsed]
-
-                    result_columns = [
-                        ResultColumn(name=col, type=infer_type(parsed[0][col]))
-                        for col in columns
-                    ]
-
-                    return ResultSet(rows=rows, columns=result_columns)
-
-            except Exception as e:
-                logger.warning(f"Failed to parse LLM response: {e}")
-                logger.debug(f"LLM raw response: %s", response)
-
+            #  If nothing else, return empty valid response
             return ResultSet(rows=[], columns=[])
 
         def _handle_session_variable(
