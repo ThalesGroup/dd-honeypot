@@ -11,7 +11,6 @@ from src.mysql_honeypot import MySQLHoneypot
 from base_honeypot import BaseHoneypot
 from sql_data_handler import SqlDataHandler
 
-
 @pytest.fixture
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"

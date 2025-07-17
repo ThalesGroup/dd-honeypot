@@ -51,6 +51,7 @@ class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
         yield Success(auth_info.user.name)
 
 
+
 class AllowAllIdentityProvider(IdentityProvider):
     def get_plugins(self):
         return [AllowAllPasswordAuthPlugin()]
