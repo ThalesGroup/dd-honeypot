@@ -48,7 +48,7 @@ def handle_ls(session: dict, flags: str = "") -> str:
             + "\r\n"
         )
     else:
-        return "  ".join(sorted(child["name"] for child in children)) + "\r\n"
+        return "  ".join(sorted(child["name"] for child in children)) + "\r"
 
 
 def handle_cd(session: dict, path: str) -> str:
