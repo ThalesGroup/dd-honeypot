@@ -1,0 +1,47 @@
+--------------------------------------------------------------------------------
+Package: boto3
+License: Apache License 2.0
+Homepage: https://github.com/boto/boto3
+Summary: AWS SDK for Python
+
+--------------------------------------------------------------------------------
+Package: mysql-mimic
+License: MIT License
+Homepage: https://github.com/jeremiahp/mysql-mimic
+Summary: A mock MySQL server for testing MySQL clients.
+
+--------------------------------------------------------------------------------
+Package: paramiko
+License: LGPL-2.1-only
+Homepage: https://github.com/paramiko/paramiko
+Summary: SSH2 protocol library providing both client and server functionality.
+
+--------------------------------------------------------------------------------
+Package: requests
+License: Apache License 2.0
+Homepage: https://github.com/psf/requests
+Summary: HTTP library for Python, built for human beings.
+
+--------------------------------------------------------------------------------
+Package: sqlglot
+License: MIT License
+Homepage: https://github.com/tobymao/sqlglot
+Summary: Python SQL parser, transpiler, and optimizer.
+
+--------------------------------------------------------------------------------
+Package: sqlite-utils
+License: Apache License 2.0
+Homepage: https://github.com/simonw/sqlite-utils
+Summary: CLI tool and Python library for manipulating SQLite databases.
+
+--------------------------------------------------------------------------------
+Package: telnetlib3
+License: Apache License 2.0
+Homepage: https://github.com/jquast/telnetlib3
+Summary: Modern async Telnet server/client library for Python.
+
+--------------------------------------------------------------------------------
+Package: Flask
+License: BSD 3-Clause License
+Homepage: https://github.com/pallets/flask
+Summary: A lightweight WSGI web application framework.

@@ -142,3 +142,6 @@ docker run -it \
   --log-opt awslogs-create-group=true \
   ghcr.io/thalesgroup/dd-honeypot
 ```
+
+### Licensing
+dd-honeypot is distributed under the [Apache 2.0 License](LICENSE.md). It depends on modules that are licensed under their own open-source licenses (see the [third-party file](THIRD_PARTY.txt)).
