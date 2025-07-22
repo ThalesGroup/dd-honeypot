@@ -23,7 +23,7 @@ def build_data_handler(config: dict, log_callback=None):
     system_prompt = config["system_prompt"]
     fs_file = config.get("fs_file")
 
-    if fs_file:
+    if fs_file and config.get("name") != "MySQL_SSH Honeypot":
         fakefs_handler = FakeFSDataHandler(
             data_file=data_file,
             fs_file=fs_file,

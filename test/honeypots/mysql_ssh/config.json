@@ -1,21 +1,12 @@
 {
-  "type": "multi",
-  "default": "ssh",
-  "honeypots": {
-    "ssh": {
-      "type": "ssh",
-      "name": "Alpine SSH Honeypot",
-      "port": 2222,
-      "prompt_template": "${{username}}@alpine:${{cwd}}$ ",
-      "shell_prompt": "honeypot@fakevm:~$ ",
-      "data_file": "honeypots/alpine/data.jsonl",
-      "fs_file": "honeypots/alpine/fs_alpine.jsonl.gz"
-    },
-    "mysql": {
-      "type": "mysql",
-      "name": "MySQL Honeypot",
-      "port": 3306,
-      "data_file": "honeypots/mysql/data.jsonl"
-    }
-  }
+  "type": "ssh",
+  "name": "MySQL_SSH Honeypot",
+  "port": 2222,
+  "prompt_template": "${username}@alpine:${cwd}$ ",
+  "shell_prompt": "honeypot@fakevm:~$ ",
+  "mysql_prompt": "mysql> ",
+  "data_file": "data.jsonl",
+  "fs_file": "fs_mysql.jsonl.gz",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "system_prompt": "You are a fake SSH shell on Alpine Linux. When the user runs a MySQL client command (such as 'mysql -u root -p'), emulate a MySQL session, including showing a 'mysql>' prompt and accepting basic SQL commands. Switch back to the shell when the user types 'exit'. Always respond exactly as a real system would in the respective mode."
 }
