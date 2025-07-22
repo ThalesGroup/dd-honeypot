@@ -27,8 +27,19 @@ class DataHandler(HoneypotAction):
             system_prompt = "\n".join(system_prompt)
         self._system_prompt = system_prompt
         self._model_id = model_id
+        self._data_file = data_file
+        self.entries = self._load_data_entries(data_file)
         self._hints = self._load_hints()
         self._limiter = InvokeLimiter(20, 600)
+
+    def _load_data_entries(self, path):
+        entries = []
+        if os.path.exists(path):
+            with open(path) as f:
+                for line in f:
+                    if line.strip():
+                        entries.append(json.loads(line))
+        return entries
 
     @staticmethod
     def _create_data_store(data_folder: str, structure: dict) -> DataStore:
@@ -51,6 +62,22 @@ class DataHandler(HoneypotAction):
             session[key] = auth_info[key]
         return session
 
+    def handle_command(self, command, session):
+        mode = session.get("mode", "ssh")
+        for entry in self.entries:
+            if entry["command"] == command and entry.get("mode", "ssh") == mode:
+                response = entry["response"]
+                if "switch_to" in entry:
+                    session["mode"] = entry["switch_to"]
+                    # Optionally store the switch_back for validation
+                    session["switch_back"] = entry.get("switch_back")
+                # Only allow switch_back if in switched mode and correct command
+                elif session.get("switch_back") and command == session["switch_back"]:
+                    session["mode"] = "ssh"
+                    session.pop("switch_back", None)
+                return response, session
+        return "Unknown command", session
+
     def invoke_llm_with_limit(self, user_prompt: str) -> (bool, str):
         if self._limiter.can_invoke("visitor"):
             response = invoke_llm(self._system_prompt, user_prompt, self._model_id)
@@ -59,6 +86,9 @@ class DataHandler(HoneypotAction):
             return False, "Internal error. Please try again later."
 
     def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
+        if query.startswith("mysql"):
+            session["mode"] = "mysql"
+            return {"output": "Welcome to the MySQL shell. Type 'help;' for help."}
         return self.request({"command": query}, session, **kwargs)
 
     # noinspection PyPackageRequirements,PyMethodMayBeStatic
