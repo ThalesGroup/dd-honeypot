@@ -102,15 +102,17 @@ def create_honeypot(config: dict) -> BaseHoneypot:
     elif honeypot_type == "telnet":
         return TelnetHoneypot(port=port, action=action, config=config)
 
-    elif honeypot_type == "mysql":
+    elif honeypot_type in ("mysql", "postgres"):
+
         from mysql_honeypot import MySQLHoneypot
+        from postgresql_honeypot import PostgresHoneypot
 
-        dialect = config.get("dialect")
-        action = ChainedHoneypotAction(action, SqlDataHandler(dialect=dialect))
-        return MySQLHoneypot(port=port, action=action, config=config)
-
-    else:
-        raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
+        dialect = config.get("dialect", honeypot_type)
+        sql_handler = SqlDataHandler(dialect=dialect)
+        chained_action = ChainedHoneypotAction(action, sql_handler)
+        # Choose appropriate honeypot class
+        honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
+        return honeypot_cls(port=port, action=chained_action, config=config)
 
 
 def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
