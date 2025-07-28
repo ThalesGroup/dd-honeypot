@@ -171,15 +171,19 @@ class SSHServerInterface(paramiko.ServerInterface):
     def handle_shell(self, channel):
         try:
             cwd = self.session.get("cwd", "/")
-            prompt_template = (
-                self.config.get("prompt_template")
-                or self.config.get("shell-prompt")
-                or f"{self.username}@SSHServer:{cwd}$ "
-            )
-
-            prompt = render_prompt(prompt_template, self.session)
 
             while not channel.closed:
+                # DYNAMIC PROMPT SELECTION EACH TIME
+                mode = self.session.get("mode", "ssh")
+                if mode == "mysql":
+                    prompt = self.config.get("mysql_prompt", "mysql> ")
+                else:
+                    prompt_template = (
+                        self.config.get("prompt_template")
+                        or self.config.get("shell-prompt")
+                        or f"{self.username}@SSHServer:{cwd}$ "
+                    )
+                    prompt = render_prompt(prompt_template, self.session)
                 buffer = ""
                 channel.send(prompt)
                 escape_seq = ""

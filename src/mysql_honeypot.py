@@ -51,7 +51,6 @@ class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
         yield Success(auth_info.user.name)
 
 
-
 class AllowAllIdentityProvider(IdentityProvider):
     def get_plugins(self):
         return [AllowAllPasswordAuthPlugin()]
@@ -102,34 +101,38 @@ class MySQLHoneypot(BaseHoneypot):
         async def handle_query(self, sql: str, attrs: Dict[str, str]) -> AllowedResult:
             self._log_query(sql)
             query = sql.strip().rstrip(";")
+            response = None
 
             # Handle session variable queries
-            session_result = self._handle_session_variable(query, sql)
-            if session_result:
-                return session_result
+            var_result = self._handle_session_variable(query, sql)
+            if var_result is not None:
+                return var_result
 
-            # Try native MySQL mimic response first
             try:
                 result = await super().handle_query(sql, attrs)
                 if result and result[0]:
                     return result
             except Exception as e:
-                logger.debug(f"default handler failed: {e}")
+                logger.debug(f"super().handle_query() failed for query={sql}: {e}")
 
-            # Fallback: use LLM or static data
+            # Fallback to LLM
+            context = dict(session=self._session_data, **(self._honeypot_session or {}))
             try:
-                context = self._honeypot_session or {}
                 response = self._action.query(sql, context, **attrs)
-                if isinstance(response, dict) and "output" in response:
-                    output = response["output"]
-                else:
-                    output = response
 
-                parsed = json.loads(output) if isinstance(output, str) else output
+                if isinstance(response, dict) and "output" in response:
+                    raw = response["output"]
+                elif isinstance(response, str):
+                    raw = response
+                else:
+                    raise ValueError("Unexpected LLM response format")
+
+                parsed = json.loads(raw)
 
                 if isinstance(parsed, list) and parsed:
                     columns = list(parsed[0])
                     rows = [tuple(row[col] for col in columns) for row in parsed]
+
                     return ResultSet(
                         rows=rows,
                         columns=[
@@ -140,8 +143,8 @@ class MySQLHoneypot(BaseHoneypot):
 
             except Exception as e:
                 logger.warning(f"Failed to parse LLM response: {e}")
+                logger.debug(f"LLM raw response: %s", response)
 
-            # Return empty result if everything fails
             return ResultSet(rows=[], columns=[])
 
         def _handle_session_variable(

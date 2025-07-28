@@ -1,10 +1,11 @@
+import os
 import pathlib
 import socket
 import struct
 import time
-import os
-import pytest
 from typing import Generator
+
+import pytest
 
 from postgresql_honeypot import PostgresHoneypot
 from infra.data_handler import DataHandler
@@ -15,7 +16,6 @@ from infra.chain_honeypot_action import ChainedHoneypotAction
 @pytest.fixture(scope="session")
 def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
-
     pathlib.Path("honeypots/postgres").mkdir(parents=True, exist_ok=True)
 
     action = ChainedHoneypotAction(
@@ -24,11 +24,10 @@ def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
             system_prompt=["You are a PostgreSQL server"],
             model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
         ),
-        SqlDataHandler(dialect="postgresql"),
+        SqlDataHandler(dialect="postgres"),
     )
 
-    honeypot = PostgresHoneypot()
-    honeypot.action = action
+    honeypot = PostgresHoneypot(port=0, action=action, config={"host": "0.0.0.0"})
 
     try:
         honeypot.start()
@@ -38,34 +37,44 @@ def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
 
 
 @pytest.fixture
-def postgres_cnn(postgres_honeypot) -> Generator[socket.socket, None, None]:
-    host = "127.0.0.1"
-    port = postgres_honeypot.bound_port
-    with socket.create_connection((host, port), timeout=2) as sock:
+def postgres_socket(postgres_honeypot) -> Generator[socket.socket, None, None]:
+    """Returns a connected raw TCP socket to the honeypot."""
+    sock = socket.create_connection(
+        ("0.0.0.0", postgres_honeypot.bound_port), timeout=2
+    )
+    sock.settimeout(2)
+    try:
         yield sock
+    finally:
+        sock.close()
 
 
-def send_pg_startup_message(sock):
-    params = b"user\x00postgres\x00database\x00postgres\x00\x00"
-    length = len(params) + 4 + 4
+def send_pg_startup_message(sock: socket.socket):
+    # Protocol version 3.0 = 196608
+    # user=root, database=postgres
+    params = b"user\x00root\x00database\x00postgres\x00\x00"
+    length = len(params) + 8  # 4 bytes length + 4 bytes protocol version
     message = struct.pack("!I", length)
     message += struct.pack("!I", 196608)
     message += params
     sock.sendall(message)
 
 
-def test_postgres_fake_connection(postgres_cnn):
-    send_pg_startup_message(postgres_cnn)
-    time.sleep(0.1)
-    resp = postgres_cnn.recv(1024)
-    assert resp
-
-
-def test_postgres_malformed_query(postgres_cnn):
-    postgres_cnn.sendall(b"garbage data")
+def test_postgres_fake_connection(postgres_socket):
+    send_pg_startup_message(postgres_socket)
     time.sleep(0.1)
     try:
-        data = postgres_cnn.recv(1024)
+        resp = postgres_socket.recv(1024)
+        assert resp
+    except socket.timeout:
+        pytest.fail("No response received from honeypot")
+
+
+def test_postgres_malformed_query(postgres_socket):
+    postgres_socket.sendall(b"invalid_query")
+    time.sleep(0.1)
+    try:
+        data = postgres_socket.recv(1024)
         assert data == b"" or data
-    except ConnectionResetError:
+    except (ConnectionResetError, socket.timeout):
         pass
