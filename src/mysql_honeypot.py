@@ -114,7 +114,9 @@ class MySQLHoneypot(BaseHoneypot):
                     return result
             except Exception as e:
                 logger.debug(f"super().handle_query() failed for query={sql}: {e}")
-
+            # Handle special case for "select $$", which is sent by mysql cli
+            if query == "select $$":
+                return AllowedResult()
             # Fallback to LLM
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             try:
