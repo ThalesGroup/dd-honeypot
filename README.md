@@ -1,4 +1,3 @@
-
 # DataTrap - Data Driven AI-based Honeypot
 
 DataTrap is an innovative and extensible honeypot system that emulates realistic behavior across TCP, HTTP, SSH, and various database protocols. Designed to simulate web applications, IoT devices, and databases, DataTrap goes beyond traditional honeypots by combining recorded payloads, metadata, and a large language model (LLM) to dynamically generate responses that closely mimic real application behavior.
@@ -61,21 +60,10 @@ This continuous enrichment process ensures that DataTrap evolves with attacker b
 
 ```json
 {
-  "application": "mysql",
-  "version": "5.7",
-  "payloads": [
-    {
-      "request": "DROP TABLE users;",
-      "response": "Error: DROP command denied to user '${user}'@'${host}' for table 'users'"
-    },
-    {
-      "request": "SELECT * FROM users;",
-      "response": "Error: SELECT command denied to user '${user}'@'${host}' for table 'users'"
-    }
-  ]
+  "request": "DROP TABLE users;",
+  "response": "Error: DROP command denied to user '${user}'@'${host}' for table 'users'"
 }
 ```
-
 ---
 
 ## LLM Interaction and Dataset Update
@@ -95,18 +83,18 @@ System prompts and fallback behavior can be configured per honeypot instance.
 
 ## Configuration Folder
 
-The configuration folder contains the main `honeypot.conf` file, which defines:
+Each honeypot has its own `config.json` file, which includes:
 
-* All honeypots to load at runtime
-* Paths to their individual config files
-* Global settings (e.g., logging, ports, LLM access)
-* Dataset paths and log storage options
-
-Each honeypot is defined with a unique ID, type, and path to its `config.json`.
-
+- A unique honeypot type (e.g., `mysql`, `ssh`, `http`)
+- Port and runtime settings
+- Dataset path:
+  - `.jsonl` for query-response logs (e.g., `data.jsonl`)
+  - `.db` for structured datasets (e.g., `data_store.db`)
+  - `.gz` for filesystem emulation (e.g., `fs_busybox.jsonl.gz`)
+  - LLM model ID and system prompt
+This modular structure allows each honeypot to operate independently with its own configuration, making it easy to manage and scale.
 
 ---
-
 ## Installation
 
 DataTrap is packaged as a Docker image for quick and reproducible deployment.
