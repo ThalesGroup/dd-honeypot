@@ -11,6 +11,7 @@ from src.mysql_honeypot import MySQLHoneypot
 from base_honeypot import BaseHoneypot
 from sql_data_handler import SqlDataHandler
 
+
 @pytest.fixture
 def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
@@ -185,7 +186,7 @@ def test_var_json_object(mysql_cnn):
         assert returned_obj == expected_obj
 
 
-async def test_set_and_select_null(mysql_cnn):
+def test_set_and_select_null(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SET @x = NULL")
         cursor.execute("SELECT @x")
@@ -193,7 +194,7 @@ async def test_set_and_select_null(mysql_cnn):
         assert result[0] is None
 
 
-async def test_set_invalid_json_fallbacks(mysql_cnn):
+def test_set_invalid_json_fallbacks(mysql_cnn):
     with mysql_cnn.cursor() as cursor:
         cursor.execute("SET @x = not_json")
         cursor.execute("SELECT @x")
