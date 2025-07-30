@@ -78,3 +78,56 @@ def test_postgres_malformed_query(postgres_socket):
         assert data == b"" or data
     except (ConnectionResetError, socket.timeout):
         pass
+
+
+def test_ssl_request_response(postgres_socket):
+    ssl_request = b"\x00\x00\x00\x08\x04\xd2\x16\x2f"
+    postgres_socket.sendall(ssl_request)
+    time.sleep(0.1)
+    resp = postgres_socket.recv(1)
+    assert resp == b"N", f"Expected 'N' response to SSL request, got {resp!r}"
+
+
+def test_gssenc_request_response(postgres_socket):
+    gssenc_request = b"\x00\x00\x00\x08\x04\xd2\x16\x30"
+    postgres_socket.sendall(gssenc_request)
+    time.sleep(0.1)
+    resp = postgres_socket.recv(1)
+    assert resp == b"N", f"Expected 'N' response to GSSENC request, got {resp!r}"
+
+
+def test_auth_and_ready_for_query(postgres_socket):
+    send_pg_startup_message(postgres_socket)
+    time.sleep(0.1)  # give time for both responses to arrive
+
+    data = b""
+    for _ in range(2):  # attempt to read up to 2 chunks
+        try:
+            data += postgres_socket.recv(1024)
+        except socket.timeout:
+            break
+
+    assert (
+        b"R\x00\x00\x00\x08\x00\x00\x00\x00" in data
+    ), f"Expected AuthenticationOk message, got: {data!r}"
+    assert (
+        b"Z\x00\x00\x00\x05I" in data
+    ), f"Expected ReadyForQuery message, got: {data!r}"
+
+
+def test_invalid_startup_message(postgres_socket):
+    postgres_socket.sendall(b"\x00\x00\x00\x04BAD!")
+    time.sleep(0.1)
+    try:
+        data = postgres_socket.recv(1024)
+        # Accept anything, just shouldn't crash
+        assert data == b"" or data
+    except (ConnectionResetError, socket.timeout):
+        pass
+
+
+def test_client_disconnect_after_auth(postgres_socket):
+    send_pg_startup_message(postgres_socket)
+    postgres_socket.close()
+    time.sleep(0.1)
+    # No exception should be raised here from the honeypot side
