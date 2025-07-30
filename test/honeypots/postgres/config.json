@@ -3,6 +3,6 @@
   "system_prompt": "You are a PostgreSQL server. Answer the query exactly like a real PostgreSQL database would. When returning results, use a JSON array of objects where each object is a row. Do not include any extra explanation, only return the JSON array or error if any.",
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "data_file": "honeypots/postgres/data.jsonl",
-  "port": 0,
+  "port": 5433,
   "dialect": "postgres"
 }

@@ -11,7 +11,7 @@ class PostgresHoneypot(BaseHoneypot):
     def __init__(self, port, action, config):
         super().__init__(port=port, config=config)
         self.action = action
-        self.host = config.get("host", "0.0.0.0")
+        self.host = config.get("host", "127.0.0.1")
         self.listen_port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -44,26 +44,34 @@ class PostgresHoneypot(BaseHoneypot):
 
     def _handle_client(self, client_socket: socket.socket, addr: Tuple[str, int]):
         try:
-            data = client_socket.recv(1024)
-            if data:
+            for _ in range(2):  # At most two initial requests: SSL and GSSENC
+                data = client_socket.recv(1024)
+                if not data:
+                    return
                 logging.info(f"Received raw bytes: {data.hex()}")
-                query = self._extract_query(data)
-                logging.info(f"Simulated SQL: {query}")
 
-                session = self.sessions.get(addr, {})
+                # SSLRequest (0x2f) or GSSENCRequest (0x30)
+                if (
+                    len(data) == 8
+                    and data[:4] == b"\x00\x00\x00\x08"
+                    and data[4:7] == b"\x04\xd2\x16"
+                    and data[7] in (0x2F, 0x30)
+                ):
+                    client_socket.sendall(b"N")
+                    continue  # Accept another initial request if needed
 
-                if self.log_data:
-                    self.log_data(session, {"query": query})
+                break
 
-                if self.action:
-                    try:
-                        self.action.connect({"client": addr})
-                        response = self.action.query(query, session=session)
-                        logging.info(f"LLM response: {response}")
-                    except Exception as e:
-                        logging.warning(f"Action handler failed: {e}")
+            client_socket.sendall(
+                b"R\x00\x00\x00\x08\x00\x00\x00\x00"
+            )  # AuthenticationOk
+            client_socket.sendall(b"Z\x00\x00\x00\x05I")  # ReadyForQuery
 
-                client_socket.sendall(self._build_fake_row("hello_from_fake_pg"))
+            while True:
+                data = client_socket.recv(4096)
+                if not data:
+                    break
+                logging.info(f"Received post-connect bytes: {data.hex()}")
         except Exception as e:
             logging.warning(f"Client error: {e}")
         finally:
