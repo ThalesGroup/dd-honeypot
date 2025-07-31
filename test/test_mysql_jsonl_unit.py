@@ -57,22 +57,9 @@ def mysql_cnn(mysql_honeypot):
 
 @pytest.mark.parametrize("test_case", _get_jsonl_tests(), ids=lambda t: t["name"])
 def test_mysql_jsonl_case(test_case, mysql_cnn):
-    sqls = (
-        test_case["sql"] if isinstance(test_case["sql"], list) else [test_case["sql"]]
-    )
+    sqls = test_case.get("sql")
     expected_data = test_case.get("data")
     expected_errors = test_case.get("errors")
-
-    def maybe_parse(val):
-        if isinstance(val, str):
-            try:
-                return json.loads(val)
-            except Exception:
-                return val
-        return val
-
-    def normalize_block(block):
-        return [[maybe_parse(col) for col in row] for row in block]
 
     try:
         collected_data = []
@@ -83,36 +70,12 @@ def test_mysql_jsonl_case(test_case, mysql_cnn):
                 collected_data.append([list(row) for row in rows])
 
         # Remove empty SET/USE results etc.
-        cleaned = [rows for rows in collected_data if rows]
+        normalized = [rows for rows in collected_data if rows]
 
-        # Normalize
-        normalized = [normalize_block(rows) for rows in cleaned]
-
-        # Match structure based on expected
-        if expected_data is not None and isinstance(expected_data, list):
-            is_single_query = (
-                isinstance(test_case["sql"], str) or len(test_case["sql"]) == 1
-            )
-            if (
-                is_single_query
-                and len(normalized) == 1
-                and all(
-                    not isinstance(r, list)
-                    or isinstance(r[0], (str, int, float, type(None), dict, bool))
-                    for r in expected_data
-                )
-            ):
-                # Only flatten if truly single-statement
-                actual = normalized[0]
-            else:
-                actual = normalized
+        if len(sqls) == 1 and normalized:
+            actual = normalized[0]
         else:
             actual = normalized
-
-        # Slice extra rows if honeypot returns more (e.g., version_comment)
-        if expected_data and isinstance(expected_data, list):
-            if isinstance(actual, list):
-                actual = actual[: len(expected_data)]
 
         assert (
             expected_errors is None

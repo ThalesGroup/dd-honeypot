@@ -1,8 +1,9 @@
 {"name": "select_literal", "sql": ["SELECT 1"], "data": [[1]]}
 {"name": "set_and_get_variable", "sql": ["SET @x = 42", "SELECT @x"], "data": [[[42]]]}
-{"name": "set_json_variable", "sql": ["SET @x = {\"key\": \"val\"}", "SELECT @x"], "data": [[[{"key": "val"}]]]}
+{"name": "set_json_variable", "sql": ["SET @x = {\"key\": \"val\"}", "SELECT @x"], "data": [[["{\"key\": \"val\"}"]]]}
 {"name": "unset_variable", "sql": ["SELECT @missing_var"], "data": [[null]]}
-{"name": "show_variables_like", "sql": ["SHOW VARIABLES LIKE 'version%'"], "data": [["version", "8.0.29"]]}
+{"name": "show_variables_like", "sql": ["SHOW VARIABLES LIKE 'version%'"], "data": [["version", "8.0.29"],["version_comment", "mysql-mimic"]]}
+{"name": "show_variables_like2", "sql": ["SHOW VARIABLES LIKE 'version_comment'"], "data": [["version_comment", "mysql-mimic"]]}
 {"name": "multiple_statements_block", "sql": ["SELECT 1; SELECT 2"], "errors": ["Multiple SQL statements not allowed"]}
 {"name": "select_version_func", "sql": ["SELECT VERSION()"], "data": [["8.0.29"]]}
 {"name": "show_databases", "sql": ["SHOW DATABASES"], "data": [["information_schema"], ["mysql"]]}
@@ -27,3 +28,5 @@
 {"name":"select_version_comment_limit","sql":["SELECT @@version_comment LIMIT 1"],"data":[[null]]}
 {"name": "select_multi_statement_query", "sql": ["SELECT 1; SELECT 2"], "data": [[[{"1": 1}], [{"2": 2}]]], "errors": ["Multiple SQL statements not allowed"]}
 {"name": "set_names_utf8mb3_unsupported", "sql": ["SET NAMES utf8mb3"], "errors": ["'utf8mb3'"]}
+{"name": "select_$$", "sql": ["select $$"], "data": []}
+
