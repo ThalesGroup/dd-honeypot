@@ -84,7 +84,7 @@ class HTTPHoneypot(BaseHoneypot):
                     data,
                     session.get("h_session"),
                 )
-                return Response(result["output"], 200)
+                return text_to_response(result["output"])
             except Exception as e:
                 logger.error(f"Error while handling request for path: {path} - {e}", e)
                 return Response("Internal Server Error", 500)
@@ -116,3 +116,24 @@ class HTTPHoneypot(BaseHoneypot):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1)
         logger.info(f"Stopping honeypot on port {self.port}")
+
+
+def text_to_response(text: str) -> Response:
+    if is_json(text):
+        return Response(text, mimetype="application/json")
+    else:
+        return Response(text)
+
+
+def is_json(text: str) -> bool:
+    n = len(text)
+    i, j = 0, n - 1
+
+    while i < n and text[i].isspace():
+        i += 1
+    while j >= 0 and text[j].isspace():
+        j -= 1
+
+    return i < j and (
+        (text[i] == "{" and text[j] == "}") or (text[i] == "[" and text[j] == "]")
+    )

@@ -12,7 +12,7 @@ from base_honeypot import HoneypotSession, BaseHoneypot
 from conftest import get_config, get_honeypots_folder
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import init_env_from_file, allocate_port
-from http_honeypot import HTTPHoneypot
+from http_honeypot import HTTPHoneypot, is_json
 from infra.honeypot_wrapper import create_honeypot
 from infra.interfaces import HoneypotAction
 
@@ -31,7 +31,10 @@ def wait_for_server(port: int, retries=5, delay=1):
 def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
     class TestHTTPDataHandler(HoneypotAction):
         def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
-            return {"output": "Request logged"}
+            if info["path"] == "json_path":
+                return {"output": '{"message": "Request logged"}'}
+            else:
+                return {"output": "Request logged"}
 
     honeypot = HTTPHoneypot(
         action=TestHTTPDataHandler(), config={"name": "TestHTTPHoneypot"}
@@ -66,6 +69,18 @@ def test_basic_http_request(http_honeypot):
     )
     assert response.status_code == 200
     assert "Request logged" in response.text
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+
+
+def test_json_response(http_honeypot):
+    response = requests.get(
+        f"http://0.0.0.0:{http_honeypot.port}/json_path",
+        headers={"Accept": "text/html"},
+    )
+    assert response.status_code == 200
+    assert "Request logged" in response.text
+    assert response.json()["message"] == "Request logged"
+    assert response.headers["Content-Type"] == "application/json"
 
 
 def test_php_my_admin(php_my_admin):
@@ -152,3 +167,43 @@ def test_http_honeypot_main(monkeypatch):
         finally:
             monkeypatch.setenv("STOP_HONEYPOT", "true")
             t.join(timeout=5)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"key": "value"}',
+        '   { "a": 1 }   ',
+        '\n\t{ "a": 1 }\n',
+        "[1, 2, 3]",
+        "   [1,2,3]   ",
+        "\n\t[1,2,3]\n",
+        "{}",
+        "[]",
+        "   {}   ",
+        "\n[]\n",
+    ],
+)
+def test_is_json_true(text):
+    assert is_json(text) is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "plain text",
+        "{not json",
+        "not json}",
+        "[not json",
+        "not json]",
+        "(",
+        ")",
+        "[",
+        "]",
+        "{",
+        "}",
+    ],
+)
+def test_is_json_false(text):
+    assert is_json(text) is False
