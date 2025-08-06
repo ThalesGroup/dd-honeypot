@@ -1,5 +1,6 @@
 import abc
 import json
+import logging
 import sqlite3
 from abc import ABC
 from enum import Enum
@@ -72,16 +73,46 @@ class SqliteDataStore(DataStore):
             conn.commit()
 
     def load_static_content(self, file_name: str) -> None:
+        if getattr(self, "honeypot_type", None) == "http":
+            required_fields = []
+            data_field = _DATA_FIELD
+        else:
+            required_fields = list(self._structure.keys()) + [_DATA_FIELD]
+
         with open(file_name) as f:
-            for line in f:
-                line_json = json.loads(line)
+            for i, line in enumerate(f):
+                try:
+                    line_json = json.loads(line)
+                except Exception as e:
+                    logging.error(
+                        f"{file_name} line {i + 1}: Invalid JSON ({str(e)}), skipping line"
+                    )
+                    continue
+
+                if required_fields:
+                    missing_fields = [
+                        field for field in required_fields if field not in line_json
+                    ]
+                    if missing_fields:
+                        logging.error(
+                            f"{file_name} line {i + 1}: Missing required key(s) {missing_fields}, skipping line"
+                        )
+                        continue
+
                 search_terms = {
                     key: line_json[key]
                     for key in self._structure.keys()
                     if key in line_json
                 }
                 search_terms["is_static"] = True
-                self.store(search_terms, line_json[_DATA_FIELD])
+
+                try:
+                    self.store(search_terms, line_json.get(_DATA_FIELD, ""))
+                except Exception as e:
+                    logging.error(
+                        f"{file_name} line {i + 1}: Store error ({str(e)}), skipping line: {line.strip()}"
+                    )
+                    continue
 
     def clear(self) -> int:
         with sqlite3.connect(self._db_name) as conn:
