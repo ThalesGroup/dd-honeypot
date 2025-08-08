@@ -122,12 +122,14 @@ class SqliteDataStore(DataStore):
 
     def store(self, search_terms: Dict[str, Any], data: str) -> None:
         with sqlite3.connect(self._db_name) as conn:
-            filtered_terms = {k for k in search_terms if k in self._structure}
+            filtered_terms = [k for k in self._structure if k in search_terms]
             columns = f"{', '.join(filtered_terms)}, is_static, data"
             placeholders = ", ".join(["?"] * (len(filtered_terms) + 2))
             sql = f"INSERT INTO {self._TABLE_NAME} ({columns}) VALUES ({placeholders})"
             conn.execute(
-                sql, [str(search_terms[k]) for k in filtered_terms] + [False, data]
+                sql,
+                [str(search_terms[k]) for k in filtered_terms]
+                + [search_terms.get("is_static", False), data],
             )
             conn.commit()
 
