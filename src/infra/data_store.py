@@ -73,11 +73,7 @@ class SqliteDataStore(DataStore):
             conn.commit()
 
     def load_static_content(self, file_name: str) -> None:
-        if getattr(self, "honeypot_type", None) == "http":
-            required_fields = []
-            data_field = _DATA_FIELD
-        else:
-            required_fields = list(self._structure.keys()) + [_DATA_FIELD]
+        required_fields = list(self._structure.keys()) + [_DATA_FIELD]
 
         with open(file_name) as f:
             for i, line in enumerate(f):
