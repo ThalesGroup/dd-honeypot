@@ -10,7 +10,7 @@ class HTTPDataHandler(DataHandler):
             data_file,
             "\n".join(system_prompt) + "\n".join(self.base_system_prompt()),
             model_id,
-            {"path": "TEXT", "args": "TEXT", "body": "TEXT"},
+            {"path": "TEXT", "args": "TEXT"}, # body is optional
         )
 
     @staticmethod

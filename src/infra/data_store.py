@@ -1,5 +1,6 @@
 import abc
 import json
+import logging
 import sqlite3
 from abc import ABC
 from enum import Enum
@@ -72,16 +73,42 @@ class SqliteDataStore(DataStore):
             conn.commit()
 
     def load_static_content(self, file_name: str) -> None:
+        required_fields = list(self._structure.keys()) + [_DATA_FIELD]
+
         with open(file_name) as f:
-            for line in f:
-                line_json = json.loads(line)
+            for i, line in enumerate(f):
+                try:
+                    line_json = json.loads(line)
+                except Exception as e:
+                    logging.error(
+                        f"{file_name} line {i + 1}: Invalid JSON ({str(e)}), skipping line"
+                    )
+                    continue
+
+                if required_fields:
+                    missing_fields = [
+                        field for field in required_fields if field not in line_json
+                    ]
+                    if missing_fields:
+                        logging.error(
+                            f"{file_name} line {i + 1}: Missing required key(s) {missing_fields}, skipping line"
+                        )
+                        continue
+
                 search_terms = {
                     key: line_json[key]
                     for key in self._structure.keys()
                     if key in line_json
                 }
                 search_terms["is_static"] = True
-                self.store(search_terms, line_json[_DATA_FIELD])
+
+                try:
+                    self.store(search_terms, line_json.get(_DATA_FIELD, ""))
+                except Exception as e:
+                    logging.error(
+                        f"{file_name} line {i + 1}: Store error ({str(e)}), skipping line: {line.strip()}"
+                    )
+                    continue
 
     def clear(self) -> int:
         with sqlite3.connect(self._db_name) as conn:
@@ -91,12 +118,14 @@ class SqliteDataStore(DataStore):
 
     def store(self, search_terms: Dict[str, Any], data: str) -> None:
         with sqlite3.connect(self._db_name) as conn:
-            filtered_terms = {k for k in search_terms if k in self._structure}
+            filtered_terms = [k for k in self._structure if k in search_terms]
             columns = f"{', '.join(filtered_terms)}, is_static, data"
             placeholders = ", ".join(["?"] * (len(filtered_terms) + 2))
             sql = f"INSERT INTO {self._TABLE_NAME} ({columns}) VALUES ({placeholders})"
             conn.execute(
-                sql, [str(search_terms[k]) for k in filtered_terms] + [False, data]
+                sql,
+                [str(search_terms[k]) for k in filtered_terms]
+                + [search_terms.get("is_static", False), data],
             )
             conn.commit()
 
