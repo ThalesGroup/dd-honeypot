@@ -1,5 +1,8 @@
 {
   "type": "mysql",
+  "name": "mysql",
+  "description": "Emulates an interactive MySQL server shell and responds to SQL queries as in data.jsonl.",
+  "data_handler": "mysql",
   "system_prompt": [
   "You are a MySQL server.",
   "Respond only with a JSON array of rows, where each object represents a row from the SQL result set.",
@@ -8,6 +11,6 @@
 ],
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "data_file": "honeypots/mysql/data.jsonl",
-  "port": 13306,
+  "port": 3306,
   "dialect": "mysql"
 }
