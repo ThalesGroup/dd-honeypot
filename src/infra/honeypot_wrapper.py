@@ -10,7 +10,7 @@ from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
 from infra.fake_fs_data_handler import FakeFSDataHandler
-from infra.session_router import SessionRouter
+from infra.protocol_dispatcher import Dispatcher
 from sql_data_handler import SqlDataHandler
 from telnet_honeypot import TelnetHoneypot
 
