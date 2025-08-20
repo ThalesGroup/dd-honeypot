@@ -1,5 +1,6 @@
 from base_honeypot import BaseHoneypot
 
+
 class ProtocolDispatcher:
     """One-shot router – called ONLY on the very first packet of a session."""
 
