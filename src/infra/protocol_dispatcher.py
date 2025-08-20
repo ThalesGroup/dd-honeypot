@@ -1,33 +1,24 @@
-from typing import Dict, Any
-from base_honeypot import BaseHoneypot 
-from infra.interfaces import HoneypotSession
+from base_honeypot import BaseHoneypot
 
+class ProtocolDispatcher:
+    """One-shot router – called ONLY on the very first packet of a session."""
 
-class Dispatcher:
-    def __init__(self, honeypot_configs):
-        self.honeypots = self._load_honeypots(honeypot_configs)
-        self.sessions = {}  # session_id: session_obj
+    def __init__(self, backends: dict[str, "BaseHoneypot"]):
+        self.backends = backends  # name → honeypot instance
+        self.sessions = {}  # session_id → {"handler": BaseHoneypot}
 
-    def route(self, session_id, request):
-        session = self.sessions.setdefault(session_id, self._init_session())
-        current_honeypot = self.honeypots[session["mode"]]
-        response = current_honeypot.handle(request, session)
+    def _choose_handler(self, first_req: str) -> "BaseHoneypot":
+        if first_req.startswith("/phpmyadmin"):
+            return self.backends["php_my_admin"]
+        if first_req.startswith("/login.htm"):
+            return self.backends["boa_server_http"]
+        if first_req.startswith("SSH"):
+            return self.backends["mysql_ssh"]
+        # default:
+        return next(iter(self.backends.values()))
 
-        # Handle protocol switch
-        if isinstance(response, dict) and "switch_to" in response:
-            new_mode = response["switch_to"]
-            session["mode"] = new_mode
-            if "switch_back" in response:
-                session["switch_back_command"] = response["switch_back"]
-            session["previous_mode"] = current_honeypot.name
-            # Optionally update prompt, etc.
-
-        # Handle switch-back (e.g., exit command in MySQL)
-        if (
-            "switch_back_command" in session
-            and request == session["switch_back_command"]
-        ):
-            session["mode"] = session.get("previous_mode", "ssh")
-            # Optionally update prompt, etc.
-
-        return response
+    def route(self, session_id: str, first_req: str) -> "BaseHoneypot":
+        """Return the handler that will own the whole session."""
+        if session_id not in self.sessions:
+            self.sessions[session_id] = {"handler": self._choose_handler(first_req)}
+        return self.sessions[session_id]["handler"]
