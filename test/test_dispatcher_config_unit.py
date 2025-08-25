@@ -1,4 +1,6 @@
 import pytest
+from infra.bootstrap import ssh_dispatcher
+from ssh_honeypot import get_ssh_dispatcher
 
 
 @pytest.fixture
@@ -217,3 +219,11 @@ def test_ssh_dispatcher_initial_commands(ssh_client, ssh_dispatcher, session_sto
     handler = ssh_dispatcher.get_handler_by_name("mysql_ssh")
     assert handler is not None
     assert handler["name"] == "mysql_ssh"
+
+
+def test_dispatcher_returns_same_handler_per_session():
+    sid = "test-session"
+    dispatcher = get_ssh_dispatcher()
+    handler1 = dispatcher.route(sid, "first")
+    handler2 = dispatcher.route(sid, "second")
+    assert handler1 is handler2

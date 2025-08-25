@@ -10,6 +10,8 @@ from werkzeug.serving import make_server
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
+HTTP_SESSIONS = {}
+
 
 class HTTPHoneypot(BaseHoneypot):
     def __init__(
@@ -55,6 +57,11 @@ class HTTPHoneypot(BaseHoneypot):
         @self.app.route(
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
+        def get_http_dispatcher():
+            from infra.bootstrap import http_dispatcher
+
+            return http_dispatcher
+
         def catch_all(path):
             resource_type = get_resource_type(request)
             if resource_type not in ["document", "xhr", "fetch"]:
@@ -80,10 +87,20 @@ class HTTPHoneypot(BaseHoneypot):
                         "http-request": data,
                     },
                 )
-                result = self._action.request(
-                    data,
-                    session.get("h_session"),
+
+                sid = (
+                    str(session["h_session"].id)
+                    if "h_session" in session
+                    else request.remote_addr
                 )
+                disp = get_http_dispatcher()
+                if sid not in HTTP_SESSIONS:
+                    handler = disp.route(
+                        sid, path
+                    )  # 'path' comes from your request data
+                    HTTP_SESSIONS[sid] = {"handler": handler}
+                handler = HTTP_SESSIONS[sid]["handler"]
+                result = handler.action.request(data, session["h_session"])
                 return text_to_response(result["output"])
             except Exception as e:
                 logger.error(f"Error while handling request for path: {path} - {e}", e)
