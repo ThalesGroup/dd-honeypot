@@ -6,6 +6,16 @@ import paramiko
 import pytest
 
 from infra.honeypot_wrapper import create_honeypot
+from ssh_honeypot import SSH_SESSIONS
+from infra.interfaces import HoneypotAction
+
+
+class DummyAction(HoneypotAction):
+    def connect(self, auth_info):
+        return {"id": "mock-session-id"}
+
+    def query(self, command, session):
+        return {"output": "bin\netc\nhome\n"}
 
 
 @pytest.fixture
@@ -54,6 +64,16 @@ def test_ls_root_directory(ssh_honeypot):
     client.connect(
         "localhost", port=ssh_honeypot.port, username="user", password="pass"
     )
+
+    action = DummyAction()
+    patched = False
+    for session in SSH_SESSIONS.values():
+        handler = session.get("handler")
+        if handler and not isinstance(handler.action, DummyAction):
+            handler.action = action
+            patched = True
+    if patched:
+        print("Manually patched session handler(s)")
 
     stdin, stdout, stderr = client.exec_command("ls /")
     output = stdout.read().decode().strip()

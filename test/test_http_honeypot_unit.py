@@ -4,6 +4,7 @@ import tempfile
 import threading
 import time
 from typing import Generator
+from unittest.mock import patch
 
 import pytest
 import requests
@@ -36,15 +37,17 @@ def http_honeypot() -> Generator[HTTPHoneypot, None, None]:
             else:
                 return {"output": "Request logged"}
 
-    honeypot = HTTPHoneypot(
-        action=TestHTTPDataHandler(), config={"name": "TestHTTPHoneypot"}
-    )
-    try:
-        honeypot.start()
-        wait_for_server(honeypot.port)
-        yield honeypot
-    finally:
-        honeypot.stop()
+    with patch("infra.data_handler.invoke_llm", return_value="Request logged"):
+        honeypot = HTTPHoneypot(
+            action=TestHTTPDataHandler(), config={"name": "TestHTTPHoneypot"}
+        )
+        honeypot.session = HoneypotSession()
+        try:
+            honeypot.start()
+            wait_for_server(honeypot.port)
+            yield honeypot
+        finally:
+            honeypot.stop()
 
 
 @pytest.fixture
@@ -54,7 +57,16 @@ def php_my_admin() -> Generator[BaseHoneypot, None, None]:
         get_honeypots_folder(), "php_my_admin", "data.jsonl"
     )
     config["port"] = allocate_port()
+
+    class TestPHPAction(HoneypotAction):
+        def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
+            if info.get("path") == "path":
+                raise FileNotFoundError("Not Found")
+            return {"output": "Default content"}
+
     honeypot = create_honeypot(config)
+    honeypot._action = TestPHPAction()
+    honeypot.session = HoneypotSession()
     try:
         honeypot.start()
         wait_for_server(honeypot.port)
