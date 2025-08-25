@@ -1,5 +1,5 @@
 import pytest
-from infra.bootstrap import ssh_dispatcher
+
 from ssh_honeypot import get_ssh_dispatcher
 
 
@@ -221,7 +221,7 @@ def test_ssh_dispatcher_initial_commands(ssh_client, ssh_dispatcher, session_sto
     assert handler["name"] == "mysql_ssh"
 
 
-def test_dispatcher_returns_same_handler_per_session():
+def test_dispatcher_returns_same_handler_per_session(dispatcher):
     sid = "test-session"
     dispatcher = get_ssh_dispatcher()
     handler1 = dispatcher.route(sid, "first")
