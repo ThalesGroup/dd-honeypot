@@ -1,7 +1,8 @@
+import json
 import logging
 import threading
 
-from flask import Flask, request, session, Request, Response
+from flask import Flask, request, session, Request, Response, make_response, jsonify
 
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction
@@ -57,10 +58,45 @@ class HTTPHoneypot(BaseHoneypot):
         @self.app.route(
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
-        def get_http_dispatcher():
-            from infra.bootstrap import http_dispatcher
+        def get_http_dispatcher(path: str):
+            """
+            Turn the flask Request → `info` dict → action.request(...) →
+            flask Response.  All tests exercise only GET; POST and HEAD
+            are added for completeness.
+            """
+            try:
+                info = {
+                    "method": request.method,
+                    "path": path,
+                    "args": request.args.to_dict(),
+                    "headers": dict(request.headers),
+                    "body": request.get_data(as_text=True),
+                    "client_ip": request.remote_addr,
+                    "resource_type": get_resource_type(request),
+                }
 
-            return http_dispatcher
+                result = self.action.request(info, session["h_session"])
+
+                if not isinstance(result, dict) or "output" not in result:
+                    raise ValueError("action.request must return {'output': ...}")
+
+                body = result["output"]
+                status = result.get("status", 200)
+
+                if is_json(body):
+                    resp = make_response(jsonify(json.loads(body)), status)
+                    resp.headers["Content-Type"] = "application/json"
+                else:
+                    resp = make_response(body, status)
+                    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+
+                return resp
+
+            except Exception as exc:
+                if isinstance(exc, FileNotFoundError):
+                    return "Not Found", 404
+                logging.error(f"Error handling request for {path}: {exc}")
+                return "Internal Server Error", 500
 
         def catch_all(path):
             resource_type = get_resource_type(request)
