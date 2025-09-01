@@ -10,7 +10,7 @@ class HTTPDataHandler(DataHandler):
             data_file,
             "\n".join(system_prompt) + "\n".join(self.base_system_prompt()),
             model_id,
-            {"path": "TEXT", "args": "TEXT"}, # body is optional
+            {"path": "TEXT", "args": "TEXT"},  # body is optional
         )
 
     @staticmethod
@@ -35,3 +35,7 @@ class HTTPDataHandler(DataHandler):
         if hint:
             result += f"\nHere is AN IMPORTANT Hint regarding this request. You MUST follow it:\n{hint}"
         return result
+
+    @property
+    def description(self):
+        return "For database admin requests like /phpmyadmin or SQL tools."

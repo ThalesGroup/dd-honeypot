@@ -32,6 +32,7 @@ class SSHServerInterface(paramiko.ServerInterface):
         self.session = None
         self.honeypot = honeypot
         self.config = config or {}
+        # self.central_dispatcher = CentralDispatcher()
 
     @property
     def action(self):
@@ -346,6 +347,7 @@ class SSHHoneypot(BaseHoneypot):
                 client_socket.close()
                 return
 
+            print("Handler type in SSH session:", type(handler))
             ssh_server_interface = SSHServerInterface(
                 handler.action, handler, handler.config
             )
@@ -369,6 +371,10 @@ class SSHHoneypot(BaseHoneypot):
         finally:
             if transport:
                 transport.close()
+
+    @property
+    def description(self):
+        return "For MySQL over SSH or database queries starting with SSH."
 
     def stop(self):
         self.running = False

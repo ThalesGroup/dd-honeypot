@@ -115,3 +115,7 @@ class DataHandler(HoneypotAction):
             # Always store raw string
             self._data_store.store(info, response)
         return {"output": response}
+
+    @property
+    def description(self):
+        return "Fallback for unmatched or unknown requests."

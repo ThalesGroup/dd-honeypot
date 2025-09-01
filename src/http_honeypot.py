@@ -27,6 +27,7 @@ class HTTPHoneypot(BaseHoneypot):
         self._thread = None
         self._server = None
         self._action = action
+        # self.central_dispatcher = CentralDispatcher()
 
         @self.app.before_request
         def handle_session():
