@@ -38,10 +38,29 @@ class SSHServerInterface(paramiko.ServerInterface):
     def action(self):
         return self.honeypot.action  # Always get the current action from honeypot
 
+    def get_allowed_auths(self, username):
+        # Explicitly advertise password auth
+        return "password"  # paramiko expects a comma-separated list
+
     def check_auth_password(self, username, password):
-        logging.info(f"Authentication: {username}:{password}")
-        self.username = username
-        self.session = self.action.connect({"username": username, "password": password})
+        # Honeypot accepts any credentials; record them and (optionally) init a backend session
+        logging.info("Authentication: %s:%s", username, password)
+        self.username = username  # ensures prompt rendering can include the user
+        if self.session is None:
+            # ensure there's a dict for session-level state used by the shell (cwd, subproto, etc.)
+            self.session = (
+                {}
+                if self.honeypot is None
+                else (getattr(self.honeypot, "session", {}) or {})
+            )
+        if self.action is not None:
+            try:
+                sess = self.action.connect({"username": username, "password": password})
+                # prefer backend-provided session dict if applicable
+                if isinstance(sess, dict):
+                    self.session.update(sess)
+            except Exception as e:
+                logging.warning("Backend connect failed, continuing auth: %r", e)
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_request(self, kind, chanid):
@@ -184,12 +203,13 @@ class SSHServerInterface(paramiko.ServerInterface):
                 if mode == "mysql":
                     prompt = self.config.get("mysql_prompt", "mysql> ")
                 else:
-                    prompt_template = (
-                        self.config.get("prompt_template")
-                        or self.config.get("shell-prompt")
-                        or f"{self.username}@SSHServer:{cwd}$ "
+                    tpl = self.config.get("prompt_template") or self.config.get(
+                        "shell-prompt"
                     )
-                    prompt = render_prompt(prompt_template, self.session)
+                    if tpl is not None:
+                        prompt = render_prompt(tpl, self.session)
+                    else:
+                        prompt = "$user@alpine:$/$ "
                 buffer = ""
                 channel.send(prompt)
                 escape_seq = ""

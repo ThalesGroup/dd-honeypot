@@ -1,8 +1,10 @@
-from infra.protocol_dispatcher import ProtocolDispatcher
 import json
-from infra.interfaces import HoneypotAction
-
 from pathlib import Path
+
+from http_data_handlers import HTTPDataHandler
+from infra.interfaces import HoneypotAction
+from infra.protocol_dispatcher import ProtocolDispatcher
+from ssh_honeypot import SSHHoneypot
 
 PROJECT_ROOT = Path(__file__).parents[2]
 CONFIG_DIR = PROJECT_ROOT / "test/honeypots"
@@ -36,7 +38,18 @@ def create_ssh_honeypot():
 http_hp = create_http_honeypot()
 ssh_hp = create_ssh_honeypot()
 
-http_dispatcher = ProtocolDispatcher({"main": http_hp})
-ssh_dispatcher = ProtocolDispatcher({"main": ssh_hp})
+backend_map_http = {
+    "php_my_admin": HTTPDataHandler("dummy.jsonl", "system_prompt", "model_id"),
+    "boa_server_http": HTTPDataHandler("dummy.jsonl", "system_prompt", "model_id"),
+}
+
+backend_map_ssh = {
+    "mysql_ssh": SSHHoneypot(),
+}
+
+disp_config_path = CONFIG_DIR / "protocol_dispatcher/dispatcher_config.json"
+
+http_dispatcher = ProtocolDispatcher(str(disp_config_path), backend_map_http)
+ssh_dispatcher = ProtocolDispatcher(str(disp_config_path), backend_map_ssh)
 
 __all__ = ["http_dispatcher", "ssh_dispatcher"]

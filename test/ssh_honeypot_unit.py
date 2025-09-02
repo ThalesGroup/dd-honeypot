@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class DummyAction1:
     def connect(self, auth_info):
-        return {}  # stub session
+        return {}
 
     def query(self, command, session):
         return {"output": "Mocked LLM response"}
@@ -46,9 +46,7 @@ def ssh_honeypot():
         data_file = temp_path / "data.jsonl"
         key_file = temp_path / "host.key"
 
-        os.environ["HONEYPOT_HOST_KEY"] = str(
-            key_file
-        )  # Tell honeypot where to write the key
+        os.environ["HONEYPOT_HOST_KEY"] = str(key_file)
 
         config = {
             "type": "ssh",
@@ -62,16 +60,14 @@ def ssh_honeypot():
 
         with patch("infra.data_handler.invoke_llm", return_value="Mocked LLM response"):
             honeypot = create_honeypot(config)
+            honeypot.action = action
             for session in SSH_SESSIONS.values():
                 handler = session.get("handler")
                 if handler:
                     handler.action = action
-            honeypot.action = action
 
             def patch_all_handlers():
-                while getattr(
-                    honeypot, "running", True
-                ):  # For PyCharm warning, checks attribute safely
+                while getattr(honeypot, "running", True):
                     for session in SSH_SESSIONS.values():
                         handler = session.get("handler")
                         if handler and handler.action is not action:
@@ -88,17 +84,24 @@ def ssh_honeypot():
         del os.environ["HONEYPOT_HOST_KEY"]  # Cleanup
 
 
-def manual_patch_sessions(dummy_class, action_instance):
-    """Manually patch all current session handlers to the dummy action."""
-    patched = False
-    for session in SSH_SESSIONS.values():
-        handler = session.get("handler")
-        if handler and not isinstance(handler.action, dummy_class):
-            handler.action = action_instance
-            patched = True
-    if patched:
-        logger.info("Manually patched session handler(s)")
-    return patched
+def patch_session_handler_for_class(dummy_class, action_instance, timeout=5):
+    """
+    Poll SSH_SESSIONS until at least one handler exists, then patch its action.
+    Retry for up to 'timeout' seconds to avoid race conditions.
+    """
+    start = time.time()
+    while time.time() - start < timeout:
+        patched = False
+        for session in SSH_SESSIONS.values():
+            handler = session.get("handler")
+            if handler:
+                if not isinstance(handler.action, dummy_class):
+                    handler.action = action_instance
+                patched = True
+        if patched:
+            return
+        time.sleep(0.01)
+    raise TimeoutError("Handler did not appear in time for patching.")
 
 
 def test_basic_command_execution(ssh_honeypot):
@@ -110,7 +113,7 @@ def test_basic_command_execution(ssh_honeypot):
         "localhost", port=ssh_honeypot.port, username="test", password="test"
     )
 
-    manual_patch_sessions(DummyAction1, action)
+    patch_session_handler_for_class(DummyAction1, action)
 
     channel = client.get_transport().open_session()
     print(f"Handler action type: {type(ssh_honeypot.action)}")
@@ -149,7 +152,7 @@ def test_interactive_shell(ssh_honeypot):
         allow_agent=False,
     )
 
-    manual_patch_sessions(DummyAction1, action)
+    patch_session_handler_for_class(DummyAction1, action)
 
     channel = client.invoke_shell()
     channel.settimeout(5)
@@ -211,7 +214,7 @@ def test_concurrent_connections(ssh_honeypot):
             "localhost", port=ssh_honeypot.port, username=user, password="pass"
         )
 
-        manual_patch_sessions(DummyAction1, action)
+        patch_session_handler_for_class(DummyAction1, action)
 
         _, stdout, _ = client.exec_command(cmd)
         output = b""
@@ -309,7 +312,7 @@ def test_ssh_ls_with_fake_fs(ssh_honeypot_with_fakefs):
         password="pass",
     )
 
-    manual_patch_sessions(DummyAction2, action)
+    patch_session_handler_for_class(DummyAction2, action)
 
     _, stdout, _ = client.exec_command("ls /")
     output = stdout.read().decode().strip()
