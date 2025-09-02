@@ -45,8 +45,13 @@ def dispatcher():
         "default": DataHandler("dummy.json", "some_prompt", "model_id"),
     }
 
+    base_dir = os.path.dirname(__file__)  # tests directory
+    config_path = os.path.join(
+        base_dir, "honeypots", "protocol_dispatcher", "dispatcher_config.json"
+    )
+
     disp = ProtocolDispatcher(
-        "honeypots/protocol_dispatcher/dispatcher_config.json",
+        config_path,
         backend_map,
     )
 
