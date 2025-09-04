@@ -47,9 +47,15 @@ backend_map_ssh = {
     "mysql_ssh": SSHHoneypot(),
 }
 
-disp_config_path = CONFIG_DIR / "protocol_dispatcher/dispatcher_config.json"
+disp_config_path = CONFIG_DIR / "http_dispatcher/config.json"
 
-http_dispatcher = ProtocolDispatcher(str(disp_config_path), backend_map_http)
-ssh_dispatcher = ProtocolDispatcher(str(disp_config_path), backend_map_ssh)
+with open(disp_config_path) as f:
+    http_config = json.load(f)
+http_dispatcher = ProtocolDispatcher(http_config, backend_map_http)
+
+with open(ssh_config_path) as f:
+    ssh_config = json.load(f)
+ssh_dispatcher = ProtocolDispatcher(ssh_config, backend_map_ssh)
+
 
 __all__ = ["http_dispatcher", "ssh_dispatcher"]

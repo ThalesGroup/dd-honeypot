@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from unittest.mock import patch
 
@@ -46,14 +47,10 @@ def dispatcher():
     }
 
     base_dir = os.path.dirname(__file__)  # tests directory
-    config_path = os.path.join(
-        base_dir, "honeypots", "protocol_dispatcher", "dispatcher_config.json"
-    )
-
-    disp = ProtocolDispatcher(
-        config_path,
-        backend_map,
-    )
+    config_path = os.path.join(base_dir, "honeypots", "http_dispatcher", "config.json")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    disp = ProtocolDispatcher(config, backend_map)
 
     disp.data_handler = DummyDataHandler()
 
@@ -62,12 +59,14 @@ def dispatcher():
 
 def test_load_config(dispatcher):
     assert "honeypots" in dispatcher.config
-    assert dispatcher.config["llm"]["system_prompt"]
+    assert dispatcher.config["system_prompt"]
 
-    http_honeypot = next(
-        h for h in dispatcher.config["honeypots"] if h["type"] == "http"
-    )
-    assert "php_my_admin" in http_honeypot["handlers"]
+    handler_instance = dispatcher.route(session_id="sess1", first_req="/phpmyadmin")
+    handler_name = getattr(handler_instance, "name", None)
+    if handler_name is None:
+        reverse_map = {v: k for k, v in dispatcher.backends.items()}
+        handler_name = reverse_map.get(handler_instance)
+    assert handler_name in dispatcher.config["honeypots"]
 
 
 def test_route_with_llm(dispatcher):

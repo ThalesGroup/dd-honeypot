@@ -1,21 +1,15 @@
-import json
-
 from base_honeypot import BaseHoneypot
 
 
 class ProtocolDispatcher:
     """Load config from JSON and route sessions to appropriate handlers."""
 
-    def __init__(self, config_path: str, backends: dict[str, "BaseHoneypot"]):
+    def __init__(self, config: dict, backends: dict[str, "BaseHoneypot"]):
         self.backends = backends  # name → honeypot instance
+        self.config = config
         self.sessions = {}  # session_id → {"handler": BaseHoneypot}
 
-        with open(config_path, "r") as f:
-            self.config = json.load(f)
-
-        self.handler_names = set()
-        for honeypot_cfg in self.config.get("honeypots", []):
-            self.handler_names.update(honeypot_cfg.get("handlers", []))
+        self.handler_names = set(self.config.get("honeypots", []))
 
         # Validate that all configured handlers exist in backends
         missing_handlers = self.handler_names - set(backends.keys())
@@ -38,11 +32,10 @@ class ProtocolDispatcher:
             return self.backends.get("mysql_ssh", self.backends.get("default"))
 
         # Try matching against handler names from config
-        for honeypot_cfg in self.config.get("honeypots", []):
-            for handler_name in honeypot_cfg.get("handlers", []):
-                if handler_name in first_req or f"/{handler_name}" in first_req:
-                    if handler_name in self.backends:
-                        return self.backends[handler_name]
+        for handler_name in self.config.get("honeypots", []):
+            if handler_name in first_req or f"/{handler_name}" in first_req:
+                if handler_name in self.backends:
+                    return self.backends[handler_name]
 
         # Default fallback
         return self.backends.get("default", next(iter(self.backends.values())))
