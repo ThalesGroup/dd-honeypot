@@ -1,0 +1,11 @@
+{
+  "type": "http",
+  "name": "http dispatcher",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "system_prompt": [
+    "You are an http dispatcher. You have to decide the right application target according to the given payload",
+    "If there is no way to understand which application is the right target return UNKNOWN and choose one of the application"
+  ],
+  "honeypots": ["php_my_admin", "boa_server_http"],
+  "port": 80
+}
