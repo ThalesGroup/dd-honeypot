@@ -110,17 +110,9 @@ docker pull ghcr.io/thalesgroup/dd-honeypot
 #### Run the Docker container (default setup)
 
 ```sh
-docker run -d -p 80:80 -p 2222:2222 ghcr.io/thalesgroup/dd-honeypot
+docker run -d -p 80:80 -p 2222:2222 --volume /your/honeypot/folder:/data/honeypot ghcr.io/thalesgroup/dd-honeypot
 ```
-
-#### Run with a custom configuration
-
-```sh
-docker run -d \
-  -p 80:80 -p 443:443 -p 2222:2222 \
-  -v /host/path/honeypot.conf:/etc/honeypot/honeypot.conf:ro \
-  ghcr.io/thalesgroup/dd-honeypot
-```
+The container will start the honeypot services based on the configurations found in `/data/honeypot`. You have to map your local honeypot folder to `/data/honeypot` in the container. The folder should contain one or more sub-folder. Each sub-folder should have a honeypot application configuration.
 
 ---
 

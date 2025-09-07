@@ -10,6 +10,7 @@ fileConfig(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logging.con
 from base_honeypot import BaseHoneypot
 from honeypot_utils import init_env_from_file
 from infra.honeypot_wrapper import create_honeypot_by_folder
+from infra.bootstrap import http_dispatcher, ssh_dispatcher
 
 
 def _has_only_subdirectories(folder_path: str) -> bool:
@@ -88,3 +89,5 @@ if __name__ == "__main__":
     init_env_from_file()
     honeypot_folder = sys.argv[1] if len(sys.argv) > 1 else "/data/honeypot"
     start_dd_honeypot(honeypot_folder)
+    sys.modules["http_dispatcher"] = http_dispatcher
+    sys.modules["ssh_dispatcher"] = ssh_dispatcher

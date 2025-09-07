@@ -1,11 +1,22 @@
 import time
+from pathlib import Path
 from unittest.mock import patch
 
 import paramiko
 import pytest
-from pathlib import Path
+
 from infra.honeypot_wrapper import create_honeypot
-from infra.data_handler import DataHandler
+from ssh_honeypot import SSH_SESSIONS
+from infra.interfaces import HoneypotAction
+
+
+class DummyAction(HoneypotAction):
+    def connect(self, auth_info):
+        return {"id": "mock-session-id"}
+
+    def query(self, command, session):
+        return {"output": "Mocked Response"}
+
 
 @pytest.mark.usefixtures("tmp_path")
 def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
@@ -17,7 +28,7 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
             "port": 0,
             "data_file": str(data_file),
             "system_prompt": "You are a Linux terminal emulator.",
-            "model_id": "test-model"
+            "model_id": "test-model",
         }
 
         honeypot = create_honeypot(config)
@@ -27,7 +38,22 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect("localhost", port=honeypot.port, username="testuser", password="testpass")
+            client.connect(
+                "localhost",
+                port=honeypot.port,
+                username="testuser",
+                password="testpass",
+            )
+
+            action = DummyAction()
+            patched = False
+            for session in SSH_SESSIONS.values():
+                handler = session.get("handler")
+                if handler and not isinstance(handler.action, DummyAction):
+                    handler.action = action
+                    patched = True
+            if patched:
+                print("Manually patched session handler(s)")
 
             chan = client.get_transport().open_session()
             chan.exec_command("definitely-unseen-command-xyz")

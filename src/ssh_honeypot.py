@@ -23,19 +23,44 @@ class SuppressEOFErrorFilter(logging.Filter):
 
 logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
 
+SSH_SESSIONS = {}
+
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
         self.username = None
         self.session = None
-        self.action = action
         self.honeypot = honeypot
         self.config = config or {}
+        # self.central_dispatcher = CentralDispatcher()
+
+    @property
+    def action(self):
+        return self.honeypot.action  # Always get the current action from honeypot
+
+    def get_allowed_auths(self, username):
+        # Explicitly advertise password auth
+        return "password"  # paramiko expects a comma-separated list
 
     def check_auth_password(self, username, password):
-        logging.info(f"Authentication: {username}:{password}")
-        self.username = username
-        self.session = self.action.connect({"username": username, "password": password})
+        # Honeypot accepts any credentials; record them and (optionally) init a backend session
+        logging.info("Authentication: %s:%s", username, password)
+        self.username = username  # ensures prompt rendering can include the user
+        if self.session is None:
+            # ensure there's a dict for session-level state used by the shell (cwd, subproto, etc.)
+            self.session = (
+                {}
+                if self.honeypot is None
+                else (getattr(self.honeypot, "session", {}) or {})
+            )
+        if self.action is not None:
+            try:
+                sess = self.action.connect({"username": username, "password": password})
+                # prefer backend-provided session dict if applicable
+                if isinstance(sess, dict):
+                    self.session.update(sess)
+            except Exception as e:
+                logging.warning("Backend connect failed, continuing auth: %r", e)
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_request(self, kind, chanid):
@@ -174,16 +199,17 @@ class SSHServerInterface(paramiko.ServerInterface):
 
             while not channel.closed:
                 # DYNAMIC PROMPT SELECTION EACH TIME
-                mode = self.session.get("mode", "ssh")
+                mode = self.session.get("subproto", "ssh")  # instead of "mode"
                 if mode == "mysql":
                     prompt = self.config.get("mysql_prompt", "mysql> ")
                 else:
-                    prompt_template = (
-                        self.config.get("prompt_template")
-                        or self.config.get("shell-prompt")
-                        or f"{self.username}@SSHServer:{cwd}$ "
+                    tpl = self.config.get("prompt_template") or self.config.get(
+                        "shell-prompt"
                     )
-                    prompt = render_prompt(prompt_template, self.session)
+                    if tpl is not None:
+                        prompt = render_prompt(tpl, self.session)
+                    else:
+                        prompt = "$user@alpine:$/$ "
                 buffer = ""
                 channel.send(prompt)
                 escape_seq = ""
@@ -233,6 +259,29 @@ class SSHServerInterface(paramiko.ServerInterface):
                     self.session, {"method": "shell", "command": command}
                 )
 
+                sub = self.session.setdefault("subproto", "ssh")
+
+                if sub == "ssh" and command == "mysql -u root -p":
+                    self.session["subproto"] = "mysql"
+                    channel.send(
+                        "\r\nWelcome to the MySQL monitor. Type 'exit' to quit.\r\n"
+                    )
+                    continue
+
+                if sub == "mysql":
+                    if command.lower() == "exit":
+                        self.session["subproto"] = "ssh"
+                        channel.send("\r\nBye\r\n")
+                        continue
+                    response = self.action.query(command, self.session)
+                    output = (
+                        response["output"]
+                        if isinstance(response, dict)
+                        else str(response)
+                    )
+                    channel.send(("\r\n" + output + "\r\n").encode())
+                    continue
+
                 if command.lower() in ["exit", "quit", "logout"]:
                     channel.send("\r\nConnection closed.\r\n")
                     break
@@ -249,12 +298,19 @@ class SSHServerInterface(paramiko.ServerInterface):
             channel.close()
 
 
+def get_ssh_dispatcher():
+    from infra.bootstrap import ssh_dispatcher
+
+    return ssh_dispatcher
+
+
 class SSHHoneypot(BaseHoneypot):
     def __init__(self, port=0, action: HoneypotAction = None, config: dict = None):
         super().__init__(port, config)
         self.action = action
         self.server_socket = None
         self.running = False
+        self.session = {}
         self.host_key = self._load_host_key()
 
     def _load_host_key(self):
@@ -288,6 +344,11 @@ class SSHHoneypot(BaseHoneypot):
         while self.running:
             try:
                 client_socket, addr = self.server_socket.accept()
+                session_id = f"{addr[0]}:{addr[1]}"
+                if session_id not in SSH_SESSIONS:
+                    disp = get_ssh_dispatcher()
+                    handler = disp.route(session_id, "main")
+                    SSH_SESSIONS[session_id] = {"handler": handler}
                 client_socket.settimeout(10)
                 threading.Thread(
                     target=self._handle_client, args=(client_socket, addr), daemon=True
@@ -297,14 +358,24 @@ class SSHHoneypot(BaseHoneypot):
                     logging.error(f"Accept error: {e}")
 
     def _handle_client(self, client_socket, addr):
+        session_id = f"{addr[0]}:{addr[1]}"
         transport = None
         try:
+            handler = SSH_SESSIONS.get(session_id, {}).get("handler")
+            if handler is None:
+                logging.error(f"No handler for session {session_id}")
+                client_socket.close()
+                return
+
+            print("Handler type in SSH session:", type(handler))
+            ssh_server_interface = SSHServerInterface(
+                handler.action, handler, handler.config
+            )
+            ssh_server_interface.session = handler.session
             transport = Transport(client_socket)
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.add_server_key(self.host_key)
-            transport.start_server(
-                server=SSHServerInterface(self.action, self, self.config)
-            )
+            transport.start_server(server=ssh_server_interface)
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 30):
@@ -320,6 +391,10 @@ class SSHHoneypot(BaseHoneypot):
         finally:
             if transport:
                 transport.close()
+
+    @property
+    def description(self):
+        return "For MySQL over SSH or database queries starting with SSH."
 
     def stop(self):
         self.running = False
