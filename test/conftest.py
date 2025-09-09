@@ -1,10 +1,11 @@
 import contextlib
+import gzip
 import json
 import os
 import tempfile
 import threading
 from time import sleep
-from typing import Generator
+from typing import Generator, List
 
 from honeypot_main import start_dd_honeypot
 from honeypot_utils import allocate_port
@@ -24,7 +25,12 @@ def get_config(name: str) -> dict:
 
 
 @contextlib.contextmanager
-def get_honeypot_main(monkeypatch, honeypot_config: dict) -> Generator[int, None, None]:
+def get_honeypot_main(
+    monkeypatch,
+    honeypot_config: dict,
+    data_jsonl: List[dict] = None,
+    fake_fs_jsonl: List[dict] = None,
+) -> Generator[int, None, None]:
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.setenv("STOP_HONEYPOT", "false")
     port = allocate_port()
@@ -36,6 +42,16 @@ def get_honeypot_main(monkeypatch, honeypot_config: dict) -> Generator[int, None
     if "system_prompt" not in honeypot_config:
         honeypot_config["system_prompt"] = ["You are a test honeypot"]
     with tempfile.TemporaryDirectory() as tmpdir:
+        if "data_file" in honeypot_config and data_jsonl is not None:
+            data_file = os.path.join(tmpdir, honeypot_config["data_file"])
+            with open(data_file, "w") as f:
+                for item in data_jsonl:
+                    f.write(json.dumps(item) + "\n")
+        if "fs_file" in honeypot_config and fake_fs_jsonl is not None:
+            data_file = os.path.join(tmpdir, honeypot_config["fs_file"])
+            with gzip.open(data_file, "wt") as f:
+                for item in fake_fs_jsonl:
+                    f.write(json.dumps(item) + "\n")
         json.dump(
             honeypot_config,
             open(os.path.join(tmpdir, "config.json"), "w"),
