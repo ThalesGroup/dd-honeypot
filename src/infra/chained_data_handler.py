@@ -25,4 +25,4 @@ class ChainedDataHandler:
                     return result
             except Exception as e:
                 logging.warning(f"{handler.__class__.__name__} failed: {e}")
-        return {"output": "Command not handled.\n"}
+        return {"output": "Command not handled."}

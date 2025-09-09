@@ -185,7 +185,7 @@ class SSHServerInterface(paramiko.ServerInterface):
             # Check if action is available
             if self.action is None:
                 logging.error("No action available for command processing")
-                channel.sendall(b"Command not available\n")
+                channel.sendall(b"Command not available")
                 channel.send_exit_status(1)
                 channel.shutdown_write()
                 return False
