@@ -193,7 +193,7 @@ class SSHServerInterface(paramiko.ServerInterface):
             result = self.action.query(command_str, self.session)
             output = result["output"] if isinstance(result, dict) else str(result)
 
-            channel.sendall((output.strip() + "\n").encode())
+            channel.sendall((output.strip()).encode())
             channel.send_exit_status(0)
             threading.Timer(0.1, lambda: channel.shutdown_write()).start()
             return True

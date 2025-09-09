@@ -22,7 +22,8 @@ def build_data_handler(config: dict, log_callback=None):
     system_prompt = config["system_prompt"]
     fs_file = config.get("fs_file")
 
-    if fs_file and config.get("name") != "MySQL_SSH Honeypot":
+    ssh_types = {"ssh", "alpine", "busybox"}
+    if fs_file and config.get("type") in ssh_types:
         fakefs_handler = FakeFSDataHandler(
             data_file=data_file,
             fs_file=fs_file,
@@ -67,25 +68,9 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         )
         return HTTPHoneypot(port=port, action=action, config=config)
 
-    action = build_data_handler(config)
+    action = build_data_handler(config, log_callback=None)
 
-    if honeypot_type == "ssh":
-        from ssh_honeypot import SSHHoneypot
-
-        honeypot = SSHHoneypot(port=port, action=action, config=config)
-        if isinstance(action, ChainedDataHandler):
-            action.log_callback = honeypot.log_data
-        return honeypot
-
-    elif honeypot_type == "alpine":
-        from ssh_honeypot import SSHHoneypot
-
-        honeypot = SSHHoneypot(port=port, action=action, config=config)
-        if isinstance(action, ChainedDataHandler):
-            action.log_callback = honeypot.log_data
-        return honeypot
-
-    elif honeypot_type == "busybox":
+    if honeypot_type in ("ssh", "alpine", "busybox"):
         from ssh_honeypot import SSHHoneypot
 
         honeypot = SSHHoneypot(port=port, action=action, config=config)

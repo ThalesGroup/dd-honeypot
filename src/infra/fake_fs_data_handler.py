@@ -72,7 +72,10 @@ class FakeFSDataHandler(HoneypotAction):
                 for line in f:
                     try:
                         entry = json.loads(line)
-                        if entry.get("input") == input_str:
+                        if (
+                            entry.get("command") == input_str
+                            or entry.get("input") == input_str
+                        ):
                             return entry.get("response", "")
                     except json.JSONDecodeError:
                         continue
