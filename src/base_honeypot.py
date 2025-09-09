@@ -51,6 +51,14 @@ class BaseHoneypot(ABC):
         """
         return self.__port
 
+    @port.setter
+    def port(self, value: int):
+        """
+        Set the port_number
+        :param value: port number
+        """
+        self.__port = value
+
     @property
     def name(self) -> Optional[str]:
         """

@@ -1,21 +1,12 @@
 import os
 import time
 from pathlib import Path
+from unittest.mock import Mock
 
 import paramiko
 import pytest
 
 from infra.honeypot_wrapper import create_honeypot
-from ssh_honeypot import SSH_SESSIONS
-from infra.interfaces import HoneypotAction
-
-
-class DummyAction(HoneypotAction):
-    def connect(self, auth_info):
-        return {"id": "mock-session-id"}
-
-    def query(self, command, session):
-        return {"output": "bin\netc\nhome\n"}
 
 
 @pytest.fixture
@@ -50,7 +41,12 @@ def ssh_honeypot(tmp_path: Path):
         "fs_file": fs_path,
     }
 
+    mock_action = Mock()
+    mock_action.query.return_value = "bin\netc\nhome"
+    mock_action.connect.return_value = {}
+
     honeypot = create_honeypot(config)
+    honeypot.action = mock_action
     honeypot.start()
     time.sleep(0.2)
     yield honeypot
@@ -64,16 +60,6 @@ def test_ls_root_directory(ssh_honeypot):
     client.connect(
         "localhost", port=ssh_honeypot.port, username="user", password="pass"
     )
-
-    action = DummyAction()
-    patched = False
-    for session in SSH_SESSIONS.values():
-        handler = session.get("handler")
-        if handler and not isinstance(handler.action, DummyAction):
-            handler.action = action
-            patched = True
-    if patched:
-        print("Manually patched session handler(s)")
 
     stdin, stdout, stderr = client.exec_command("ls /")
     output = stdout.read().decode().strip()

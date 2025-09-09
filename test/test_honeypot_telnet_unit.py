@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def telnet_honeypot() -> Generator[TelnetHoneypot, None, None]:
+def telnet_honeypot(tmp_path) -> Generator[TelnetHoneypot, None, None]:
 
     class TelnetAction(HoneypotAction):
         def query(self, query: str, session: HoneypotSession, **kwargs) -> str:
@@ -28,6 +28,7 @@ def telnet_honeypot() -> Generator[TelnetHoneypot, None, None]:
                 "login-prompt": "Login: ",
                 "password-prompt": "Password: ",
             },
+            "data_dir": str(tmp_path),
         },
     )
     try:

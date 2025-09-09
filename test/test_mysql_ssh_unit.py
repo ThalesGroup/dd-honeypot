@@ -148,37 +148,3 @@ def test_unknown_ssh_command_routing(ssh_client, ssh_dispatcher, session_store):
     resp2 = ssh_client.send_command("another_unknown_cmd", session_id)
     assert resp2.backend_name == "mysql_ssh"
     assert resp2.session_id == session_id
-
-
-from ssh_honeypot import SSHHoneypot
-
-
-def test_subproto_switching(monkeypatch):
-    hp = SSHHoneypot()
-    sess = {"subproto": "ssh"}
-    outputs = []
-
-    class DummyChannel:
-        def send(self, msg):
-            outputs.append(msg)
-
-    dummy = DummyChannel()
-    hp.session = sess
-    hp.action = type("A", (), {"query": lambda self, cmd, session: {"output": "ok"}})()
-
-    # Switch to mysql
-    sess["subproto"] = "ssh"
-    command = "mysql -u root -p"
-    if sess["subproto"] == "ssh" and command == "mysql -u root -p":
-        sess["subproto"] = "mysql"
-        dummy.send("Welcome to the MySQL monitor. Type 'exit' to quit.")
-
-    # Switch back to shell
-    command = "exit"
-    if sess["subproto"] == "mysql" and command == "exit":
-        sess["subproto"] = "ssh"
-        dummy.send("Bye")
-
-    assert sess["subproto"] == "ssh"
-    assert "Welcome to the MySQL monitor" in outputs[0]
-    assert "Bye" in outputs[1]
