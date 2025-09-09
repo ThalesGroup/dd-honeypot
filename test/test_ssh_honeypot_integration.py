@@ -1,9 +1,11 @@
+import logging
+from unittest.mock import patch
+
+import paramiko
 import pytest
 
 from conftest import get_honeypot_main
 from honeypot_utils import init_env_from_file
-
-import paramiko
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -26,6 +28,19 @@ _FS_DATA = [
 ]
 
 
+def _read_channel_output(channel):
+    output = b""
+    while True:
+        if channel.recv_ready():
+            data = channel.recv(1024)
+            if not data:
+                break
+            output += data
+        elif channel.exit_status_ready():
+            break
+    return output.decode().strip()
+
+
 def test_ssh_honeypot_main(monkeypatch):
     with get_honeypot_main(
         monkeypatch,
@@ -33,20 +48,18 @@ def test_ssh_honeypot_main(monkeypatch):
         data_jsonl=[{"command": "test_static_command", "response": "test_response"}],
         fake_fs_jsonl=_FS_DATA,
     ) as port:
+        logging.info("port: %s", port)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect("localhost", port=port, username="test", password="test")
 
         channel = client.get_transport().open_session()
-
         channel.exec_command("test_static_command")
-        output = channel.recv(1024).decode()
-        assert "test_response" == output
+        assert _read_channel_output(channel) == "test_response"
 
         channel.exec_command("ls /")
-        output = channel.recv(1024).decode()
-        assert "root" in output, output
+        assert _read_channel_output(channel) == "root"
 
-        channel.exec_command("whoami")
-        output = channel.recv(1024).decode()
-        assert "root" == output
+        with patch("infra.data_handler.invoke_llm", return_value="root"):
+            channel.exec_command("whoami")
+            assert "root" == _read_channel_output(channel)

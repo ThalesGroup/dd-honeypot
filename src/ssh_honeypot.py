@@ -304,6 +304,7 @@ class SSHHoneypot(BaseHoneypot):
         self.running = False
         self.session = {}
         self.host_key = self._load_host_key()
+        self.action = action
 
     def _load_host_key(self):
         import os

@@ -78,4 +78,4 @@ class FakeFSDataHandler(HoneypotAction):
                         continue
         except FileNotFoundError:
             logging.warning(f"Data file not found: {self._data_file}")
-        return "Command not found\n"
+        return None
