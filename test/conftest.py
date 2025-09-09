@@ -7,7 +7,7 @@ import threading
 from time import sleep
 from typing import Generator, List
 
-from honeypot_main import start_dd_honeypot
+from honeypot_main_utils import start_dd_honeypot
 from honeypot_utils import allocate_port
 
 

@@ -4,8 +4,6 @@ import logging
 from typing import Tuple, Dict, Optional
 from base_honeypot import BaseHoneypot
 
-logging.basicConfig(level=logging.INFO)
-
 
 class PostgresHoneypot(BaseHoneypot):
     def __init__(self, port, action, config):
