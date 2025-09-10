@@ -3,10 +3,8 @@ import json
 import pytest
 
 from infra.fake_fs.commands import handle_cd
-import json
-
-from src.infra.fake_fs_datastore import FakeFSDataStore
 from src.infra.fake_fs.filesystem import FakeFileSystem
+from src.infra.fake_fs_datastore import FakeFSDataStore
 
 
 @pytest.fixture(scope="module")

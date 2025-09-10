@@ -5,7 +5,7 @@ import os
 from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
-from infra.File_download_handler import FileDownloadHandler
+from infra.file_download_handler import FileDownloadHandler
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
@@ -97,6 +97,8 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         # Choose appropriate honeypot class
         honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
         return honeypot_cls(port=port, action=chained_action, config=config)
+    else:
+        raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
 
 def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:

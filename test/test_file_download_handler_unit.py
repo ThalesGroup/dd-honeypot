@@ -2,13 +2,14 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from base_honeypot import HoneypotSession
-from infra.File_download_handler import FileDownloadHandler
+from infra.file_download_handler import FileDownloadHandler
 
 
 class DummyFakeFS:
+    def __init__(self):
+        self.files = {}
+
     def create_file(self, path, content):
-        self.files = getattr(self, "files", {})
         self.files[path] = content
 
 
@@ -21,7 +22,7 @@ from freezegun import freeze_time
 
 
 @freeze_time("2025-06-19 13:58:02")
-@patch("infra.File_download_handler.requests.get")
+@patch("infra.file_download_handler.requests.get")
 def test_wget_success(mock_get, tmp_path):
     mock_response = MagicMock()
     mock_response.text = "fake content"
@@ -60,6 +61,5 @@ def test_wget_success(mock_get, tmp_path):
     ],
 )
 def test_file_download_detection(cmd):
-    session = HoneypotSession()
     detected = "wget" in cmd.lower() or "curl" in cmd.lower()
     assert detected

@@ -77,6 +77,7 @@ class SSHServerInterface(paramiko.ServerInterface):
             else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
         )
 
+    # noinspection PyTypeChecker
     def handle_scp_upload(self, channel, command_str):
         try:
             channel.settimeout(10.0)

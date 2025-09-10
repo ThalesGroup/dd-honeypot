@@ -23,7 +23,7 @@ def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     action = ChainedHoneypotAction(
         DataHandler(
             "honeypots/mysql/data.jsonl",
-            system_prompt={"You are a MySQL server."},
+            system_prompt="You are a MySQL server.",
             model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         ),
         SqlDataHandler(dialect="mysql"),

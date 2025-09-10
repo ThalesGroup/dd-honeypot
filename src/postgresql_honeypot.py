@@ -1,10 +1,11 @@
 import socket
 import threading
 import logging
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict
 from base_honeypot import BaseHoneypot
 
 
+# noinspection PyTypeChecker
 class PostgresHoneypot(BaseHoneypot):
     def __init__(self, port, action, config):
         super().__init__(port=port, config=config)

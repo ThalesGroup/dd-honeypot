@@ -8,6 +8,7 @@ from llm_utils import InvokeLimiter
 
 
 class TestBaseHoneypot:
+    # noinspection PyAbstractClass
     def test_base_honeypot(self):
         with pytest.raises(
             TypeError, match="Can't instantiate abstract class BaseHoneypot"

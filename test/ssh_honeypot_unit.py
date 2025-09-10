@@ -74,6 +74,7 @@ def test_basic_command_execution(ssh_honeypot):
     client.close()
 
 
+# noinspection PyTypeChecker
 def test_interactive_shell(ssh_honeypot):
     """Test interactive shell session via invoke_shell."""
     client = paramiko.SSHClient()
