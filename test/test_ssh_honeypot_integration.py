@@ -28,38 +28,6 @@ _FS_DATA = [
     {"path": "/root", "parent_path": "/", "name": "root", "is_dir": True},
 ]
 
-
-def _read_channel_output(channel, timeout=60):
-    """Read channel output with proper timeout handling"""
-    import time
-
-    channel.settimeout(timeout)
-    output = b""
-    start_time = time.time()
-
-    while time.time() - start_time < timeout:
-        try:
-            if channel.recv_ready():
-                data = channel.recv(1024)
-                if not data:
-                    break
-                output += data
-            elif channel.exit_status_ready():
-                while channel.recv_ready():
-                    output += channel.recv(1024)
-                break
-            else:
-                time.sleep(0.1)
-        except socket.timeout:
-            logging.warning("Channel read timeout")
-            break
-        except Exception as e:
-            logging.error(f"Channel read error: {e}")
-            break
-
-    return output.decode().strip()
-
-
 def test_ssh_honeypot_main(monkeypatch):
     with get_honeypot_main(
         monkeypatch,
