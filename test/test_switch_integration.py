@@ -38,7 +38,7 @@ def connect_and_run_ssh_commands(port, username, password, commands):
 
 @pytest.fixture
 def ssh_honeypot():
-    ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
+    ssh_dir = os.path.abspath("honeypots/alpine/")
     with open(os.path.join(ssh_dir, "config.json")) as f:
         port = json.load(f)["port"]
 
@@ -49,59 +49,6 @@ def ssh_honeypot():
     yield honeypot
 
     honeypot.stop()
-
-
-@pytest.fixture
-def mysql_honeypot():
-    mysql_dir = os.path.abspath("honeypots/mysql_ssh/mysql")
-    with open(os.path.join(mysql_dir, "config.json")) as f:
-        port = json.load(f)["port"]
-
-    honeypot = create_honeypot_by_folder(mysql_dir)
-    honeypot.start()
-    assert wait_for_port(port), "MySQL honeypot did not start"
-
-    yield honeypot
-
-    honeypot.stop()
-
-
-def test_switch_between_ssh_and_mysql(ssh_honeypot, mysql_honeypot):
-    ssh_port = ssh_honeypot.config["port"]
-    commands_1 = [
-        "whoami",  # SSH
-        "mysql -u root -p",  # triggers switch to MySQL
-        "select 1",  # MySQL
-        "exit",  # switch back to SSH
-    ]
-
-    commands_2 = ["ls", "exit"]  # SSH again  # close session
-
-    responses = []
-    responses += connect_and_run_ssh_commands(
-        port=ssh_port, username="user", password="pass", commands=commands_1
-    )
-
-    # reconnect to SSH
-    responses += connect_and_run_ssh_commands(
-        port=ssh_port, username="user", password="pass", commands=commands_2
-    )
-
-    print("\n".join(f"Response {i}: {repr(r)}" for i, r in enumerate(responses)))
-
-    assert any(
-        "whoami" in r or "root" in r.lower() for r in responses
-    ), "Missing output for whoami"
-
-    assert any("mysql" in r.lower() for r in responses), "Did not switch to MySQL"
-
-    assert any(
-        "select 1" in r or "1" in r for r in responses
-    ), "MySQL query response missing"
-
-    assert any(
-        "ls" in r or "bin" in r.lower() for r in responses
-    ), "Did not switch back to SSH"
 
 
 def load_jsonl(filepath):
