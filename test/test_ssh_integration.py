@@ -1,6 +1,5 @@
 import os
 import tempfile
-import time
 from pathlib import Path
 
 import paramiko
@@ -43,7 +42,6 @@ def ssh_honeypot_with_fs_download(tmp_path: Path):
 
     honeypot = create_honeypot(config)
     honeypot.start()
-    time.sleep(0.2)
     yield honeypot
     honeypot.stop()
 

@@ -27,7 +27,6 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
         honeypot = create_honeypot(config)
         honeypot.action = mock_action
         honeypot.start()
-        time.sleep(0.1)
 
         try:
             client = paramiko.SSHClient()
@@ -49,7 +48,6 @@ def test_ssh_honeypot_with_llm_fallback(tmp_path: Path):
                     output += chan.recv(4096)
                 if chan.exit_status_ready():
                     break
-                time.sleep(0.1)
 
             decoded_output = output.decode().strip()
             assert decoded_output == "Mocked Response"

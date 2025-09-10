@@ -42,7 +42,6 @@ def ssh_honeypot():
             honeypot = create_honeypot(config)
             honeypot.action = mock_action
             honeypot.start()
-            time.sleep(0.2)
             yield honeypot
             honeypot.stop()
         del os.environ["HONEYPOT_HOST_KEY"]  # Cleanup
@@ -66,7 +65,6 @@ def test_basic_command_execution(ssh_honeypot):
             output += channel.recv(1024)
         if channel.exit_status_ready():
             break
-        time.sleep(0.1)
 
     decoded = output.decode()
     assert "Mocked LLM response" in decoded
@@ -154,7 +152,6 @@ def test_concurrent_connections(ssh_honeypot):
                 output += stdout.channel.recv(1024)
             if stdout.channel.exit_status_ready():
                 break
-            time.sleep(0.1)
         client.close()
         return output.decode()
 
@@ -204,7 +201,6 @@ def ssh_honeypot_with_fakefs(tmp_path: Path):
     honeypot = create_honeypot(config)
     honeypot.action = mock_action
     honeypot.start()
-    time.sleep(0.2)
     yield honeypot
     honeypot.stop()
 

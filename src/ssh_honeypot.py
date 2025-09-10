@@ -62,7 +62,7 @@ class SSHServerInterface(paramiko.ServerInterface):
                 # prefer backend-provided session dict if applicable
                 if isinstance(sess, dict):
                     self.session.update(sess)
-            except Exception as e:
+            except (SSHException, OSError) as e:
                 logging.warning("Backend connect failed, continuing auth: %r", e)
         # Log login
         self.honeypot.log_login(
@@ -151,18 +151,15 @@ class SSHServerInterface(paramiko.ServerInterface):
 
         except TimeoutError as te:
             logging.error(f"SCP upload timed out: {te}")
-        except Exception as e:
+        except (SSHException, OSError) as e:
             logging.error(f"Error handling SCP upload: {e}")
             try:
                 channel.send(b"\x01")
-            except:
-                pass
+            except OSError as e:
+                logging.getLogger(f"Failed to start honeypot: {e}")
+                raise
         finally:
-            try:
-                channel.shutdown_write()
-            except Exception:
-                pass
-            time.sleep(0.2)
+            channel.shutdown_write()
             channel.close()
 
     def check_channel_exec_request(self, channel, command):
@@ -200,13 +197,14 @@ class SSHServerInterface(paramiko.ServerInterface):
             threading.Timer(0.1, lambda: channel.shutdown_write()).start()
             return True
 
-        except Exception as e:
+        except (SSHException, OSError) as e:
             logging.error(f"Error executing command: {e}")
             try:
                 channel.send_exit_status(1)
                 threading.Timer(0.1, lambda: channel.shutdown_write()).start()
-            except:
-                pass
+            except (SSHException, OSError) as e:
+                logging.getLogger(f"Failed to start honeypot: {e}")
+                raise
             return False
 
     def check_channel_pty_request(
@@ -293,7 +291,7 @@ class SSHServerInterface(paramiko.ServerInterface):
                 )
                 channel.send(("\r\n" + output + "\r\n").encode())
 
-        except Exception as e:
+        except (SSHException, OSError) as e:
             logging.error(f"Shell error: {e}")
         finally:
             channel.close()
@@ -343,9 +341,9 @@ class SSHHoneypot(BaseHoneypot):
                 threading.Thread(
                     target=self._handle_client, args=(client_socket, addr), daemon=True
                 ).start()
-            except Exception as e:
-                if self.running:
-                    logging.error(f"Accept error: {e}")
+            except OSError as e:
+                logging.getLogger(f"Failed to start honeypot: {e}")
+                raise
 
     def _handle_client(self, client_socket, addr):
         transport = None
@@ -365,7 +363,7 @@ class SSHHoneypot(BaseHoneypot):
                 if channel:
                     channel.event.wait()
 
-        except (SSHException, Exception) as e:
+        except (SSHException, OSError) as e:
             logging.error(f"SSH error: {e}")
         finally:
             if transport:

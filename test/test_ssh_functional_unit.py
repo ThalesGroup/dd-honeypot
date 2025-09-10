@@ -48,7 +48,6 @@ def ssh_honeypot(tmp_path: Path):
     honeypot = create_honeypot(config)
     honeypot.action = mock_action
     honeypot.start()
-    time.sleep(0.2)
     yield honeypot
     honeypot.stop()
 

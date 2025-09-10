@@ -47,7 +47,6 @@ def test_ssh_honeypot_main(monkeypatch):
         # Helper function to send command and read response
         def send_command_and_read(command, timeout=30):
             shell.send(command + "\n")
-            time.sleep(0.5)
 
             output = ""
             start_time = time.time()
@@ -64,7 +63,6 @@ def test_ssh_honeypot_main(monkeypatch):
 
             return output.strip()
 
-        time.sleep(1)
         shell.recv(1024).decode() if shell.recv_ready() else ""
 
         output1 = send_command_and_read("test_static_command")

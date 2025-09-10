@@ -46,7 +46,6 @@ def ssh_honeypot():
 
     honeypot = create_honeypot_by_folder(ssh_dir)
     honeypot.start()
-    time.sleep(0.1)
     actual_port = honeypot.port
     assert wait_for_port(
         actual_port
@@ -102,6 +101,3 @@ def test_fallback_json_based(ssh_honeypot):
         assert (
             case["expect"] in response
         ), f"Failed case {i}: {case['command']}\nExpected: {case['expect']}\nActual: {response}"
-
-    print("Test complete. Main thread sleeping briefly before exiting.")
-    time.sleep(2)
