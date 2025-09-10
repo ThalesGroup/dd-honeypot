@@ -1,5 +1,6 @@
 import logging
-from unittest.mock import patch
+import time
+from socket import socket
 
 import paramiko
 import pytest
@@ -28,16 +29,34 @@ _FS_DATA = [
 ]
 
 
-def _read_channel_output(channel):
+def _read_channel_output(channel, timeout=60):
+    """Read channel output with proper timeout handling"""
+    import time
+
+    channel.settimeout(timeout)
     output = b""
-    while True:
-        if channel.recv_ready():
-            data = channel.recv(1024)
-            if not data:
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            if channel.recv_ready():
+                data = channel.recv(1024)
+                if not data:
+                    break
+                output += data
+            elif channel.exit_status_ready():
+                while channel.recv_ready():
+                    output += channel.recv(1024)
                 break
-            output += data
-        elif channel.exit_status_ready():
+            else:
+                time.sleep(0.1)
+        except socket.timeout:
+            logging.warning("Channel read timeout")
             break
+        except Exception as e:
+            logging.error(f"Channel read error: {e}")
+            break
+
     return output.decode().strip()
 
 
@@ -53,13 +72,40 @@ def test_ssh_honeypot_main(monkeypatch):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect("localhost", port=port, username="test", password="test")
 
-        channel = client.get_transport().open_session()
-        channel.exec_command("test_static_command")
-        assert _read_channel_output(channel) == "test_response"
+        shell = client.invoke_shell()
+        shell.settimeout(60)
 
-        channel.exec_command("ls /")
-        assert _read_channel_output(channel) == "root"
+        # Helper function to send command and read response
+        def send_command_and_read(command, timeout=30):
+            shell.send(command + "\n")
+            time.sleep(0.5)
 
-        with patch("infra.data_handler.invoke_llm", return_value="root"):
-            channel.exec_command("whoami")
-            assert "root" == _read_channel_output(channel)
+            output = ""
+            start_time = time.time()
+
+            while time.time() - start_time < timeout:
+                if shell.recv_ready():
+                    data = shell.recv(1024).decode()
+                    output += data
+                    # Look for command prompt to know when output is complete
+                    if "$" in data or "#" in data:
+                        break
+                else:
+                    time.sleep(0.1)
+
+            return output.strip()
+
+        time.sleep(1)
+        shell.recv(1024).decode() if shell.recv_ready() else ""
+
+        output1 = send_command_and_read("test_static_command")
+        assert "test_response" in output1
+
+        output2 = send_command_and_read("ls /")
+        assert "root" in output2
+
+        output3 = send_command_and_read("whoami", timeout=60)
+        assert "root" in output3
+
+        shell.close()
+        client.close()

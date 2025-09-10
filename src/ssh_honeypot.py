@@ -167,6 +167,7 @@ class SSHServerInterface(paramiko.ServerInterface):
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
         logging.info(f"Command executed: {command_str}")
+        channel.settimeout(60.0)
 
         try:
             parts = shlex.split(command_str)
