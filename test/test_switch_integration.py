@@ -46,8 +46,13 @@ def ssh_honeypot():
 
     honeypot = create_honeypot_by_folder(ssh_dir)
     honeypot.start()
+    time.sleep(0.1)
     actual_port = honeypot.port
-    assert wait_for_port(actual_port), "SSH honeypot did not start"
+    assert wait_for_port(
+        actual_port
+    ), f"SSH honeypot did not start on port {actual_port}"
+
+    honeypot.config["port"] = actual_port
 
     yield honeypot
 
