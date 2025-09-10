@@ -23,7 +23,7 @@ def mysql_honeypot() -> Generator[BaseHoneypot, None, None]:
     action = ChainedHoneypotAction(
         DataHandler(
             "honeypots/mysql/data.jsonl",
-            system_prompt={"You are a MySQL server."},
+            system_prompt="You are a MySQL server.",
             model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         ),
         SqlDataHandler(dialect="mysql"),
@@ -47,7 +47,7 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
 
 def test_mysql_honeypot_main(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+    with get_honeypot_main(monkeypatch, [{"type": "mysql"}]) as port:
         monkeypatch.setattr(
             "infra.data_handler.DataHandler.query",
             lambda *a, **kw: {"output": '[{"user": "root", "host": "host1"}]'},

@@ -8,9 +8,15 @@ if __name__ == "__main__":
     config = {
         "type": "ssh",
         "port": 2222,
-        "data_file": str(Path(__file__).parent.parent / "test" / "honeypots" / "ssh" / "data.jsonl"),
+        "data_file": str(
+            Path(__file__).parent.parent
+            / "test"
+            / "honeypots"
+            / "alpine"
+            / "data.jsonl"
+        ),
         "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "system_prompt": "You are a Linux terminal emulator. Respond with only command outputs."
+        "system_prompt": "You are a Linux terminal emulator. Respond with only command outputs.",
     }
 
     honeypot = create_honeypot(config)

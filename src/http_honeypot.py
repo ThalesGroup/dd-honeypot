@@ -1,12 +1,11 @@
-import json
 import logging
 import threading
 
-from flask import Flask, request, session, Request, Response, make_response, jsonify
+from flask import Flask, request, session, Request, Response
+from werkzeug.serving import make_server
 
 from base_honeypot import BaseHoneypot
 from infra.interfaces import HoneypotAction
-from werkzeug.serving import make_server
 
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -27,7 +26,6 @@ class HTTPHoneypot(BaseHoneypot):
         self._thread = None
         self._server = None
         self._action = action
-        # self.central_dispatcher = CentralDispatcher()
 
         @self.app.before_request
         def handle_session():
@@ -59,46 +57,6 @@ class HTTPHoneypot(BaseHoneypot):
         @self.app.route(
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
-        def get_http_dispatcher(path: str):
-            """
-            Turn the flask Request → `info` dict → action.request(...) →
-            flask Response.  All tests exercise only GET; POST and HEAD
-            are added for completeness.
-            """
-            try:
-                info = {
-                    "method": request.method,
-                    "path": path,
-                    "args": request.args.to_dict(),
-                    "headers": dict(request.headers),
-                    "body": request.get_data(as_text=True),
-                    "client_ip": request.remote_addr,
-                    "resource_type": get_resource_type(request),
-                }
-
-                result = self.action.request(info, session["h_session"])
-
-                if not isinstance(result, dict) or "output" not in result:
-                    raise ValueError("action.request must return {'output': ...}")
-
-                body = result["output"]
-                status = result.get("status", 200)
-
-                if is_json(body):
-                    resp = make_response(jsonify(json.loads(body)), status)
-                    resp.headers["Content-Type"] = "application/json"
-                else:
-                    resp = make_response(body, status)
-                    resp.headers["Content-Type"] = "text/html; charset=utf-8"
-
-                return resp
-
-            except Exception as exc:
-                if isinstance(exc, FileNotFoundError):
-                    return "Not Found", 404
-                logging.error(f"Error handling request for {path}: {exc}")
-                return "Internal Server Error", 500
-
         def catch_all(path):
             resource_type = get_resource_type(request)
             if resource_type not in ["document", "xhr", "fetch"]:
@@ -124,20 +82,10 @@ class HTTPHoneypot(BaseHoneypot):
                         "http-request": data,
                     },
                 )
-
-                sid = (
-                    str(session["h_session"].id)
-                    if "h_session" in session
-                    else request.remote_addr
+                result = self._action.request(
+                    data,
+                    session.get("h_session"),
                 )
-                disp = get_http_dispatcher()
-                if sid not in HTTP_SESSIONS:
-                    handler = disp.route(
-                        sid, path
-                    )  # 'path' comes from your request data
-                    HTTP_SESSIONS[sid] = {"handler": handler}
-                handler = HTTP_SESSIONS[sid]["handler"]
-                result = handler.action.request(data, session["h_session"])
                 return text_to_response(result["output"])
             except Exception as e:
                 logger.error(f"Error while handling request for path: {path} - {e}", e)

@@ -21,7 +21,7 @@ def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
     action = ChainedHoneypotAction(
         DataHandler(
             "honeypots/postgres/data.jsonl",
-            system_prompt=["You are a PostgreSQL server"],
+            system_prompt="You are a PostgreSQL server",
             model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
         ),
         SqlDataHandler(dialect="postgres"),

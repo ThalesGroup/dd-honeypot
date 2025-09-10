@@ -153,7 +153,7 @@ def test_fakefs_unknown_command(tmp_path):
     session = handler.connect({})
 
     response = handler.query("nonexistent", session)
-    assert response == "Command not found\n"
+    assert response is None
 
 
 def test_fakefs_invalid_json_line(tmp_path):

@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 
-from infra.fake_fs.filesystem import FakeFileSystem, FileSystemNode
+from infra.fake_fs.filesystem import FakeFileSystem
 
 
 def format_ls_l(entry: dict) -> str:

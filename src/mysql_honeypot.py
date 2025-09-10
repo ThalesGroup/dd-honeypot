@@ -21,7 +21,7 @@ from mysql_mimic.variables import Variables
 from mysql_mimic.session import AllowedResult
 from mysql_mimic.errors import MysqlError
 
-from base_honeypot import BaseHoneypot
+from base_honeypot import BaseHoneypot, HoneypotSession
 from honeypot_utils import wait_for_port
 from infra.interfaces import HoneypotAction
 
@@ -45,6 +45,7 @@ def patch_client_connected_cb_to_avoid_log_errors():
 
 
 class AllowAllPasswordAuthPlugin(NativePasswordAuthPlugin):
+    # noinspection PyTypeChecker
     async def auth(self, auth_info=None) -> AuthState:
         if not auth_info:
             auth_info = yield utils.nonce(20) + b"\x00"
@@ -120,7 +121,7 @@ class MySQLHoneypot(BaseHoneypot):
             # Fallback to LLM
             context = dict(session=self._session_data, **(self._honeypot_session or {}))
             try:
-                response = self._action.query(sql, context, **attrs)
+                response = self._action.query(sql, HoneypotSession(context), **attrs)
 
                 if isinstance(response, dict) and "output" in response:
                     raw = response["output"]

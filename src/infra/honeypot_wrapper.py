@@ -5,7 +5,7 @@ import os
 from base_honeypot import BaseHoneypot
 from http_data_handlers import HTTPDataHandler
 from http_honeypot import HTTPHoneypot
-from infra.File_download_handler import FileDownloadHandler
+from infra.file_download_handler import FileDownloadHandler
 from infra.chain_honeypot_action import ChainedHoneypotAction
 from infra.chained_data_handler import ChainedDataHandler
 from infra.data_handler import DataHandler
@@ -22,7 +22,8 @@ def build_data_handler(config: dict, log_callback=None):
     system_prompt = config["system_prompt"]
     fs_file = config.get("fs_file")
 
-    if fs_file and config.get("name") != "MySQL_SSH Honeypot":
+    ssh_types = {"ssh", "alpine", "busybox"}
+    if fs_file and config.get("type") in ssh_types:
         fakefs_handler = FakeFSDataHandler(
             data_file=data_file,
             fs_file=fs_file,
@@ -67,25 +68,9 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         )
         return HTTPHoneypot(port=port, action=action, config=config)
 
-    action = build_data_handler(config)
+    action = build_data_handler(config, log_callback=None)
 
-    if honeypot_type == "ssh":
-        from ssh_honeypot import SSHHoneypot
-
-        honeypot = SSHHoneypot(port=port, action=action, config=config)
-        if isinstance(action, ChainedDataHandler):
-            action.log_callback = honeypot.log_data
-        return honeypot
-
-    elif honeypot_type == "alpine":
-        from ssh_honeypot import SSHHoneypot
-
-        honeypot = SSHHoneypot(port=port, action=action, config=config)
-        if isinstance(action, ChainedDataHandler):
-            action.log_callback = honeypot.log_data
-        return honeypot
-
-    elif honeypot_type == "busybox":
+    if honeypot_type in ("ssh", "alpine", "busybox"):
         from ssh_honeypot import SSHHoneypot
 
         honeypot = SSHHoneypot(port=port, action=action, config=config)
@@ -112,6 +97,8 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         # Choose appropriate honeypot class
         honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
         return honeypot_cls(port=port, action=chained_action, config=config)
+    else:
+        raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
 
 def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:

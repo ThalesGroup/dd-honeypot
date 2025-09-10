@@ -20,7 +20,8 @@ class FakeFSDataStore:
 
         self._init_db()
 
-    def _load_jsonl_gz(self, jsonl_gz_path, db_path):
+    @staticmethod
+    def _load_jsonl_gz(jsonl_gz_path, db_path):
         print(
             f"[FakeFSDataStore] Loading JSONL.GZ → SQLite: {jsonl_gz_path} → {db_path}"
         )

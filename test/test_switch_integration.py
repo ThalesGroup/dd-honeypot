@@ -1,12 +1,14 @@
 import json
 import os
+import re
 import socket
 import time
 
 import pytest
 from paramiko import SSHClient, AutoAddPolicy
 
-from infra.honeypot_wrapper import create_honeypot_by_folder
+from honeypot_utils import allocate_port
+from infra.honeypot_wrapper import create_honeypot
 
 
 def wait_for_port(port: int, retries: int = 10):
@@ -19,89 +21,65 @@ def wait_for_port(port: int, retries: int = 10):
     return False
 
 
-def connect_and_run_ssh_commands(port, username, password, commands):
+def connect_and_run_ssh_commands(
+    port, username, password, commands, prompt_regex=r"\$ "
+):
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy())
     client.connect("127.0.0.1", port=port, username=username, password=password)
     shell = client.invoke_shell()
+    shell.settimeout(5.0)
 
-    output = []
+    # Read initial prompt
+    buffer = ""
+    while True:
+        buffer += shell.recv(1024).decode()
+        if re.search(prompt_regex, buffer):
+            break
+
+    results = []
     for cmd in commands:
         shell.send(cmd + "\n")
-        time.sleep(0.5)
-        received = shell.recv(4096).decode()
-        output.append(received)
-
+        buffer = ""
+        start = time.time()
+        # Read until we see the prompt again
+        while True:
+            buffer += shell.recv(1024).decode()
+            if re.search(prompt_regex, buffer):
+                break
+            if time.time() - start > 5:
+                raise TimeoutError(f"Timeout waiting for prompt after {cmd}")
+        # Strip off the final prompt from buffer
+        output = re.sub(rf".*{re.escape(cmd)}\r\n", "", buffer)
+        output = re.sub(prompt_regex + r".*$", "", output).strip()
+        results.append(output)
+    shell.close()
     client.close()
-    return output
+    return results
 
 
 @pytest.fixture
 def ssh_honeypot():
-    ssh_dir = os.path.abspath("honeypots/mysql_ssh/ssh")
-    with open(os.path.join(ssh_dir, "config.json")) as f:
-        port = json.load(f)["port"]
+    port = allocate_port()
 
-    honeypot = create_honeypot_by_folder(ssh_dir)
+    ssh_dir = os.path.abspath("test/honeypots/alpine/")
+    base_conf = json.load(open(os.path.join(ssh_dir, "config.json")))
+
+    base_conf.update(
+        {
+            "port": port,
+            "data_file": os.path.join(ssh_dir, "data.jsonl"),
+            "fs_file": os.path.join(ssh_dir, "fs_alpine.jsonl.gz"),
+        }
+    )
+
+    honeypot = create_honeypot(base_conf)
     honeypot.start()
-    assert wait_for_port(port), "SSH honeypot did not start"
+    assert wait_for_port(port), f"SSH honeypot did not start on {port}"
 
     yield honeypot
 
     honeypot.stop()
-
-
-@pytest.fixture
-def mysql_honeypot():
-    mysql_dir = os.path.abspath("honeypots/mysql_ssh/mysql")
-    with open(os.path.join(mysql_dir, "config.json")) as f:
-        port = json.load(f)["port"]
-
-    honeypot = create_honeypot_by_folder(mysql_dir)
-    honeypot.start()
-    assert wait_for_port(port), "MySQL honeypot did not start"
-
-    yield honeypot
-
-    honeypot.stop()
-
-
-def test_switch_between_ssh_and_mysql(ssh_honeypot, mysql_honeypot):
-    ssh_port = ssh_honeypot.config["port"]
-    commands_1 = [
-        "whoami",  # SSH
-        "mysql -u root -p",  # triggers switch to MySQL
-        "select 1",  # MySQL
-        "exit",  # switch back to SSH
-    ]
-
-    commands_2 = ["ls", "exit"]  # SSH again  # close session
-
-    responses = []
-    responses += connect_and_run_ssh_commands(
-        port=ssh_port, username="user", password="pass", commands=commands_1
-    )
-
-    # reconnect to SSH
-    responses += connect_and_run_ssh_commands(
-        port=ssh_port, username="user", password="pass", commands=commands_2
-    )
-
-    print("\n".join(f"Response {i}: {repr(r)}" for i, r in enumerate(responses)))
-
-    assert any(
-        "whoami" in r or "root" in r.lower() for r in responses
-    ), "Missing output for whoami"
-
-    assert any("mysql" in r.lower() for r in responses), "Did not switch to MySQL"
-
-    assert any(
-        "select 1" in r or "1" in r for r in responses
-    ), "MySQL query response missing"
-
-    assert any(
-        "ls" in r or "bin" in r.lower() for r in responses
-    ), "Did not switch back to SSH"
 
 
 def load_jsonl(filepath):
@@ -113,7 +91,7 @@ def test_fakefs_json_based(ssh_honeypot):
     ssh_port = ssh_honeypot.config["port"]
     assert wait_for_port(ssh_port), "SSH port not ready"
 
-    test_cases = load_jsonl("test_fakefs_cases.jsonl")
+    test_cases = load_jsonl("test/test_fakefs_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
@@ -135,7 +113,7 @@ def test_fallback_json_based(ssh_honeypot):
 
     assert wait_for_port(ssh_port), "SSH port not ready"
 
-    test_cases = load_jsonl("test_fallback_cases.jsonl")
+    test_cases = load_jsonl("test/test_fallback_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
@@ -147,6 +125,3 @@ def test_fallback_json_based(ssh_honeypot):
         assert (
             case["expect"] in response
         ), f"Failed case {i}: {case['command']}\nExpected: {case['expect']}\nActual: {response}"
-
-    print("Test complete. Main thread sleeping briefly before exiting.")
-    time.sleep(2)

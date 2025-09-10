@@ -35,13 +35,3 @@ class HTTPDataHandler(DataHandler):
         if hint:
             result += f"\nHere is AN IMPORTANT Hint regarding this request. You MUST follow it:\n{hint}"
         return result
-
-    class PHPMyAdminHandler:
-        @property
-        def description(self):
-            return "For database admin requests like /phpmyadmin or SQL tools."
-
-    class BOAServerHTTPHandler:
-        @property
-        def description(self):
-            return "For BOA server HTTP requests like /login.htm or web logins."

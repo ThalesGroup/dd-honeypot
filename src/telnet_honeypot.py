@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import threading
+import time
 from typing import Optional
 
 import telnetlib3
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class TelnetHoneypot(BaseHoneypot):
+    SESSION_TIMEOUT = 180  # seconds
+
     def __init__(
         self,
         port: int = None,
@@ -23,9 +26,20 @@ class TelnetHoneypot(BaseHoneypot):
         super().__init__(port, config)
         self._action = action
         self._thread = None
+        self._sessions = {}  # {client_ip: (session, created_at)}
 
     def honeypot_type(self) -> str:
         return "telnet"
+
+    def _cleanup_sessions(self):
+        now = time.time()
+        expired = [
+            ip
+            for ip, (_, created) in self._sessions.items()
+            if now - created > self.SESSION_TIMEOUT
+        ]
+        for ip in expired:
+            del self._sessions[ip]
 
     @staticmethod
     async def read_line(reader, writer, echo: bool) -> Optional[str]:
@@ -65,13 +79,20 @@ class TelnetHoneypot(BaseHoneypot):
 
         peer = writer.get_extra_info("peername")
         client_ip = peer[0] if peer else None
-        login_data = {
-            "client_ip": client_ip,
-            "username": username.strip() if username else None,
-            "password": password.strip() if password else None,
-        }
-        session = self._action.connect(login_data)
-        self.log_login(session, login_data)
+        self._cleanup_sessions()
+        session_tuple = self._sessions.get(client_ip)
+        now = time.time()
+        if session_tuple and now - session_tuple[1] <= self.SESSION_TIMEOUT:
+            session = session_tuple[0]
+        else:
+            login_data = {
+                "client_ip": client_ip,
+                "username": username.strip() if username else None,
+                "password": password.strip() if password else None,
+            }
+            session = self._action.connect(login_data)
+            self._sessions[client_ip] = (session, now)
+            self.log_login(session, login_data)
         shell_prompt = self.config.get("telnet", {}).get("shell-prompt", "# ")
         writer.write(f"\r\n{shell_prompt}")
         line = await self.read_line(reader, writer, True)

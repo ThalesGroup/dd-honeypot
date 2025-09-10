@@ -2,6 +2,7 @@ import json
 import logging
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from infra.fake_fs.commands import handle_ls, handle_cd, handle_mkdir, handle_download
 from infra.fake_fs.filesystem import FakeFileSystem
@@ -66,16 +67,19 @@ class FakeFSDataHandler(HoneypotAction):
                 return "Usage: wget <url> or curl <url>"
         return self.query_from_file(query)
 
-    def query_from_file(self, input_str: str) -> str:
+    def query_from_file(self, input_str: str) -> Optional[str]:
         try:
             with self._data_file.open("r") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
-                        if entry.get("input") == input_str:
+                        if (
+                            entry.get("command") == input_str
+                            or entry.get("input") == input_str
+                        ):
                             return entry.get("response", "")
                     except json.JSONDecodeError:
                         continue
         except FileNotFoundError:
             logging.warning(f"Data file not found: {self._data_file}")
-        return "Command not found\n"
+        return None
