@@ -60,7 +60,7 @@ def test_fakefs_json_based(ssh_honeypot):
     ssh_port = ssh_honeypot.config["port"]
     assert wait_for_port(ssh_port), "SSH port not ready"
 
-    test_cases = load_jsonl("test_fakefs_cases.jsonl")
+    test_cases = load_jsonl("test/test_fakefs_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
@@ -82,7 +82,7 @@ def test_fallback_json_based(ssh_honeypot):
 
     assert wait_for_port(ssh_port), "SSH port not ready"
 
-    test_cases = load_jsonl("test_fallback_cases.jsonl")
+    test_cases = load_jsonl("test/test_fallback_cases.jsonl")
     for i, case in enumerate(test_cases):
         response = connect_and_run_ssh_commands(
             port=ssh_port,
