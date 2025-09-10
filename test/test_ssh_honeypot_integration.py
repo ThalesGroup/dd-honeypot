@@ -28,10 +28,11 @@ _FS_DATA = [
     {"path": "/root", "parent_path": "/", "name": "root", "is_dir": True},
 ]
 
+
 def test_ssh_honeypot_main(monkeypatch):
     with get_honeypot_main(
         monkeypatch,
-        honeypot_config=_HONEYPOT_CONFIG,
+        honeypot_configs=[_HONEYPOT_CONFIG],
         data_jsonl=[{"command": "test_static_command", "response": "test_response"}],
         fake_fs_jsonl=_FS_DATA,
     ) as port:

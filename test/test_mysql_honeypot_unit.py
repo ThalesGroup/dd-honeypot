@@ -47,7 +47,7 @@ def mysql_cnn(mysql_honeypot) -> Generator[pymysql.Connection, None, None]:
 
 def test_mysql_honeypot_main(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    with get_honeypot_main(monkeypatch, {"type": "mysql"}) as port:
+    with get_honeypot_main(monkeypatch, [{"type": "mysql"}]) as port:
         monkeypatch.setattr(
             "infra.data_handler.DataHandler.query",
             lambda *a, **kw: {"output": '[{"user": "root", "host": "host1"}]'},

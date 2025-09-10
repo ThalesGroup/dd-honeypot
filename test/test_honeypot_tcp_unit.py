@@ -64,7 +64,7 @@ def test_tcp_honeypot(tcp_honeypot):
 
 
 def test_tcp_honeypot_main(monkeypatch):
-    with get_honeypot_main(monkeypatch, {"type": "tcp"}) as port:
+    with get_honeypot_main(monkeypatch, [{"type": "tcp"}]) as port:
         monkeypatch.setattr(
             "infra.data_handler.DataHandler.query", lambda *a, **kw: "mocked response"
         )
