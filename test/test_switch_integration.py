@@ -38,7 +38,7 @@ def connect_and_run_ssh_commands(port, username, password, commands):
 
 @pytest.fixture
 def ssh_honeypot():
-    ssh_dir = os.path.abspath("honeypots/alpine/")
+    ssh_dir = os.path.abspath("test/honeypots/alpine/")
     with open(os.path.join(ssh_dir, "config.json")) as f:
         port = json.load(f)["port"]
 
