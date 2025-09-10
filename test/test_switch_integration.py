@@ -39,12 +39,15 @@ def connect_and_run_ssh_commands(port, username, password, commands):
 @pytest.fixture
 def ssh_honeypot():
     ssh_dir = os.path.abspath("test/honeypots/alpine/")
-    with open(os.path.join(ssh_dir, "config.json")) as f:
-        port = json.load(f)["port"]
+    config = json.load(open(os.path.join(ssh_dir, "config.json")))
+    config["port"] = 0
+    config["data_file"] = os.path.join(ssh_dir, "data.jsonl")
+    config["fs_file"] = os.path.join(ssh_dir, "fs.jsonl.gz")
 
     honeypot = create_honeypot_by_folder(ssh_dir)
     honeypot.start()
-    assert wait_for_port(port), "SSH honeypot did not start"
+    actual_port = honeypot.port
+    assert wait_for_port(actual_port), "SSH honeypot did not start"
 
     yield honeypot
 
