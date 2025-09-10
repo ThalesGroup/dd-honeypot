@@ -6,7 +6,8 @@ import time
 import pytest
 from paramiko import SSHClient, AutoAddPolicy
 
-from infra.honeypot_wrapper import create_honeypot_by_folder
+from honeypot_utils import allocate_port
+from infra.honeypot_wrapper import create_honeypot
 
 
 def wait_for_port(port: int, retries: int = 10):
@@ -38,20 +39,22 @@ def connect_and_run_ssh_commands(port, username, password, commands):
 
 @pytest.fixture
 def ssh_honeypot():
+    port = allocate_port()
+
     ssh_dir = os.path.abspath("test/honeypots/alpine/")
-    config = json.load(open(os.path.join(ssh_dir, "config.json")))
-    config["port"] = 0
-    config["data_file"] = os.path.join(ssh_dir, "data.jsonl")
-    config["fs_file"] = os.path.join(ssh_dir, "fs.jsonl.gz")
+    base_conf = json.load(open(os.path.join(ssh_dir, "config.json")))
 
-    honeypot = create_honeypot_by_folder(ssh_dir)
+    base_conf.update(
+        {
+            "port": port,
+            "data_file": os.path.join(ssh_dir, "data.jsonl"),
+            "fs_file": os.path.join(ssh_dir, "fs_alpine.jsonl.gz"),
+        }
+    )
+
+    honeypot = create_honeypot(base_conf)
     honeypot.start()
-    actual_port = honeypot.port
-    assert wait_for_port(
-        actual_port
-    ), f"SSH honeypot did not start on port {actual_port}"
-
-    honeypot.config["port"] = actual_port
+    assert wait_for_port(port), f"SSH honeypot did not start on {port}"
 
     yield honeypot
 
