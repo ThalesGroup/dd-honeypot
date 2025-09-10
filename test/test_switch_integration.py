@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import socket
 import time
 
@@ -20,21 +21,41 @@ def wait_for_port(port: int, retries: int = 10):
     return False
 
 
-def connect_and_run_ssh_commands(port, username, password, commands):
+def connect_and_run_ssh_commands(
+    port, username, password, commands, prompt_regex=r"\$ "
+):
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy())
     client.connect("127.0.0.1", port=port, username=username, password=password)
     shell = client.invoke_shell()
+    shell.settimeout(5.0)
 
-    output = []
+    # Read initial prompt
+    buffer = ""
+    while True:
+        buffer += shell.recv(1024).decode()
+        if re.search(prompt_regex, buffer):
+            break
+
+    results = []
     for cmd in commands:
         shell.send(cmd + "\n")
-        time.sleep(0.5)
-        received = shell.recv(4096).decode()
-        output.append(received)
-
+        buffer = ""
+        start = time.time()
+        # Read until we see the prompt again
+        while True:
+            buffer += shell.recv(1024).decode()
+            if re.search(prompt_regex, buffer):
+                break
+            if time.time() - start > 5:
+                raise TimeoutError(f"Timeout waiting for prompt after {cmd}")
+        # Strip off the final prompt from buffer
+        output = re.sub(rf".*{re.escape(cmd)}\r\n", "", buffer)
+        output = re.sub(prompt_regex + r".*$", "", output).strip()
+        results.append(output)
+    shell.close()
     client.close()
-    return output
+    return results
 
 
 @pytest.fixture
