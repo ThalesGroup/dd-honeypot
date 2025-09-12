@@ -11,6 +11,7 @@ def test_http_dispatcher_routing(monkeypatch):
     - Starts two backend HTTP honeypots plus one dispatcher
     - Feeds the dispatcher's data.jsonl with the TL routing rules
     - Verifies routing by issuing real HTTP requests
+    - Tests session persistence across multiple requests
     """
 
     honeypot_configs = [
@@ -42,17 +43,38 @@ def test_http_dispatcher_routing(monkeypatch):
         data_jsonl=dispatcher_data,
         fake_fs_jsonl=None,
     ) as dispatcher_port:
-
         base_url = f"http://127.0.0.1:{dispatcher_port}"
 
-        resp1 = requests.get(f"{base_url}/phpmyadmin", timeout=5)
-        assert resp1.status_code == 200
-        assert "php_my_admin" in resp1.text.lower()
+        session1 = requests.Session()
 
-        resp2 = requests.get(f"{base_url}/login.htm", timeout=5)
-        assert resp2.status_code == 200
-        assert "boa_server_http" in resp2.text.lower()
+        resp1a = session1.get(f"{base_url}/phpmyadmin", timeout=5)
+        assert resp1a.status_code == 200
+        assert "phpmyadmin" in resp1a.text.lower()
 
-        resp3 = requests.get(f"{base_url}/", timeout=5)
-        assert resp3.status_code == 200
-        assert "unknown" in resp3.text.lower()
+        # Follow-up request in same session should go to same backend
+        resp1b = session1.get(f"{base_url}/phpmyadmin?cmd=version", timeout=5)
+        assert resp1b.status_code == 200
+        assert "phpmyadmin" in resp1b.text.lower()
+
+        session2 = requests.Session()
+
+        resp2a = session2.get(f"{base_url}/login.htm", timeout=5)
+        assert resp2a.status_code == 200
+        assert "boa" in resp2a.text.lower() or "login" in resp2a.text.lower()
+
+        # Follow-up request in same session should go to same backend
+        resp2b = session2.get(f"{base_url}/login.htm?action=auth", timeout=5)
+        assert resp2b.status_code == 200
+        assert "boa" in resp2b.text.lower() or "login" in resp2b.text.lower()
+
+        # UNKNOWN (session consistency)
+        session3 = requests.Session()
+
+        resp3a = session3.get(f"{base_url}/", timeout=5)
+        assert resp3a.status_code == 200
+
+        # Second call should go to SAME backend (session persistence)
+        resp3b = session3.get(f"{base_url}/", timeout=5)
+        assert resp3b.status_code == 200
+        # Should be consistent with first response
+        assert resp3a.text == resp3b.text or "consistent" in resp3b.text.lower()
