@@ -28,7 +28,8 @@ SSH_SESSIONS = {}
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
-        self.transport = None
+        self.client_addr: str | None = None
+        self.transport: paramiko.Transport | None = None
         self._action = action
         self.username = None
         self.session = None
@@ -55,24 +56,21 @@ class SSHServerInterface(paramiko.ServerInterface):
         # Honeypot accepts any credentials; record them and (optionally) init a backend session
         logging.info("Authentication: %s:%s", username, password)
         self.username = username  # ensures prompt rendering can include the user
+        client_ip = self.client_addr
         if self.session is None:
             self.session = HoneypotSession()
         if self.action is not None:
             try:
-                client_ip = getattr(self, "client_addr", None)
-
-                if client_ip is None:
+                if client_ip is None and self.transport:
                     try:
                         client_ip = self.transport.getpeername()[0]
-                    except Exception:
+                    except (OSError, SSHException):
                         client_ip = "unknown"
-                logging.info("Client IP before connect: %s", client_ip)
                 creds = {
                     "username": username,
                     "password": password,
                     "client_ip": client_ip,
                 }
-                logging.info("Connect-args leaving SSH handler: %s", creds)
                 sess = self.action.connect(creds)
                 # prefer backend-provided session dict if applicable
                 if isinstance(sess, dict):
@@ -81,7 +79,8 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.warning("Backend connect failed, continuing auth: %r", e)
         # Log login
         self.honeypot.log_login(
-            self.session, {"username": username, "password": password}
+            self.session,
+            {"username": username, "password": password, "client_ip": client_ip},
         )
         return paramiko.AUTH_SUCCESSFUL
 
