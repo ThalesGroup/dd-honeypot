@@ -28,6 +28,7 @@ SSH_SESSIONS = {}
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
+        self.transport = None
         self._action = action
         self.username = None
         self.session = None
@@ -58,7 +59,21 @@ class SSHServerInterface(paramiko.ServerInterface):
             self.session = HoneypotSession()
         if self.action is not None:
             try:
-                sess = self.action.connect({"username": username, "password": password})
+                client_ip = getattr(self, "client_addr", None)
+
+                if client_ip is None:
+                    try:
+                        client_ip = self.transport.getpeername()[0]
+                    except Exception:
+                        client_ip = "unknown"
+                logging.info("Client IP before connect: %s", client_ip)
+                creds = {
+                    "username": username,
+                    "password": password,
+                    "client_ip": client_ip,
+                }
+                logging.info("Connect-args leaving SSH handler: %s", creds)
+                sess = self.action.connect(creds)
                 # prefer backend-provided session dict if applicable
                 if isinstance(sess, dict):
                     self.session.update(sess)
@@ -341,6 +356,8 @@ class SSHHoneypot(BaseHoneypot):
                 threading.Thread(
                     target=self._handle_client, args=(client_socket, addr), daemon=True
                 ).start()
+            except ConnectionAbortedError:
+                break
             except OSError as e:
                 logging.getLogger(f"Failed to start honeypot: {e}")
                 raise
@@ -352,10 +369,13 @@ class SSHHoneypot(BaseHoneypot):
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.handshake_timeout = 30
             transport.banner_timeout = 30
+
+            handler = SSHServerInterface(self.action, self, self.config)
+            handler.client_addr = addr[0]
+            handler.transport = transport
+
             transport.add_server_key(self.host_key)
-            transport.start_server(
-                server=SSHServerInterface(self.action, self, self.config)
-            )
+            transport.start_server(server=handler)
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 60):
@@ -373,7 +393,8 @@ class SSHHoneypot(BaseHoneypot):
         self.running = False
         if self.server_socket:
             try:
-                self.server_socket.close()
-            except:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
                 pass
+            self.server_socket.close()
         logging.info("SSH Honeypot stopped")
