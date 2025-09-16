@@ -91,7 +91,7 @@ class MySQLHoneypot(BaseHoneypot):
         async def init(self, connection: Connection) -> None:
             if self._action:
                 self._honeypot_session = self._action.connect(
-                    {"connection_id": connection.connection_id}
+                    {"username": connection.session.username}
                 )
             return await super().init(connection)
 
