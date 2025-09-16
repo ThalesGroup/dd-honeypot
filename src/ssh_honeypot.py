@@ -28,6 +28,8 @@ SSH_SESSIONS = {}
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
+        self.client_addr: str | None = None
+        self.transport: paramiko.Transport | None = None
         self._action = action
         self.username = None
         self.session = None
@@ -54,11 +56,22 @@ class SSHServerInterface(paramiko.ServerInterface):
         # Honeypot accepts any credentials; record them and (optionally) init a backend session
         logging.info("Authentication: %s:%s", username, password)
         self.username = username  # ensures prompt rendering can include the user
+        client_ip = self.client_addr
         if self.session is None:
             self.session = HoneypotSession()
         if self.action is not None:
             try:
-                sess = self.action.connect({"username": username, "password": password})
+                if client_ip is None and self.transport:
+                    try:
+                        client_ip = self.transport.getpeername()[0]
+                    except (OSError, SSHException):
+                        client_ip = "unknown"
+                creds = {
+                    "username": username,
+                    "password": password,
+                    "client_ip": client_ip,
+                }
+                sess = self.action.connect(creds)
                 # prefer backend-provided session dict if applicable
                 if isinstance(sess, dict):
                     self.session.update(sess)
@@ -66,7 +79,8 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.warning("Backend connect failed, continuing auth: %r", e)
         # Log login
         self.honeypot.log_login(
-            self.session, {"username": username, "password": password}
+            self.session,
+            {"username": username, "password": password, "client_ip": client_ip},
         )
         return paramiko.AUTH_SUCCESSFUL
 
@@ -341,6 +355,8 @@ class SSHHoneypot(BaseHoneypot):
                 threading.Thread(
                     target=self._handle_client, args=(client_socket, addr), daemon=True
                 ).start()
+            except ConnectionAbortedError:
+                break
             except OSError as e:
                 logging.getLogger(f"Failed to start honeypot: {e}")
                 raise
@@ -352,10 +368,13 @@ class SSHHoneypot(BaseHoneypot):
             transport.local_version = "SSH-2.0-OpenSSH_8.9p1"
             transport.handshake_timeout = 30
             transport.banner_timeout = 30
+
+            handler = SSHServerInterface(self.action, self, self.config)
+            handler.client_addr = addr[0]
+            handler.transport = transport
+
             transport.add_server_key(self.host_key)
-            transport.start_server(
-                server=SSHServerInterface(self.action, self, self.config)
-            )
+            transport.start_server(server=handler)
 
             start_time = time.time()
             while transport.is_active() and (time.time() - start_time < 60):
@@ -373,7 +392,8 @@ class SSHHoneypot(BaseHoneypot):
         self.running = False
         if self.server_socket:
             try:
-                self.server_socket.close()
-            except:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
                 pass
+            self.server_socket.close()
         logging.info("SSH Honeypot stopped")
