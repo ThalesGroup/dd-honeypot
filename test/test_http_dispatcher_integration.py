@@ -1,15 +1,13 @@
-import pytest
 import requests
 
 from conftest import get_honeypot_main
 
 
-@pytest.mark.skip("Enable when HTTP dispatcher is implemented")
 def test_http_dispatcher_routing(monkeypatch):
     """
     End-to-end dispatcher integration using get_honeypot_main:
     - Starts two backend HTTP honeypots plus one dispatcher
-    - Feeds the dispatcher's data.jsonl with the TL routing rules
+    - Feeds the dispatcher's data.jsonl with routing rules
     - Verifies routing by issuing real HTTP requests
     - Tests session persistence across multiple requests
     """
@@ -20,6 +18,7 @@ def test_http_dispatcher_routing(monkeypatch):
         {
             "type": "http",
             "name": "http dispatcher",
+            "is_dispatcher": True,
             "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
             "system_prompt": [
                 "You are an http dispatcher. You have to decide the right application target according to the given payload",
