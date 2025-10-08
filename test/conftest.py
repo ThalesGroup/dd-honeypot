@@ -2,13 +2,21 @@ import contextlib
 import gzip
 import json
 import os
+import socket
 import tempfile
 import threading
 from time import sleep
 from typing import Generator, List
 
 from honeypot_main_utils import start_dd_honeypot
-from honeypot_utils import allocate_port
+
+
+def _free_port() -> int:
+    s = socket.socket()
+    s.bind(("", 0))
+    p = s.getsockname()[1]
+    s.close()
+    return p
 
 
 def get_honeypots_folder() -> str:
@@ -33,9 +41,16 @@ def get_honeypot_main(
 ) -> Generator[int, None, None]:
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.setenv("STOP_HONEYPOT", "false")
-    port = allocate_port()
+    # port = allocate_port()
+    dispatcher_port = None
+    for cfg in honeypot_configs:
+        if cfg.get("is_dispatcher"):
+            dispatcher_port = _free_port()
+            cfg["port"] = dispatcher_port
+        else:
+            cfg["port"] = cfg.get("port", 0)
     for honeypot_config in honeypot_configs:
-        honeypot_config["port"] = port
+        # honeypot_config["port"] = port
         if "name" not in honeypot_config:
             honeypot_config["name"] = f"test-main-{honeypot_config['type']}-honeypot"
         if "model_id" not in honeypot_config:
@@ -50,6 +65,11 @@ def get_honeypot_main(
                 honeypot_config,
                 open(os.path.join(honeypot_dir, "config.json"), "w"),
             )
+            if honeypot_config.get("is_dispatcher") and data_jsonl:
+                data_file = os.path.join(honeypot_dir, "data.jsonl")
+                with open(data_file, "w") as f:
+                    for item in data_jsonl:
+                        f.write(json.dumps(item) + "\n")
             if "data_file" in honeypot_config and data_jsonl is not None:
                 data_file = os.path.join(honeypot_dir, honeypot_config["data_file"])
                 with open(data_file, "w") as f:
@@ -68,7 +88,7 @@ def get_honeypot_main(
         t.start()
         sleep(2)
         try:
-            yield port
+            yield dispatcher_port
         finally:
             monkeypatch.setenv("STOP_HONEYPOT", "true")
             t.join(timeout=5)
