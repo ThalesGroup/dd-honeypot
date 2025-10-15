@@ -1,6 +1,7 @@
 {
   "type": "http",
   "name": "http dispatcher",
+  "is_dispatcher": true,
   "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
   "system_prompt": [
     "You are an http dispatcher. You have to decide the right application target according to the given payload",
