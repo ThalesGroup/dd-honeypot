@@ -3,10 +3,13 @@ import json
 import logging
 import os
 import sys
+import uuid
 from typing import List, Tuple, Dict
 from base_honeypot import BaseHoneypot
 from infra.honeypot_wrapper import create_honeypot_by_folder
-from http_dispatcher import start_dispatcher
+from http_honeypot import HTTPHoneypot
+from infra.interfaces import HoneypotAction
+from base_honeypot import HoneypotSession
 
 
 def _has_only_subdirectories(folder_path: str) -> bool:
@@ -138,9 +141,9 @@ async def _start_components(root: str):
     logging.info(f"Dispatcher mode: {'ON' if has_dispatcher else 'OFF'}")
 
     if not has_dispatcher:
-        # Legacy: start every honeypot as a real listener
+        # Legacy path unchanged
         honeypots: List[BaseHoneypot] = []
-        for folder_path, cfg in folders:
+        for folder_path, _ in folders:
             try:
                 hp = create_honeypot_by_folder(folder_path)
                 honeypots.append(hp)
@@ -172,33 +175,57 @@ async def _start_components(root: str):
             logging.info("Keyboard interrupt received")
         return
 
-    # Dispatcher mode: register in-process HTTP backends listed by dispatcher(s),
-    # start non-http (and http not listed) as normal listeners.
+    # Dispatcher mode
     backend_handlers: Dict[str, callable] = {}
     normal_honeypots: List[BaseHoneypot] = []
+    dispatchers: List[BaseHoneypot] = []
 
-    # Gather all http names used by any dispatcher
+    # Names of http backends referred by any dispatcher
     http_names_for_dispatchers = set()
     for _, cfg in folders:
         if cfg.get("is_dispatcher"):
             http_names_for_dispatchers.update(cfg.get("honeypots", []))
 
+    # Instantiate all honeypots once
+    created: Dict[str, BaseHoneypot] = {}
     for folder_path, cfg in folders:
-        if cfg.get("is_dispatcher"):
-            continue
-        hp_type = cfg.get("type", "")
-        name = cfg.get("name", "")
-        if hp_type == "http" and name in http_names_for_dispatchers:
-            backend_handlers[name] = build_http_backend_handler(cfg)
-            logging.info(f"Registering in-process HTTP backend: {name}")
-            continue
         try:
             hp = create_honeypot_by_folder(folder_path)
-            normal_honeypots.append(hp)
+            created[folder_path] = hp
         except Exception as ex:
             logging.error(f"Error creating honeypot from folder {folder_path}: {ex}")
 
-    # Start non-dispatched listeners
+    # Build backend registry and list of listeners to start
+    for folder_path, cfg in folders:
+        hp = created.get(folder_path)
+        if not hp:
+            continue
+        if cfg.get("is_dispatcher"):
+            dispatchers.append(hp)
+            continue
+
+        hp_type = cfg.get("type", "")
+        name = cfg.get("name", "")
+
+        if hp_type == "http" and name in http_names_for_dispatchers:
+            # Do NOT start this listener; expose in-process handler for dispatcher
+            try:
+                if isinstance(hp, HTTPHoneypot):
+                    handler = hp.as_backend_handler()
+                    backend_handlers[name] = handler
+                    logging.info(f"Registering in-process HTTP backend: {name}")
+                else:
+                    logging.warning(
+                        f"Honeypot {name} is not an HTTPHoneypot; skipping backend handler registration."
+                    )
+            except Exception as ex:
+                logging.error(f"Error building backend handler for {name}: {ex}")
+            continue
+
+        # All others start normally (tcp/mysql/ssh/http not behind dispatcher)
+        normal_honeypots.append(hp)
+
+    # Start normal listeners
     for h in normal_honeypots:
         try:
             if asyncio.iscoroutinefunction(h.start):
@@ -208,43 +235,51 @@ async def _start_components(root: str):
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
 
-    # Start each dispatcher as the only HTTP listener for those backends
+    # Start each dispatcher honeypot as an HTTP listener with wired backends
     for folder_path, cfg in folders:
-        if not cfg.get("is_dispatcher"):
+        hp = created.get(folder_path)
+        if not hp or not cfg.get("is_dispatcher"):
             continue
-        port = int(cfg.get("port") or 0)
-        routes = _load_dispatcher_routes(folder_path)
+
         names = cfg.get("honeypots", [])
-        backends = {n: backend_handlers[n] for n in names if n in backend_handlers}
+        wired = {n: backend_handlers[n] for n in names if n in backend_handlers}
 
-        sys_prompt = cfg.get("system_prompt", [])
-        for n in names:
-            for fpath, bcfg in folders:
-                if bcfg.get("name") == n and "description" in bcfg:
-                    sys_prompt.append(f"[{n}] {bcfg['description']}")
-
-        logging.info(
-            f"Starting HTTP dispatcher on port {port} for {list(backends)} with {len(routes)} routes"
-        )
-        start_dispatcher(
+        # Create and start the dispatcher honeypot with routes and backends
+        port = cfg.get("port")
+        routes = _load_dispatcher_routes(folder_path)
+        dispatcher_hp = HTTPHoneypot(
             port=port,
-            routes=routes,
-            backends=backends,
-            model_id=cfg.get("model_id"),
-            system_prompt=sys_prompt,
+            action=DispatcherAction(),
+            config=cfg,
+            dispatcher_routes=routes,
+            inprocess_backends=wired,
         )
+        dispatcher_hp.start()
+        dispatchers.append(dispatcher_hp)
 
+    # Run until STOP_HONEYPOT=true
     try:
         while os.getenv("STOP_HONEYPOT", "false") != "true":
             if not any(h.is_running() for h in normal_honeypots):
                 await asyncio.sleep(0.5)
             await asyncio.sleep(1)
         logging.info("Stopping honeypot")
-        for h in normal_honeypots:
-            if h.is_running():
-                h.stop()
+        for h in normal_honeypots + dispatchers:
+            try:
+                if h.is_running():
+                    h.stop()
+            except OSError:
+                pass
     except KeyboardInterrupt:
         logging.info("Keyboard interrupt received")
+
+
+class DispatcherAction(HoneypotAction):
+    def connect(self, ctx):
+        return HoneypotSession({"session_id": str(uuid.uuid4()), **ctx})
+
+    def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
+        return {"output": "DISPATCHER RESPONSE"}
 
 
 def start_dd_honeypot(folder: str):
