@@ -184,7 +184,7 @@ class BaseHoneypot(ABC):
         """Decide which backend honeypot to forward the request to, based on the routing key and meta information"""
         hit = self._match_rules(routing_key) if self.dispatch_rules else None
         if hit and hit in self.dispatch_backends:
-            self.session_map[session_id] = hit
+            self._session_map[session_id] = hit
             return hit
 
         if self.action:
@@ -201,20 +201,20 @@ class BaseHoneypot(ABC):
                 )
                 name = self._normalize_name(llm_out)
                 if name in self.dispatch_backends:
-                    self.session_map[session_id] = name
+                    self._session_map[session_id] = name
                     return name
             except OSError:
                 pass
 
         name = next(iter(self.dispatch_backends.keys()), "UNKNOWN")
-        self.session_map[session_id] = name
+        self._session_map[session_id] = name
         return name
 
     def _dispatch_handle(self, ctx):
-        sid = self.session_map.get(ctx.session_id)
+        sid = self._session_map.get(ctx.session_id)
         key = self._decide_backend(sid, ctx.routing_key, ctx.meta)
         meta = ctx.meta or {}
-        name = self.session_map.get(sid) or self._decide_backend(sid, key, meta)
+        name = self._session_map.get(sid) or self._decide_backend(sid, key, meta)
         return self.forward_to_backend(name, ctx)
 
     def forward_to_backend(self, backend_name: str, ctx):
