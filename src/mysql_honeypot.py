@@ -213,7 +213,7 @@ class MySQLHoneypot(BaseHoneypot):
         self._thread = threading.Thread(target=_start, daemon=True)
         self._thread.start()
         wait_for_port(self.port)
-        cfg_dir = getattr(self, "config_dir", None)
+        cfg_dir = (self.config or {}).get("config_dir")
         if cfg_dir:
             try:
                 with open(os.path.join(cfg_dir, "bound_port"), "w") as f:

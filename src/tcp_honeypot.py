@@ -30,7 +30,7 @@ class TCPHoneypot(BaseHoneypot):
         logger.info(f"TCP Honeypot started on port {self.port}")
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("0.0.0.0", self.port))
-        cfg_dir = getattr(self, "config_dir", None)
+        cfg_dir = (self.config or {}).get("config_dir")
         if cfg_dir:
             try:
                 with open(os.path.join(cfg_dir, "bound_port"), "w") as f:
