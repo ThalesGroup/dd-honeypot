@@ -3,13 +3,12 @@ import json
 import logging
 import os
 import sys
-import uuid
 from typing import List, Tuple, Dict
+
 from base_honeypot import BaseHoneypot
-from infra.honeypot_wrapper import create_honeypot_by_folder
 from http_honeypot import HTTPHoneypot
-from infra.interfaces import HoneypotAction
-from base_honeypot import HoneypotSession
+from infra.data_handler import DataHandler
+from infra.honeypot_wrapper import create_honeypot_by_folder
 
 
 def _has_only_subdirectories(folder_path: str) -> bool:
@@ -247,11 +246,19 @@ async def _start_components(root: str):
         # Create and start the dispatcher honeypot with routes and backends
         port = cfg.get("port")
         routes = _load_dispatcher_routes(folder_path)
+
+        action = DataHandler(
+            data_file=os.path.join(folder_path, "data.jsonl"),
+            system_prompt=cfg.get("system_prompt", ""),
+            model_id=cfg.get("model_id", ""),
+            structure=None,
+            routes=routes,
+        )
+
         dispatcher_hp = HTTPHoneypot(
             port=port,
-            action=DispatcherAction(),
+            action=action,
             config=cfg,
-            dispatcher_routes=routes,
             inprocess_backends=wired,
         )
         dispatcher_hp.start()
@@ -272,14 +279,6 @@ async def _start_components(root: str):
                 pass
     except KeyboardInterrupt:
         logging.info("Keyboard interrupt received")
-
-
-class DispatcherAction(HoneypotAction):
-    def connect(self, ctx):
-        return HoneypotSession({"session_id": str(uuid.uuid4()), **ctx})
-
-    def request(self, info: dict, session: HoneypotSession, **kwargs) -> dict:
-        return {"output": "DISPATCHER RESPONSE"}
 
 
 def start_dd_honeypot(folder: str):

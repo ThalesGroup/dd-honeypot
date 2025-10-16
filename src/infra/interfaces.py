@@ -31,3 +31,6 @@ class HoneypotAction(ABC):
         :return: response of the request
         """
         raise NotImplementedError()
+
+    def dispatch(self, query_input: dict, session) -> str | dict | None:
+        return None

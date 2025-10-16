@@ -68,3 +68,20 @@ def connect_and_run_ssh_commands(port, username, password, commands):
     chan.close()
     client.close()
     return results
+
+
+def normalize_backend_name(raw) -> str:
+    """
+    Extract and normalize a backend name for robust matching.
+    - Accepts str, dict, or any object (coerced to str).
+    - For dicts, tries common keys: name, target, backend.
+    - Normalizes: lowercase, spaces/dashes -> underscores, strip.
+    """
+    cand = None
+    if isinstance(raw, dict):
+        cand = raw.get("name") or raw.get("target") or raw.get("backend")
+    else:
+        cand = raw
+    s = (str(cand or "")).strip()
+    s = s.lower().replace(" ", "_").replace("-", "_")
+    return s

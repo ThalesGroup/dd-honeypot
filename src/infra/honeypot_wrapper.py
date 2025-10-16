@@ -67,8 +67,6 @@ def create_honeypot(config: dict) -> BaseHoneypot:
             model_id=config["model_id"],
         )
         hp = HTTPHoneypot(port=port, action=action, config=config)
-        if "config_dir" in config:
-            setattr(hp, "config_dir", config["config_dir"])
         return hp
 
     action = build_data_handler(config, log_callback=None)
@@ -77,8 +75,6 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         from ssh_honeypot import SSHHoneypot
 
         hp = SSHHoneypot(port=port, action=action, config=config)
-        if "config_dir" in config:
-            setattr(hp, "config_dir", config["config_dir"])
         if isinstance(action, ChainedDataHandler):
             action.log_callback = hp.log_data
         return hp
@@ -87,14 +83,10 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         from tcp_honeypot import TCPHoneypot
 
         hp = TCPHoneypot(port=port, action=action, config=config)
-        if "config_dir" in config:
-            setattr(hp, "config_dir", config["config_dir"])
         return hp
 
     elif honeypot_type == "telnet":
         hp = TelnetHoneypot(port=port, action=action, config=config)
-        if "config_dir" in config:
-            setattr(hp, "config_dir", config["config_dir"])
         return hp
 
     elif honeypot_type in ("mysql", "postgres"):
@@ -108,8 +100,6 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         # Choose appropriate honeypot class
         honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
         hp = honeypot_cls(port=port, action=chained_action, config=config)
-        if "config_dir" in config:
-            setattr(hp, "config_dir", config["config_dir"])
         return hp
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")

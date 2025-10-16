@@ -1,5 +1,4 @@
 import logging
-import os
 import threading
 import uuid
 from urllib.parse import urlparse
@@ -8,6 +7,7 @@ from flask import Flask, request, session, Request, Response
 from werkzeug.serving import make_server
 
 from base_honeypot import BaseHoneypot, HoneypotSession
+from honeypot_utils import normalize_backend_name
 from infra.interfaces import HoneypotAction
 
 logger = logging.getLogger(__name__)
@@ -55,25 +55,18 @@ def extract_session_id(ctx) -> str:
     return sid
 
 
-def _normalize_backend_name(name: str) -> str:
-    """Normalize backend names for robust matching."""
-    return name.lower().replace(" ", "_").replace("-", "_").strip()
-
-
 class HTTPHoneypot(BaseHoneypot):
     def __init__(
         self,
         port: int = None,
         action: HoneypotAction = None,
         config: dict = None,
-        dispatcher_routes=None,
         inprocess_backends=None,
     ):
         super().__init__(port, config)
-        self.dispatcher_routes = dispatcher_routes
         # Normalize backend keys for robust matching
         self.inprocess_backends = {
-            _normalize_backend_name(k): v for k, v in (inprocess_backends or {}).items()
+            normalize_backend_name(k): v for k, v in (inprocess_backends or {}).items()
         }
         if "unknown" not in self.inprocess_backends:
 
@@ -128,15 +121,13 @@ class HTTPHoneypot(BaseHoneypot):
                 try:
                     from flask import g
 
-                    if not self.dispatch_rules:
-                        try:
-                            self._load_dispatcher_rules()
-                        except OSError:
-                            pass
                     ctx = _build_ctx_from_request()
                     print(f"CATCH_ALL: calling _dispatch_handle with ctx={ctx}")
                     sid = extract_session_id(ctx)
-                    status, headers, body = self._dispatch_handle(ctx)
+                    ctx["session_id"] = sid
+                    ctx["routing_key"] = (ctx.get("path") or "/").lower()
+                    ctx["meta"] = extract_meta(ctx)
+                    status, headers, body = BaseHoneypot.dispatch(self, ctx)
 
                     pending = getattr(g, "_hp_pending_cookie", None)
                     resp = Response(
@@ -225,58 +216,9 @@ class HTTPHoneypot(BaseHoneypot):
             logger.error(f"500 error: {error}")
             return Response("Internal Server Error", 500)
 
-    def _dispatch_handle(self, ctx):
-        """Dispatch the request based on dispatcher rules."""
-        logger.info(f"DISPATCH_HANDLE: called with ctx={ctx}")
-        path = (ctx.get("path") or "/").lower().rstrip("/")
-        if path == "":
-            path = "/"
-        routes = (
-            getattr(self, "dispatcher_routes", None)
-            or getattr(self, "dispatch_rules", None)
-            or []
-        )
-        # Sort routes by descending path length to prioritize more specific matches
-        routes = sorted(
-            routes,
-            key=lambda r: len((r.get("path") or "").rstrip("/").lower()),
-            reverse=True,
-        )
-        logger.info(
-            f"DISPATCH_HANDLE: available backend keys: {list(getattr(self, 'inprocess_backends', {}).keys())}"
-        )
-        for route in routes:
-            route_path = (route.get("path") or "").lower().rstrip("/")
-            if route_path == "":
-                route_path = "/"
-            logger.info(f"DISPATCH_HANDLE: checking route: {route_path} vs {path}")
-            # Only match "/" if the path is exactly "/"; otherwise, match prefix for other routes
-            is_root_match = route_path == "/" and path == "/"
-            is_prefix_match = route_path != "/" and (
-                path == route_path or path.startswith(route_path + "/")
-            )
-            if is_root_match or is_prefix_match:
-                backend_name = (route.get("name") or "").strip()
-                norm_backend_name = _normalize_backend_name(backend_name)
-                logger.info(
-                    f"DISPATCH_HANDLE: looking for backend_name: '{backend_name}' (normalized: '{norm_backend_name}')"
-                )
-                handler = getattr(self, "inprocess_backends", {}).get(norm_backend_name)
-                logger.info(
-                    f"DISPATCH_HANDLE: Matched route. Backend name: '{backend_name}', Normalized: '{norm_backend_name}', Handlers: {list(getattr(self, 'inprocess_backends', {}).keys())}, Handler found: {bool(handler)}"
-                )
-                if handler:
-                    return handler(ctx)
-                else:
-                    logger.warning(
-                        f"DISPATCH_HANDLE: No handler found for backend: '{backend_name}' (normalized: '{norm_backend_name}')"
-                    )
-        logger.warning(f"DISPATCH_HANDLE: No route matched for path: {path}")
-        return 404, {"Content-Type": "text/plain"}, "Not found"
-
     def as_backend_handler(self) -> callable:
         """Return a handler function that can be used as a backend in dispatcher mode."""
-        name_norm = _normalize_backend_name(self.name or "")
+        name_norm = normalize_backend_name(self.name or "")
 
         def _handle(ctx: dict):
             """Handle incoming request context and return HTTP response."""
@@ -321,27 +263,7 @@ class HTTPHoneypot(BaseHoneypot):
     def start(self):
         logger.info(f"Starting honeypot on port {self.port}")
 
-        if self.is_dispatcher:
-            try:
-                self._load_dispatcher_rules()
-            except OSError:
-                logger.error(f"Failed to load dispatcher rules:", exc_info=True)
-
         self._server = make_server("0.0.0.0", self.port, self.app)
-
-        try:
-            actual_port = self._server.server_port
-        except OSError:
-            actual_port = self.port
-        if int(self.port) == 0 and actual_port:
-            self.port = actual_port
-            if getattr(self, "config_dir", None):
-                try:
-                    open(os.path.join(self.config_dir, "bound_port"), "w").write(
-                        str(self.port)
-                    )
-                except OSError:
-                    pass
 
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
