@@ -37,10 +37,9 @@ class BaseHoneypot(ABC):
         self.__config = config or {}
         self.config_dir: Optional[str] = self.__config.get("config_dir")
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
-        self.dispatch_honeypots = list(self.config.get("honeypots", []))
         self.dispatch_rules = []
-        self.session_map: dict[str, str] = {}
-        self.dispatch_backends: dict[str, callable] = {}
+        self._session_map: dict[str, str] = {}
+        self._dispatch_backends: dict[str, callable] = {}
 
     @property
     def action(self) -> "HoneypotAction":
