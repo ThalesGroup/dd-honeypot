@@ -35,9 +35,7 @@ class BaseHoneypot(ABC):
         self._action = None
         self.__port = port if port else allocate_port()
         self.__config = config or {}
-        self.config_dir: Optional[str] = self.__config.get("config_dir")
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
-        self.dispatch_rules = []
         self._session_map: dict[str, str] = {}
         self._dispatch_backends: dict[str, callable] = {}
 
@@ -132,93 +130,55 @@ class BaseHoneypot(ABC):
         print(json.dumps(data_to_log))
 
     def set_dispatch_backends(self, backends: dict[str, callable]) -> None:
-        self.dispatch_backends = backends or {}
+        self._dispatch_backends = backends or {}
 
-    def _load_dispatcher_rules(self) -> None:
-        if not self.config_dir:
-            self.dispatch_rules = []
-            return
-        for fname in ("dispatcher_data.jsonl", "data.jsonl"):
-            p = os.path.join(self.config_dir, fname)
-            if os.path.exists(p):
-                rules = []
-                with open(p, "r") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            rules.append(json.loads(line))
-                        except OSError:
-                            continue
-                self.dispatch_rules = rules
-                return
-        self.dispatch_rules = []
+    def dispatch_backends(self) -> dict[str, callable]:
+        return self._dispatch_backends
 
-    def _normalize_name(self, raw) -> str:
-        """Normalize the name of the backend honeypot from the raw output of the LLM"""
-        if isinstance(raw, dict):
-            cand = raw.get("name") or raw.get("target") or raw.get("backend")
-        else:
-            cand = str(raw or "").strip()
-        return cand.lower() if cand else ""
+    def forward_to_backend(self, backend_name: str, ctx):
+        if backend_name not in self._dispatch_backends:
+            return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
+        handler = self._dispatch_backends[backend_name]
+        return handler(ctx)
 
-    def _match_rules(self, routing_key: str) -> Optional[str]:
-        """Match the routing key against the dispatch rules and return the name of the backend honeypot if matched"""
-        for r in self.dispatch_rules:
-            path = r.get("path") or r.get("routing_key")
-            name = r.get("name")
-            if path is None or name is None:
-                continue
-            path_norm = str(path).rstrip("/").lower()
-            key_norm = str(routing_key).rstrip("/").lower()
-            if path_norm == "/":
-                if key_norm == "/":
-                    return name
-            else:
-                if key_norm == path_norm or key_norm.startswith(path_norm + "/"):
-                    return name
-        return None
+    def dispatch(self, ctx: dict) -> tuple[int, dict, str | bytes]:
+        session_id = ctx.get("session_id") or str(uuid.uuid4())
+        routing_key = (ctx.get("routing_key") or "/").lower()
+        meta = ctx.get("meta") or {}
 
-    def _decide_backend(self, session_id: str, routing_key: str, meta: dict) -> str:
-        """Decide which backend honeypot to forward the request to, based on the routing key and meta information"""
-        hit = self._match_rules(routing_key) if self.dispatch_rules else None
-        if hit and hit in self.dispatch_backends:
-            self._session_map[session_id] = hit
-            return hit
-
-        if self.action:
-            query_input = json.dumps(
-                {
-                    "routing_key": routing_key,
-                    "meta": meta,
-                    "honeypots": list(self.dispatch_backends),
-                }
-            )
+        if self.action and hasattr(self.action, "dispatch"):
             try:
-                llm_out = self.action.query(
-                    query_input, session=HoneypotSession(session_id=session_id)
+                choice = self.action.dispatch(
+                    {
+                        "routing_key": routing_key,
+                        "meta": meta,
+                        "honeypots": list(self._dispatch_backends),
+                    },
+                    HoneypotSession(session_id=session_id),
                 )
-                name = self._normalize_name(llm_out)
-                if name in self.dispatch_backends:
-                    self._session_map[session_id] = name
-                    return name
+                # Override response
+                if isinstance(choice, dict) and {"status", "headers", "body"} <= set(
+                    choice
+                ):
+                    return (
+                        choice["status"],
+                        choice.get("headers", {}),
+                        choice.get("body", ""),
+                    )
+                # Backend name
+                if isinstance(choice, str) and choice in self._dispatch_backends:
+                    self._session_map[session_id] = choice
+                    return self.forward_to_backend(choice, ctx)
             except OSError:
                 pass
 
-        name = next(iter(self.dispatch_backends.keys()), "UNKNOWN")
-        self._session_map[session_id] = name
-        return name
+        pinned = self._session_map.get(session_id)
+        if pinned and pinned in self._dispatch_backends:
+            return self.forward_to_backend(pinned, ctx)
 
-    def _dispatch_handle(self, ctx):
-        sid = self._session_map.get(ctx.session_id)
-        key = self._decide_backend(sid, ctx.routing_key, ctx.meta)
-        meta = ctx.meta or {}
-        name = self._session_map.get(sid) or self._decide_backend(sid, key, meta)
-        return self.forward_to_backend(name, ctx)
+        name = next(iter(self._dispatch_backends), None)
+        if name:
+            self._session_map[session_id] = name
+            return self.forward_to_backend(name, ctx)
 
-    def forward_to_backend(self, backend_name: str, ctx):
-        if backend_name not in self.dispatch_backends:
-            return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
-        handler = self.dispatch_backends[backend_name]
-        return handler(ctx)
+        return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
