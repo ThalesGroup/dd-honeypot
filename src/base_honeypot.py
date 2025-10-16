@@ -3,7 +3,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Callable
 
 from honeypot_utils import allocate_port
 
@@ -37,7 +37,7 @@ class BaseHoneypot(ABC):
         self.__config = config or {}
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
         self._session_map: dict[str, str] = {}
-        self._dispatch_backends: dict[str, callable] = {}
+        self._dispatch_backends: dict[str, Callable] = {}
 
     @property
     def action(self) -> "HoneypotAction":
@@ -129,10 +129,10 @@ class BaseHoneypot(ABC):
         data_to_log.update(data)
         print(json.dumps(data_to_log))
 
-    def set_dispatch_backends(self, backends: dict[str, callable]) -> None:
+    def set_dispatch_backends(self, backends: dict[str, Callable]) -> None:
         self._dispatch_backends = backends or {}
 
-    def dispatch_backends(self) -> dict[str, callable]:
+    def dispatch_backends(self) -> dict[str, Callable]:
         return self._dispatch_backends
 
     def forward_to_backend(self, backend_name: str, ctx):

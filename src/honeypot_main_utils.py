@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable
 
 from base_honeypot import BaseHoneypot
 from http_honeypot import HTTPHoneypot
@@ -175,7 +175,7 @@ async def _start_components(root: str):
         return
 
     # Dispatcher mode
-    backend_handlers: Dict[str, callable] = {}
+    backend_handlers: Dict[str, Callable] = {}
     normal_honeypots: List[BaseHoneypot] = []
     dispatchers: List[BaseHoneypot] = []
 

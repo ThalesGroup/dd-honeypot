@@ -1,6 +1,7 @@
 import logging
 import threading
 import uuid
+from typing import Callable
 from urllib.parse import urlparse
 
 from flask import Flask, request, session, Request, Response
@@ -216,7 +217,7 @@ class HTTPHoneypot(BaseHoneypot):
             logger.error(f"500 error: {error}")
             return Response("Internal Server Error", 500)
 
-    def as_backend_handler(self) -> callable:
+    def as_backend_handler(self) -> Callable:
         """Return a handler function that can be used as a backend in dispatcher mode."""
         name_norm = normalize_backend_name(self.name or "")
 
