@@ -6,6 +6,7 @@ import sys
 from typing import List, Tuple, Dict, Callable
 
 from base_honeypot import BaseHoneypot
+from honeypot_registry import get_honeypot_registry
 from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
 from infra.honeypot_wrapper import create_honeypot_by_folder
@@ -22,52 +23,6 @@ def _has_only_subdirectories(folder_path: str) -> bool:
 def _is_honeypot_folder(folder_path: str) -> bool:
     config_file = os.path.join(folder_path, "config.json")
     return os.path.isfile(config_file)
-
-
-# Collect and create honeypot instances from the given folder
-def _collect_honeypots(folder) -> List[BaseHoneypot]:
-    honeypots: List[BaseHoneypot] = []
-    if _has_only_subdirectories(folder):
-        logging.info(
-            f"Found subdirectories in honeypot folder: {folder}. Adding honeypots"
-        )
-        for sub_folder in os.listdir(folder):
-            folder_path = os.path.join(folder, sub_folder)
-            if _is_honeypot_folder(folder_path):
-                logging.info(f"Found honeypot folder: {folder_path}")
-                try:
-                    honeypots.append(create_honeypot_by_folder(folder_path))
-                except Exception as ex:
-                    logging.error(
-                        f"Error creating honeypot from folder {folder_path}: {ex}"
-                    )
-    else:
-        honeypots.append(create_honeypot_by_folder(folder))
-    return honeypots
-
-
-async def _start_honeypots(folder: str):
-    honeypots = _collect_honeypots(folder)
-    logging.info(f"Found {len(honeypots)} honeypots. Starting...")
-    for h in honeypots:
-        try:
-            if asyncio.iscoroutinefunction(h.start):
-                await h.start()
-            else:
-                h.start()
-        except Exception as ex:
-            logging.error(f"Error starting honeypot {h}: {ex}")
-    try:
-        while os.getenv("STOP_HONEYPOT", "false") != "true" and any(
-            h.is_running() for h in honeypots
-        ):
-            await asyncio.sleep(2)
-        logging.info("Stopping honeypot")
-        for h in honeypots:
-            if h.is_running():
-                h.stop()
-    except KeyboardInterrupt:
-        logging.info("Keyboard interrupt received")
 
 
 def _load_dispatcher_routes(folder_path: str) -> List[dict]:
@@ -109,29 +64,6 @@ def _scan_folders(root: str) -> List[Tuple[str, dict]]:
     else:
         folders.append((root, _load_config(root)))
     return folders
-
-
-def build_http_backend_handler(cfg: dict):
-    """
-    Return a callable(req_dict) -> (status, headers, body)
-    Keep it small; generate HTML/JSON strings; do not bind a socket.
-    Replace this stub with your real HTTP data handler factory if available.
-    """
-    name = cfg["name"]
-
-    def handler(req):
-        p = (req.get("path_only") or req.get("path") or "/").lower()
-        if name == "php_my_admin":
-            if "/phpmyadmin" in p:
-                return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
-            return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin home</html>"
-        if name == "boa_server_http":
-            if "/login.htm" in p:
-                return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
-            return 200, {"Content-Type": "text/html"}, "<html>Boa home</html>"
-        return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
-
-    return handler
 
 
 async def _start_components(root: str):
@@ -233,6 +165,9 @@ async def _start_components(root: str):
                 h.start()
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
+
+    get_honeypot_registry().reset_honeypots()
+    get_honeypot_registry().register_honeypots(normal_honeypots)
 
     # Start each dispatcher honeypot as an HTTP listener with wired backends
     for folder_path, cfg in folders:

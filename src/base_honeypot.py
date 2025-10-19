@@ -182,3 +182,9 @@ class BaseHoneypot(ABC):
             return self.forward_to_backend(name, ctx)
 
         return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
+
+    @staticmethod
+    def get_honeypot_by_name(name: str):
+        from honeypot_registry import get_honeypot_registry
+
+        get_honeypot_registry().get_honeypot(name)
