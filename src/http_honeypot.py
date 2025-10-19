@@ -113,9 +113,10 @@ class HTTPHoneypot(BaseHoneypot):
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
         def catch_all(path):
-            print(
-                f"CATCH_ALL: is_dispatcher={self.is_dispatcher}, path={request.path}, dispatcher_routes={getattr(self, 'dispatcher_routes', None)}"
-            )
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    f"CATCH_ALL: is_dispatcher={self.is_dispatcher}, path={request.path}, dispatcher_routes={getattr(self, 'dispatcher_routes', None)}"
+                )
             resource_type = get_resource_type(request)
 
             if self.is_dispatcher:
@@ -123,7 +124,10 @@ class HTTPHoneypot(BaseHoneypot):
                     from flask import g
 
                     ctx = _build_ctx_from_request()
-                    print(f"CATCH_ALL: calling _dispatch_handle with ctx={ctx}")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            f"CATCH_ALL: calling _dispatch_handle with ctx={ctx}"
+                        )
                     sid = extract_session_id(ctx)
                     ctx["session_id"] = sid
                     ctx["routing_key"] = (ctx.get("path") or "/").lower()
