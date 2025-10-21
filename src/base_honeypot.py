@@ -19,7 +19,6 @@ class HoneypotSession(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.active_honeypot: Optional[str] = None
         if "session_id" not in self:
             self["session_id"] = str(uuid.uuid4())
 

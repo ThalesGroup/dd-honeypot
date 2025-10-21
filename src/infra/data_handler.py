@@ -75,10 +75,6 @@ class DataHandler(HoneypotAction):
     def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
         return self.request({"command": query}, session, **kwargs)
 
-    # noinspection PyPackageRequirements,PyMethodMayBeStatic
-    def query_user_prompt(self, query: str, session: HoneypotSession) -> str:
-        return f"User input: {query}"
-
     def request_user_prompt(self, info: dict) -> str:
         return f"User input: {info}"
 

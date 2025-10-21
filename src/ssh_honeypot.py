@@ -23,8 +23,6 @@ class SuppressEOFErrorFilter(logging.Filter):
 
 logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
 
-SSH_SESSIONS = {}
-
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
@@ -47,10 +45,6 @@ class SSHServerInterface(paramiko.ServerInterface):
     @action.setter
     def action(self, value):
         self._action = value
-
-    def get_allowed_auths(self, username):
-        # Explicitly advertise password auth
-        return "password"  # paramiko expects a comma-separated list
 
     def check_auth_password(self, username, password):
         # Honeypot accepts any credentials; record them and (optionally) init a backend session
@@ -83,13 +77,6 @@ class SSHServerInterface(paramiko.ServerInterface):
             {"username": username, "password": password, "client_ip": client_ip},
         )
         return paramiko.AUTH_SUCCESSFUL
-
-    def check_channel_request(self, kind, chanid):
-        return (
-            paramiko.OPEN_SUCCEEDED
-            if kind == "session"
-            else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
-        )
 
     # noinspection PyTypeChecker
     def handle_scp_upload(self, channel, command_str):

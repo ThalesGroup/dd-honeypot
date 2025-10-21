@@ -14,12 +14,7 @@ from infra.interfaces import HoneypotAction
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
-HTTP_SESSIONS = {}
 _COOKIE = "hp_session"
-
-
-def extract_routing_key(ctx) -> str:
-    return (ctx.get("path") or "/").lower()
 
 
 def extract_meta(ctx) -> dict:
