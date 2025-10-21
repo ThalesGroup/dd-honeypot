@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from typing import List, Tuple, Dict, Callable
+from typing import List, Tuple, Dict
 
 from base_honeypot import BaseHoneypot
 from honeypot_registry import get_honeypot_registry
@@ -86,8 +86,10 @@ async def _start_components(root: str):
         logging.info(f"Found {len(honeypots)} honeypots. Starting...")
         for h in honeypots:
             try:
+                # If h.start is a coroutine, await it; otherwise, call it directly.
+                # This avoids issues with sync/async honeypot implementations.
                 if asyncio.iscoroutinefunction(h.start):
-                    await h.start()
+                    h.start()
                 else:
                     h.start()
             except Exception as ex:
@@ -107,7 +109,6 @@ async def _start_components(root: str):
         return
 
     # Dispatcher mode
-    backend_handlers: Dict[str, Callable] = {}
     normal_honeypots: List[BaseHoneypot] = []
     dispatchers: List[BaseHoneypot] = []
 
@@ -127,34 +128,20 @@ async def _start_components(root: str):
             logging.error(f"Error creating honeypot from folder {folder_path}: {ex}")
 
     # Build backend registry and list of listeners to start
+    all_honeypots: List[BaseHoneypot] = []
     for folder_path, cfg in folders:
         hp = created.get(folder_path)
         if not hp:
             continue
+        all_honeypots.append(hp)
         if cfg.get("is_dispatcher"):
             dispatchers.append(hp)
-            continue
+        else:
+            normal_honeypots.append(hp)
 
-        hp_type = cfg.get("type", "")
-        name = cfg.get("name", "")
-
-        if hp_type == "http" and name in http_names_for_dispatchers:
-            # Do NOT start this listener; expose in-process handler for dispatcher
-            try:
-                if isinstance(hp, HTTPHoneypot):
-                    handler = hp.as_backend_handler()
-                    backend_handlers[name] = handler
-                    logging.info(f"Registering in-process HTTP backend: {name}")
-                else:
-                    logging.warning(
-                        f"Honeypot {name} is not an HTTPHoneypot; skipping backend handler registration."
-                    )
-            except Exception as ex:
-                logging.error(f"Error building backend handler for {name}: {ex}")
-            continue
-
-        # All others start normally (tcp/mysql/ssh/http not behind dispatcher)
-        normal_honeypots.append(hp)
+    # Register all honeypots (including HTTP backends) before wiring up dispatchers
+    get_honeypot_registry().reset_honeypots()
+    get_honeypot_registry().register_honeypots(all_honeypots)
 
     # Start normal listeners
     for h in normal_honeypots:
@@ -166,9 +153,6 @@ async def _start_components(root: str):
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
 
-    get_honeypot_registry().reset_honeypots()
-    get_honeypot_registry().register_honeypots(normal_honeypots)
-
     # Start each dispatcher honeypot as an HTTP listener with wired backends
     for folder_path, cfg in folders:
         hp = created.get(folder_path)
@@ -176,7 +160,7 @@ async def _start_components(root: str):
             continue
 
         names = cfg.get("honeypots", [])
-        wired = {n: backend_handlers[n] for n in names if n in backend_handlers}
+        wired = {n: BaseHoneypot.get_honeypot_by_name(n) for n in names}
 
         # Create and start the dispatcher honeypot with routes and backends
         port = cfg.get("port")

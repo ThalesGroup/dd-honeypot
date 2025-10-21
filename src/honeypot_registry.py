@@ -28,4 +28,4 @@ _honeypot_registry_instance: HoneypotRegistry = HoneypotRegistry()
 
 
 def get_honeypot_registry() -> HoneypotRegistry:
-    return HoneypotRegistry()
+    return _honeypot_registry_instance

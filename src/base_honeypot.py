@@ -3,7 +3,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING, Callable
+from typing import Optional, TYPE_CHECKING
 
 from honeypot_utils import allocate_port
 
@@ -36,7 +36,7 @@ class BaseHoneypot(ABC):
         self.__config = config or {}
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
         self._session_map: dict[str, str] = {}
-        self._dispatch_backends: dict[str, Callable] = {}
+        self._dispatch_backends: dict[str, object] = {}
 
     @property
     def action(self) -> "HoneypotAction":
@@ -128,17 +128,17 @@ class BaseHoneypot(ABC):
         data_to_log.update(data)
         print(json.dumps(data_to_log))
 
-    def set_dispatch_backends(self, backends: dict[str, Callable]) -> None:
+    def set_dispatch_backends(self, backends: dict[str, object]) -> None:
         self._dispatch_backends = backends or {}
 
-    def dispatch_backends(self) -> dict[str, Callable]:
+    def dispatch_backends(self) -> dict[str, object]:
         return self._dispatch_backends
 
     def forward_to_backend(self, backend_name: str, ctx):
         if backend_name not in self._dispatch_backends:
             return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
         handler = self._dispatch_backends[backend_name]
-        return handler(ctx)
+        return handler.handle_request(ctx)
 
     def dispatch(self, ctx: dict) -> tuple[int, dict, str | bytes]:
         session_id = ctx.get("session_id") or str(uuid.uuid4())
@@ -186,4 +186,8 @@ class BaseHoneypot(ABC):
     def get_honeypot_by_name(name: str):
         from honeypot_registry import get_honeypot_registry
 
-        get_honeypot_registry().get_honeypot(name)
+        return get_honeypot_registry().get_honeypot(name)
+
+    @staticmethod
+    def handle_request(self, ctx: dict) -> tuple:
+        raise NotImplementedError("handle_request must be implemented by subclasses")

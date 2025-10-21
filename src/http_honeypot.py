@@ -1,7 +1,6 @@
 import logging
 import threading
 import uuid
-from typing import Callable
 from urllib.parse import urlparse
 
 from flask import Flask, request, session, Request, Response
@@ -216,47 +215,6 @@ class HTTPHoneypot(BaseHoneypot):
             logger.error(f"500 error: {error}")
             return Response("Internal Server Error", 500)
 
-    def as_backend_handler(self) -> Callable:
-        """Return a handler function that can be used as a backend in dispatcher mode."""
-        name_norm = normalize_backend_name(self.name or "")
-
-        def _handle(ctx: dict):
-            """Handle incoming request context and return HTTP response."""
-            data = {
-                "host": (ctx.get("headers") or {}).get("Host", ""),
-                "port": 80,
-                "path": (ctx.get("path") or "/").lstrip("/"),
-                "args": ctx.get("query") or {},
-                "method": ctx.get("method") or "GET",
-                "body": ctx.get("body") or "",
-                "headers": ctx.get("headers") or {},
-                "resource_type": "document",
-            }
-            sid = ctx.get("cookies") or ""
-            h_session = {"session_id": sid} if sid else {"session_id": uuid.uuid4().hex}
-            self.log_data(HoneypotSession(h_session), {"http-request": data})
-            path_lower = (ctx.get("path") or "/").lower()
-
-            if name_norm == "php_my_admin":
-                if path_lower.startswith("/phpmyadmin"):
-                    return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
-                if path_lower.startswith("/dbadmin"):
-                    return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
-                return (
-                    200,
-                    {"Content-Type": "text/html"},
-                    "<html>phpMyAdmin home</html>",
-                )
-
-            if name_norm == "boa_server_http":
-                if path_lower.endswith("/login.htm") or path_lower == "/login.htm":
-                    return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
-                return 200, {"Content-Type": "text/html"}, "<html>Boa home</html>"
-
-            return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
-
-        return _handle
-
     def honeypot_type(self) -> str:
         return "http"
 
@@ -278,6 +236,31 @@ class HTTPHoneypot(BaseHoneypot):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1)
         logger.info(f"Stopping honeypot on port {self.port}")
+
+    def handle_request(self, ctx: dict) -> tuple:
+        name_norm = normalize_backend_name(self.name or "")
+        sid = ctx.get("cookies") or ""
+        h_session = {"session_id": sid} if sid else {"session_id": uuid.uuid4().hex}
+        self.log_data(HoneypotSession(h_session), {"http-request": ctx})
+        path_lower = (ctx.get("path") or "/").lower()
+
+        if name_norm == "php_my_admin":
+            if path_lower.startswith("/phpmyadmin"):
+                return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
+            if path_lower.startswith("/dbadmin"):
+                return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
+            return (
+                200,
+                {"Content-Type": "text/html"},
+                "<html>phpMyAdmin home</html>",
+            )
+
+        if name_norm == "boa_server_http":
+            if path_lower.endswith("/login.htm") or path_lower == "/login.htm":
+                return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
+            return 200, {"Content-Type": "text/html"}, "<html>Boa home</html>"
+
+        return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
 
 
 def text_to_response(text: str) -> Response:
