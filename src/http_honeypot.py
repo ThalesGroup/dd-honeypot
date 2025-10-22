@@ -69,7 +69,6 @@ class HTTPHoneypot(BaseHoneypot):
                 return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
 
             self.inprocess_backends["unknown"] = _unknown_backend
-        self.set_dispatch_backends(self.inprocess_backends)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"
         self._thread = None

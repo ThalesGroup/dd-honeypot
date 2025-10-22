@@ -23,6 +23,9 @@ class HoneypotRegistry:
     def reset_honeypots(self):
         self._registry = []
 
+    def get_honeypot_names(self) -> list[str]:
+        return [h.name for h in self._registry if h.name is not None]
+
 
 _honeypot_registry_instance: HoneypotRegistry = HoneypotRegistry()
 

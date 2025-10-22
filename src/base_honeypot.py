@@ -1,11 +1,15 @@
 import json
+import logging
 import os
+import random
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
 from honeypot_utils import allocate_port
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from infra.interfaces import HoneypotAction
@@ -36,7 +40,6 @@ class BaseHoneypot(ABC):
         self.__config = config or {}
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
         self._session_map: dict[str, str] = {}
-        self._dispatch_backends: dict[str, object] = {}
 
     @property
     def action(self) -> "HoneypotAction":
@@ -128,17 +131,12 @@ class BaseHoneypot(ABC):
         data_to_log.update(data)
         print(json.dumps(data_to_log))
 
-    def set_dispatch_backends(self, backends: dict[str, object]) -> None:
-        self._dispatch_backends = backends or {}
-
-    def dispatch_backends(self) -> dict[str, object]:
-        return self._dispatch_backends
-
     def forward_to_backend(self, backend_name: str, ctx):
-        if backend_name not in self._dispatch_backends:
-            return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
-        handler = self._dispatch_backends[backend_name]
-        return handler.handle_request(ctx)
+        try:
+            handler = BaseHoneypot.get_honeypot_by_name(backend_name)
+            return handler.handle_request(ctx)
+        except KeyError:
+            return 500, {"Content-Type": "text/plain"}, b"Unknown backend"
 
     def dispatch(self, ctx: dict) -> tuple[int, dict, str | bytes]:
         session_id = ctx.get("session_id") or str(uuid.uuid4())
@@ -151,11 +149,10 @@ class BaseHoneypot(ABC):
                     {
                         "routing_key": routing_key,
                         "meta": meta,
-                        "honeypots": list(self._dispatch_backends),
+                        "honeypots": [],
                     },
                     HoneypotSession(session_id=session_id),
                 )
-                # Override response
                 if isinstance(choice, dict) and {"status", "headers", "body"} <= set(
                     choice
                 ):
@@ -164,19 +161,23 @@ class BaseHoneypot(ABC):
                         choice.get("headers", {}),
                         choice.get("body", ""),
                     )
-                # Backend name
-                if isinstance(choice, str) and choice in self._dispatch_backends:
+                if isinstance(choice, str):
                     self._session_map[session_id] = choice
                     return self.forward_to_backend(choice, ctx)
-            except OSError:
-                pass
+            except Exception as e:
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Exception in action.dispatch: {e}")
 
         pinned = self._session_map.get(session_id)
-        if pinned and pinned in self._dispatch_backends:
+        if pinned:
             return self.forward_to_backend(pinned, ctx)
 
-        name = next(iter(self._dispatch_backends), None)
-        if name:
+        from honeypot_registry import get_honeypot_registry
+
+        registry = get_honeypot_registry()
+        names = registry.get_honeypot_names()
+        if names:
+            name = random.choice(names)
             self._session_map[session_id] = name
             return self.forward_to_backend(name, ctx)
 
@@ -188,6 +189,5 @@ class BaseHoneypot(ABC):
 
         return get_honeypot_registry().get_honeypot(name)
 
-    @staticmethod
     def handle_request(self, ctx: dict) -> tuple:
         raise NotImplementedError("handle_request must be implemented by subclasses")
