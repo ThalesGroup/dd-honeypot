@@ -160,17 +160,26 @@ async def _start_components(root: str):
             continue
 
         names = cfg.get("honeypots", [])
-        wired = {n: BaseHoneypot.get_honeypot_by_name(n) for n in names}
+        wired = {}
+        for n in names:
+            backend_hp = BaseHoneypot.get_honeypot_by_name(n)
+            if backend_hp is None:
+                logging.error(f"Backend honeypot '{n}' not found for dispatcher.")
+            else:
+                wired[n] = backend_hp
 
         # Create and start the dispatcher honeypot with routes and backends
         port = cfg.get("port")
         routes = _load_dispatcher_routes(folder_path)
 
+        logging.info(
+            f"Creating dispatcher DataHandler for {cfg.get('name')} with routing structure."
+        )
         action = DataHandler(
             data_file=os.path.join(folder_path, "data.jsonl"),
             system_prompt=cfg.get("system_prompt", ""),
             model_id=cfg.get("model_id", ""),
-            structure=None,
+            structure={"path": "TEXT", "name": "TEXT"},
             routes=routes,
         )
 
