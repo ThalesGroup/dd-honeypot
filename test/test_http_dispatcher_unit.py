@@ -3,6 +3,7 @@ from conftest import get_honeypot_main
 from unittest.mock import patch
 
 
+@patch("infra.data_handler.invoke_llm", return_value="UNKNOWN")
 def test_http_dispatcher_routing(monkeypatch):
     with patch(
         "http_honeypot.HTTPHoneypot.handle_request", autospec=True
