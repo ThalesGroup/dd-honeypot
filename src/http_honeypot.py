@@ -3,11 +3,10 @@ import threading
 import uuid
 from urllib.parse import urlparse
 
-from flask import Flask, request, session, Request, Response
+from flask import Flask, request, session, Request, Response, g
 from werkzeug.serving import make_server
 
 from base_honeypot import BaseHoneypot, HoneypotSession
-from honeypot_utils import normalize_backend_name
 from infra.interfaces import HoneypotAction
 
 logger = logging.getLogger(__name__)
@@ -41,12 +40,7 @@ def _extract_session_id(ctx: dict) -> str:
                 break
     if not sid:
         sid = uuid.uuid4().hex
-        try:
-            from flask import g
-
-            g._hp_pending_cookie = f"{_COOKIE}={sid}; Path=/; HttpOnly"
-        except OSError:
-            pass
+        g._hp_pending_cookie = f"{_COOKIE}={sid}; Path=/; HttpOnly"
     return sid
 
 
@@ -58,17 +52,7 @@ class HTTPHoneypot(BaseHoneypot):
         config: dict = None,
         inprocess_backends=None,
     ):
-        super().__init__(port, config)
-        # Normalize backend keys for robust matching
-        self.inprocess_backends = {
-            normalize_backend_name(k): v for k, v in (inprocess_backends or {}).items()
-        }
-        if "unknown" not in self.inprocess_backends:
-
-            def _unknown_backend(_ctx):
-                return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
-
-            self.inprocess_backends["unknown"] = _unknown_backend
+        super().__init__(port, config, inprocess_backends)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"
         self._thread = None
@@ -118,14 +102,12 @@ class HTTPHoneypot(BaseHoneypot):
 
                     ctx = _build_ctx_from_request()
                     if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(
-                            f"CATCH_ALL: calling _dispatch_handle with ctx={ctx}"
-                        )
+                        logger.debug(f"CATCH_ALL: calling dispatch with ctx={ctx}")
                     sid = _extract_session_id(ctx)
                     ctx["session_id"] = sid
                     ctx["routing_key"] = (ctx.get("path") or "/").lower()
                     ctx["meta"] = _extract_meta(ctx)
-                    status, headers, body = BaseHoneypot.dispatch(self, ctx)
+                    status, headers, body = self.dispatch(ctx)
 
                     pending = getattr(g, "_hp_pending_cookie", None)
                     resp = Response(
@@ -206,7 +188,7 @@ class HTTPHoneypot(BaseHoneypot):
 
         @self.app.errorhandler(404)
         def not_found_error(error):
-            logger.warning(f"404 error: Path not found: {request.path}")
+            logger.warning(f"404 error: Path not found: {request.path} ({error})")
             return Response("Not Found", 404)
 
         @self.app.errorhandler(500)
@@ -237,28 +219,11 @@ class HTTPHoneypot(BaseHoneypot):
         logger.info(f"Stopping honeypot on port {self.port}")
 
     def handle_request(self, ctx: dict) -> tuple:
-        name_norm = normalize_backend_name(self.name or "")
-        sid = ctx.get("cookies") or ""
-        h_session = {"session_id": sid} if sid else {"session_id": uuid.uuid4().hex}
-        self.log_data(HoneypotSession(h_session), {"http-request": ctx})
-        path_lower = (ctx.get("path") or "/").lower()
-
-        if name_norm == "php_my_admin":
-            if path_lower.startswith("/phpmyadmin"):
-                return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
-            if path_lower.startswith("/dbadmin"):
-                return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
-            return (
-                200,
-                {"Content-Type": "text/html"},
-                "<html>phpMyAdmin home</html>",
-            )
-
-        if name_norm == "boa_server_http":
-            if path_lower.endswith("/login.htm") or path_lower == "/login.htm":
-                return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
-            return 200, {"Content-Type": "text/html"}, "<html>Boa home</html>"
-
+        # Minimal, protocol-agnostic: just log and return a generic response
+        self.log_data(
+            HoneypotSession({"session_id": ctx.get("session_id")}),
+            {"http-request": ctx},
+        )
         return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
 
 

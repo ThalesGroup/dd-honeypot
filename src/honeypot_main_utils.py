@@ -7,7 +7,6 @@ from typing import List, Tuple, Dict
 
 from base_honeypot import BaseHoneypot
 from honeypot_registry import get_honeypot_registry
-from http_honeypot import HTTPHoneypot
 from infra.data_handler import DataHandler
 from infra.honeypot_wrapper import create_honeypot_by_folder
 
@@ -112,11 +111,11 @@ async def _start_components(root: str):
     normal_honeypots: List[BaseHoneypot] = []
     dispatchers: List[BaseHoneypot] = []
 
-    # Names of http backends referred by any dispatcher
-    http_names_for_dispatchers = set()
+    # Names of backends referred by any dispatcher
+    backend_names_for_dispatchers = set()
     for _, cfg in folders:
         if cfg.get("is_dispatcher"):
-            http_names_for_dispatchers.update(cfg.get("honeypots", []))
+            backend_names_for_dispatchers.update(cfg.get("honeypots", []))
 
     # Instantiate all honeypots once
     created: Dict[str, BaseHoneypot] = {}
@@ -139,7 +138,7 @@ async def _start_components(root: str):
         else:
             normal_honeypots.append(hp)
 
-    # Register all honeypots (including HTTP backends) before wiring up dispatchers
+    # Register all honeypots before wiring up dispatchers
     get_honeypot_registry().reset_honeypots()
     get_honeypot_registry().register_honeypots(all_honeypots)
 
@@ -153,7 +152,7 @@ async def _start_components(root: str):
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
 
-    # Start each dispatcher honeypot as an HTTP listener with wired backends
+    # Start each dispatcher honeypot with wired backends
     for folder_path, cfg in folders:
         hp = created.get(folder_path)
         if not hp or not cfg.get("is_dispatcher"):
@@ -168,29 +167,19 @@ async def _start_components(root: str):
             else:
                 wired[n] = backend_hp
 
-        # Create and start the dispatcher honeypot with routes and backends
-        port = cfg.get("port")
-        routes = _load_dispatcher_routes(folder_path)
-
-        logging.info(
-            f"Creating dispatcher DataHandler for {cfg.get('name')} with routing structure."
-        )
-        action = DataHandler(
-            data_file=os.path.join(folder_path, "data.jsonl"),
-            system_prompt=cfg.get("system_prompt", ""),
-            model_id=cfg.get("model_id", ""),
-            structure={"path": "TEXT", "name": "TEXT"},
-            routes=routes,
-        )
-
-        dispatcher_hp = HTTPHoneypot(
-            port=port,
-            action=action,
-            config=cfg,
-            inprocess_backends=wired,
-        )
-        dispatcher_hp.start()
-        dispatchers.append(dispatcher_hp)
+        # Set inprocess_backends for the dispatcher honeypot
+        hp._inprocess_backends = wired
+        # Optionally, set action if needed
+        if hasattr(hp, "action"):
+            routes = _load_dispatcher_routes(folder_path)
+            hp.action = DataHandler(
+                data_file=os.path.join(folder_path, "data.jsonl"),
+                system_prompt=cfg.get("system_prompt", ""),
+                model_id=cfg.get("model_id", ""),
+                structure={"path": "TEXT", "name": "TEXT"},
+                routes=routes,
+            )
+        hp.start()
 
     # Run until STOP_HONEYPOT=true
     try:
