@@ -16,7 +16,7 @@ logging.getLogger("werkzeug").setLevel(logging.ERROR)
 _COOKIE = "hp_session"
 
 
-def extract_meta(ctx) -> dict:
+def _extract_meta(ctx: dict) -> dict:
     headers = ctx.get("headers") or {}
     return {
         "method": ctx.get("method"),
@@ -30,7 +30,7 @@ def extract_meta(ctx) -> dict:
     }
 
 
-def extract_session_id(ctx) -> str:
+def _extract_session_id(ctx: dict) -> str:
     cookies = ctx.get("cookies") or ""
     sid = None
     if cookies:
@@ -121,10 +121,10 @@ class HTTPHoneypot(BaseHoneypot):
                         logger.debug(
                             f"CATCH_ALL: calling _dispatch_handle with ctx={ctx}"
                         )
-                    sid = extract_session_id(ctx)
+                    sid = _extract_session_id(ctx)
                     ctx["session_id"] = sid
                     ctx["routing_key"] = (ctx.get("path") or "/").lower()
-                    ctx["meta"] = extract_meta(ctx)
+                    ctx["meta"] = _extract_meta(ctx)
                     status, headers, body = BaseHoneypot.dispatch(self, ctx)
 
                     pending = getattr(g, "_hp_pending_cookie", None)

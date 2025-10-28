@@ -131,7 +131,7 @@ class BaseHoneypot(ABC):
         data_to_log.update(data)
         print(json.dumps(data_to_log))
 
-    def forward_to_backend(self, backend_name: str, ctx):
+    def forward_to_backend(self, backend_name: str, ctx: dict):
         try:
             handler = BaseHoneypot.get_honeypot_by_name(backend_name)
             return handler.handle_request(ctx)
