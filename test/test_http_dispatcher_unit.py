@@ -13,6 +13,12 @@ def test_http_dispatcher_routing(monkeypatch):
                 return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
             if (self.name or "").lower() == "boa_server_http":
                 return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
+            if (self.name or "").lower() == "unknown":
+                return (
+                    200,
+                    {"Content-Type": "text/html"},
+                    "<html>Unknown backend</html>",
+                )
             return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
 
         mock_handle.side_effect = side_effect
