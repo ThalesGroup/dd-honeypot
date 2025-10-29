@@ -23,8 +23,6 @@ class SuppressEOFErrorFilter(logging.Filter):
 
 logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
 
-SSH_SESSIONS = {}
-
 
 class SSHServerInterface(paramiko.ServerInterface):
     def __init__(self, action: HoneypotAction, honeypot: BaseHoneypot, config):
@@ -340,6 +338,13 @@ class SSHHoneypot(BaseHoneypot):
         self.server_socket.bind(("0.0.0.0", self.port))
         if self.port == 0:
             self.port = self.server_socket.getsockname()[1]
+        cfg_dir = (self.config or {}).get("config_dir")
+        if cfg_dir:
+            try:
+                with open(os.path.join(cfg_dir, "bound_port"), "w") as f:
+                    f.write(str(self.port))
+            except OSError:
+                pass
         self.server_socket.listen(100)
         self.running = True
 

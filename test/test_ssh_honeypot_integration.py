@@ -1,6 +1,5 @@
 import logging
 import time
-from socket import socket
 
 import paramiko
 import pytest

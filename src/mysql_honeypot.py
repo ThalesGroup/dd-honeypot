@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import threading
 from typing import Dict, Optional
 
@@ -212,6 +213,13 @@ class MySQLHoneypot(BaseHoneypot):
         self._thread = threading.Thread(target=_start, daemon=True)
         self._thread.start()
         wait_for_port(self.port)
+        cfg_dir = (self.config or {}).get("config_dir")
+        if cfg_dir:
+            try:
+                with open(os.path.join(cfg_dir, "bound_port"), "w") as f:
+                    f.write(str(self.port))
+            except OSError:
+                pass
 
     def stop(self):
         if self._thread:

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+from honeypot_utils import normalize_backend_name
 from infra.data_store import SqliteDataStore, DataStore
 from infra.interfaces import HoneypotAction, HoneypotSession
 from llm_utils import invoke_llm, InvokeLimiter
@@ -17,6 +18,7 @@ class DataHandler(HoneypotAction):
         system_prompt: str,
         model_id: str,
         structure: dict = None,
+        routes: list[dict] = None,
     ):
         data_folder = str(Path(data_file).parent.absolute())
         self._data_store = self._create_data_store(data_folder, structure)
@@ -31,6 +33,7 @@ class DataHandler(HoneypotAction):
         self.entries = self._load_data_entries(data_file)
         self._hints = self._load_hints()
         self._limiter = InvokeLimiter(20, 600)
+        self._routes = routes or []
 
     def _load_data_entries(self, path):
         entries = []
@@ -72,10 +75,6 @@ class DataHandler(HoneypotAction):
     def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
         return self.request({"command": query}, session, **kwargs)
 
-    # noinspection PyPackageRequirements,PyMethodMayBeStatic
-    def query_user_prompt(self, query: str, session: HoneypotSession) -> str:
-        return f"User input: {query}"
-
     def request_user_prompt(self, info: dict) -> str:
         return f"User input: {info}"
 
@@ -96,3 +95,40 @@ class DataHandler(HoneypotAction):
             # Always store raw string
             self._data_store.store(info, response)
         return {"output": response}
+
+    def dispatch(
+        self, query_input: dict, session: HoneypotSession
+    ) -> str | dict | None:
+        """
+        Decide which backend to use for dispatcher mode.
+        Returns:
+          - backend name (normalized) present in query_input["honeypots"], or
+          - dict override {"status","headers","body"} to short-circuit, or
+          - None (caller will apply defaults)
+        """
+        # Normalize key
+        key = (query_input.get("routing_key") or "/").lower().rstrip("/") or "/"
+        routes = sorted(
+            self._routes,
+            key=lambda r: len((r.get("path") or "").rstrip("/").lower()),
+            reverse=True,
+        )
+
+        # Try route matches
+        for r in routes:
+            p = (r.get("path") or "").lower().rstrip("/") or "/"
+            is_root = p == "/" and key == "/"
+            is_bound = p != "/" and (key == p or key.startswith(p + "/"))
+            if is_root or is_bound:
+                name = normalize_backend_name(r.get("name") or "")
+                # Allow "UNKNOWN" to fall back to first available
+                if name == "unknown":
+                    break
+                return name if name else None
+
+        # Default to first available backend if provided
+        hps = query_input.get("honeypots") or []
+        if hps:
+            # query_input["honeypots"] are already normalized by the caller (dispatcher wiring)
+            return hps[0]
+        return None

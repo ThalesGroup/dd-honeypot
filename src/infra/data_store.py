@@ -63,6 +63,12 @@ class SqliteDataStore(DataStore):
     ):
         super().__init__(db_name, structure, search_method)
         with sqlite3.connect(self._db_name) as conn:
+            # Check if table exists and if schema matches
+            cursor = conn.execute(f"PRAGMA table_info({self._TABLE_NAME})")
+            columns = [row[1] for row in cursor.fetchall()]
+            expected_columns = ["is_static"] + list(self._structure.keys()) + ["data"]
+            if columns and set(columns) != set(expected_columns):
+                conn.execute(f"DROP TABLE IF EXISTS {self._TABLE_NAME}")
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {self._TABLE_NAME} (
                 is_static BOOLEAN,
@@ -73,7 +79,10 @@ class SqliteDataStore(DataStore):
             conn.commit()
 
     def load_static_content(self, file_name: str) -> None:
-        required_fields = list(self._structure.keys()) + [_DATA_FIELD]
+        if set(self._structure.keys()) == {"path", "name"}:
+            required_fields = ["path", "name"]
+        else:
+            required_fields = list(self._structure.keys()) + [_DATA_FIELD]
 
         with open(file_name) as f:
             for i, line in enumerate(f):

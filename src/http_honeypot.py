@@ -1,16 +1,47 @@
 import logging
 import threading
+import uuid
+from urllib.parse import urlparse
 
-from flask import Flask, request, session, Request, Response
+from flask import Flask, request, session, Request, Response, g
 from werkzeug.serving import make_server
 
-from base_honeypot import BaseHoneypot
+from base_honeypot import BaseHoneypot, HoneypotSession
 from infra.interfaces import HoneypotAction
 
 logger = logging.getLogger(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
-HTTP_SESSIONS = {}
+_COOKIE = "hp_session"
+
+
+def _extract_meta(ctx: dict) -> dict:
+    headers = ctx.get("headers") or {}
+    return {
+        "method": ctx.get("method"),
+        "client_ip": ctx.get("client_ip"),
+        "headers": {
+            k: v
+            for k, v in headers.items()
+            if k.lower() in ("user-agent", "accept", "x-requested-with")
+        },
+        "query": ctx.get("query") or {},
+    }
+
+
+def _extract_session_id(ctx: dict) -> str:
+    cookies = ctx.get("cookies") or ""
+    sid = None
+    if cookies:
+        for part in cookies.split(";"):
+            p = part.strip()
+            if p.startswith(_COOKIE + "="):
+                sid = p.split("=", 1)[1].strip()
+                break
+    if not sid:
+        sid = uuid.uuid4().hex
+        g._hp_pending_cookie = f"{_COOKIE}={sid}; Path=/; HttpOnly"
+    return sid
 
 
 class HTTPHoneypot(BaseHoneypot):
@@ -19,8 +50,9 @@ class HTTPHoneypot(BaseHoneypot):
         port: int = None,
         action: HoneypotAction = None,
         config: dict = None,
+        inprocess_backends=None,
     ):
-        super().__init__(port, config)
+        super().__init__(port, config, inprocess_backends)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"
         self._thread = None
@@ -58,9 +90,50 @@ class HTTPHoneypot(BaseHoneypot):
             "/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
         )
         def catch_all(path):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    f"CATCH_ALL: is_dispatcher={self.is_dispatcher}, path={request.path}, dispatcher_routes={getattr(self, 'dispatcher_routes', None)}"
+                )
             resource_type = get_resource_type(request)
+
+            if self.is_dispatcher:
+                try:
+                    from flask import g
+
+                    ctx = _build_ctx_from_request()
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"CATCH_ALL: calling dispatch with ctx={ctx}")
+                    sid = _extract_session_id(ctx)
+                    ctx["session_id"] = sid
+                    ctx["routing_key"] = (ctx.get("path") or "/").lower()
+                    ctx["meta"] = _extract_meta(ctx)
+                    status, headers, body = self.dispatch(ctx)
+
+                    pending = getattr(g, "_hp_pending_cookie", None)
+                    resp = Response(
+                        body if isinstance(body, (bytes, bytearray)) else str(body),
+                        status or 200,
+                    )
+                    for k, v in (headers or {}).items():
+                        resp.headers[k] = v
+                    if pending:
+                        try:
+                            cookie_value = pending.split("=", 1)[1].split(";", 1)[0]
+                            resp.set_cookie(
+                                _COOKIE, cookie_value, path="/", httponly=True
+                            )
+                        except OSError:
+                            resp.headers["Set-Cookie"] = pending
+                    return resp
+                except Exception as e:
+                    logger.error(
+                        f"Dispatcher error for path {path}: {e}", exc_info=True
+                    )
+                    return Response("Internal Server Error", 500)
+
             if resource_type not in ["document", "xhr", "fetch"]:
                 return not_found_error(None)
+
             try:
                 data = {
                     "host": request.host,
@@ -88,12 +161,34 @@ class HTTPHoneypot(BaseHoneypot):
                 )
                 return text_to_response(result["output"])
             except Exception as e:
-                logger.error(f"Error while handling request for path: {path} - {e}", e)
+                logger.error(
+                    f"Error while handling request for path: {path} - {e}",
+                    exc_info=True,
+                )
                 return Response("Internal Server Error", 500)
+
+        def _build_ctx_from_request() -> dict:
+            """Convert Flask request to context dictionary."""
+            raw = request.path or "/"
+            parsed = urlparse(raw)
+            try:
+                body_text = request.get_data(as_text=True)
+            except OSError:
+                body_text = ""
+            return {
+                "method": request.method,
+                "path": parsed.path,
+                "raw_path": request.full_path or request.path,
+                "query": request.args.to_dict(flat=False),
+                "headers": dict(request.headers),
+                "cookies": request.headers.get("Cookie", ""),
+                "client_ip": request.remote_addr,
+                "body": body_text,
+            }
 
         @self.app.errorhandler(404)
         def not_found_error(error):
-            logger.warning(f"404 error: Path not found: {request.path}")
+            logger.warning(f"404 error: Path not found: {request.path} ({error})")
             return Response("Not Found", 404)
 
         @self.app.errorhandler(500)
@@ -108,8 +203,12 @@ class HTTPHoneypot(BaseHoneypot):
         logger.info(f"Starting honeypot on port {self.port}")
 
         self._server = make_server("0.0.0.0", self.port, self.app)
+
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
+        logger.info(
+            f"HTTP honeypot listening on port {self.port} (dispatcher={self.is_dispatcher})"
+        )
 
     def stop(self):
         if self._server:
@@ -118,6 +217,14 @@ class HTTPHoneypot(BaseHoneypot):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1)
         logger.info(f"Stopping honeypot on port {self.port}")
+
+    def handle_request(self, ctx: dict) -> tuple:
+        # Minimal, protocol-agnostic: just log and return a generic response
+        self.log_data(
+            HoneypotSession({"session_id": ctx.get("session_id")}),
+            {"http-request": ctx},
+        )
+        return 200, {"Content-Type": "text/html"}, "<html>OK</html>"
 
 
 def text_to_response(text: str) -> Response:

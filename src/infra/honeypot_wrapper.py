@@ -66,25 +66,28 @@ def create_honeypot(config: dict) -> BaseHoneypot:
             system_prompt=config["system_prompt"],
             model_id=config["model_id"],
         )
-        return HTTPHoneypot(port=port, action=action, config=config)
+        hp = HTTPHoneypot(port=port, action=action, config=config)
+        return hp
 
     action = build_data_handler(config, log_callback=None)
 
     if honeypot_type in ("ssh", "alpine", "busybox"):
         from ssh_honeypot import SSHHoneypot
 
-        honeypot = SSHHoneypot(port=port, action=action, config=config)
+        hp = SSHHoneypot(port=port, action=action, config=config)
         if isinstance(action, ChainedDataHandler):
-            action.log_callback = honeypot.log_data
-        return honeypot
+            action.log_callback = hp.log_data
+        return hp
 
     elif honeypot_type == "tcp":
         from tcp_honeypot import TCPHoneypot
 
-        return TCPHoneypot(port=port, action=action, config=config)
+        hp = TCPHoneypot(port=port, action=action, config=config)
+        return hp
 
     elif honeypot_type == "telnet":
-        return TelnetHoneypot(port=port, action=action, config=config)
+        hp = TelnetHoneypot(port=port, action=action, config=config)
+        return hp
 
     elif honeypot_type in ("mysql", "postgres"):
 
@@ -96,7 +99,8 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         chained_action = ChainedHoneypotAction(action, sql_handler)
         # Choose appropriate honeypot class
         honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
-        return honeypot_cls(port=port, action=chained_action, config=config)
+        hp = honeypot_cls(port=port, action=chained_action, config=config)
+        return hp
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
@@ -110,6 +114,9 @@ def create_honeypot_by_folder(folder_path: str) -> BaseHoneypot:
 
     with open(config_path) as f:
         config = json.load(f)
+
+    config["config_dir"] = folder_path
+    config["data_file"] = data_file_path
 
     if "fs_file" in config:
         fs_file_candidate = os.path.join(
