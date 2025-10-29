@@ -141,6 +141,13 @@ class BaseHoneypot(ABC):
         print(json.dumps(data_to_log))
 
     def forward_to_backend(self, backend_name: str, ctx: dict):
+        if backend_name == "UNKNOWN" or backend_name is None:
+            return (
+                200,
+                {"Content-Type": "text/html"},
+                "<html>Welcome to Honeypot Dispatcher</html>",
+            )
+
         if self._inprocess_backends:
             backend = self._inprocess_backends.get(
                 backend_name
