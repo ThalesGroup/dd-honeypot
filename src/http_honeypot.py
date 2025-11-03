@@ -65,6 +65,7 @@ class HTTPHoneypot(BaseHoneypot):
                 h_session = self._action.connect({"client_ip": request.remote_addr})
                 session["h_session"] = h_session
                 logger.info(f"New session detected: {h_session}")
+                self.log_login(h_session, {"client_ip": request.remote_addr})
 
         def get_resource_type(r: Request):
             xrw = r.headers.get("X-Requested-With", "").lower()
