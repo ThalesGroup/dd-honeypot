@@ -141,19 +141,27 @@ class BaseHoneypot(ABC):
         print(json.dumps(data_to_log))
 
     def forward_to_backend(self, backend_name: str, ctx: dict):
-
         if self._inprocess_backends:
-            backend = self._inprocess_backends.get(
-                backend_name
-            ) or self._inprocess_backends.get("UNKNOWN")
+            backend = self._inprocess_backends.get(backend_name)
             if not backend:
-                return 500, {"Content-Type": "text/plain"}, b"Unknown backend"
+                if self._inprocess_backends:
+                    backend = random.choice(list(self._inprocess_backends.values()))
+                else:
+                    return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
             return backend.handle_request(ctx)
         try:
             handler = BaseHoneypot.get_honeypot_by_name(backend_name)
             return handler.handle_request(ctx)
         except KeyError:
-            return 500, {"Content-Type": "text/plain"}, b"Unknown backend"
+            from honeypot_registry import get_honeypot_registry
+
+            registry = get_honeypot_registry()
+            names = registry.get_honeypot_names()
+            if names:
+                name = random.choice(names)
+                handler = BaseHoneypot.get_honeypot_by_name(name)
+                return handler.handle_request(ctx)
+            return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
 
     def dispatch(self, ctx: dict) -> tuple[int, dict, str | bytes]:
         session_id = ctx.get("session_id") or str(uuid.uuid4())
