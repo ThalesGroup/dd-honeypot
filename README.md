@@ -33,6 +33,7 @@ The honeypot system is built using a modular architecture with the following com
 * **Dataset & Lookup Engine**: Maps incoming requests to known payloads and responses
 * **LLM Engine**: Fallback for unknown requests using LLM with system prompts and RAG (Retrieval-Augmented Generation)
 * **Logging and Storage**: Tracks interactions and stores LLM-generated responses separately for later dataset integration
+* **Dispatcher**: routes connections to different honeypots based on initial traffic inspection ([see dispatcher documentation](docs/dispatcher.md))
 
 ---
 
