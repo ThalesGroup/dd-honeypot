@@ -10,7 +10,7 @@ class PostgresHoneypot(BaseHoneypot):
     def __init__(self, port, action, config):
         super().__init__(port=port, config=config)
         self.action = action
-        self.host = config.get("host", "127.0.0.1")
+        self.host = config.get("host", "0.0.0.0")
         self.listen_port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
