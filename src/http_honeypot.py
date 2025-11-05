@@ -220,7 +220,26 @@ class HTTPHoneypot(BaseHoneypot):
         logger.info(f"Stopping honeypot on port {self.port}")
 
     def handle_request(self, ctx: dict) -> tuple:
-        # Minimal, protocol-agnostic: just log and return a generic response
+        # Delegate to self._action.request for static/data-driven responses
+        if self._action and hasattr(self._action, "request"):
+            try:
+                req = {
+                    "method": ctx.get("method", "GET"),
+                    "path": ctx.get("path", ""),
+                    "args": ctx.get("query", {}),
+                    "body": ctx.get("body", ""),
+                    "headers": ctx.get("headers", {}),
+                    "resource_type": ctx.get("resource_type", "document"),
+                }
+                s = HoneypotSession({"session_id": ctx.get("session_id")})
+                result = self._action.request(req, s)
+                logger.debug(f"handle_request: req={req} result={result}")
+                output = result.get("output") if isinstance(result, dict) else result
+                if output:
+                    return 200, {"Content-Type": "text/html"}, output
+            except Exception as e:
+                logger.error(f"Error in action.request: {e}")
+        # Fallback to generic response
         self.log_data(
             HoneypotSession({"session_id": ctx.get("session_id")}),
             {"http-request": ctx},
