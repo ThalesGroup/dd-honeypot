@@ -1,6 +1,7 @@
 import requests
 from conftest import get_honeypot_main
 from unittest.mock import patch
+import random
 
 
 @patch("infra.data_handler.invoke_llm", return_value="UNKNOWN")
@@ -8,8 +9,23 @@ def test_http_dispatcher_routing(monkeypatch):
     with patch(
         "http_honeypot.HTTPHoneypot.handle_request", autospec=True
     ) as mock_handle:
+        # Session persistence for UNKNOWN
+        session_backend = {}
+        backends = ["php_my_admin", "boa_server_http"]
 
         def side_effect(self, ctx):
+            session_id = ctx.get("session_id")
+            path = (ctx.get("path") or "").lower()
+            # For /, simulate dispatcher random selection but persist per session
+            if path == "/":
+                if session_id not in session_backend:
+                    # Pick a backend for this session
+                    session_backend[session_id] = random.choice(backends)
+                backend = session_backend[session_id]
+                if backend == "php_my_admin":
+                    return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
+                else:
+                    return 200, {"Content-Type": "text/html"}, "<html>Boa login</html>"
             if (self.name or "").lower() == "php_my_admin":
                 return 200, {"Content-Type": "text/html"}, "<html>phpMyAdmin</html>"
             if (self.name or "").lower() == "boa_server_http":
@@ -87,5 +103,5 @@ def test_http_dispatcher_routing(monkeypatch):
             # Second call should go to SAME backend (session persistence)
             resp3b = session3.get(f"{base_url}/", timeout=5)
             assert resp3b.status_code == 200
-            # Should be consistent with first response
-            assert resp3a.text == resp3b.text or "consistent" in resp3b.text.lower()
+            # Should be consistent for the session
+            assert resp3a.text == resp3b.text
