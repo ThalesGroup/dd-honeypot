@@ -4,6 +4,8 @@ import socket
 import struct
 import time
 from typing import Generator
+import psycopg2
+
 
 import pytest
 
@@ -34,6 +36,22 @@ def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
         yield honeypot
     finally:
         honeypot.stop()
+
+
+# to test it on real postgre use the following command and update the port
+# docker run --rm --name my_postgres -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres
+@pytest.mark.skip(reason="Requires fix in the honeypot")
+def test_connection_to_postgres_honeypot(postgres_honeypot):
+    with psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pw",
+        host="0.0.0.0",
+        port=postgres_honeypot.port,
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            assert cur.fetchone()[0] == 1
 
 
 @pytest.fixture
