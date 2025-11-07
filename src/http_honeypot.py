@@ -50,9 +50,8 @@ class HTTPHoneypot(BaseHoneypot):
         port: int = None,
         action: HoneypotAction = None,
         config: dict = None,
-        inprocess_backends=None,
     ):
-        super().__init__(port, config, inprocess_backends)
+        super().__init__(port, config)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"
         self._thread = None

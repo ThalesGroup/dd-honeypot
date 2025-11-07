@@ -152,24 +152,13 @@ async def _start_components(root: str):
         except Exception as ex:
             logging.error(f"Error starting honeypot {h}: {ex}")
 
-    # Start each dispatcher honeypot with wired backends
+    # Start each dispatcher honeypot
     for folder_path, cfg in folders:
         hp = created.get(folder_path)
         if not hp or not cfg.get("is_dispatcher"):
             continue
 
-        names = cfg.get("honeypots", [])
-        wired = {}
-        for n in names:
-            backend_hp = BaseHoneypot.get_honeypot_by_name(n)
-            if backend_hp is None:
-                logging.error(f"Backend honeypot '{n}' not found for dispatcher.")
-            else:
-                wired[n] = backend_hp
-
-        # Set inprocess_backends for the dispatcher honeypot
-        hp._inprocess_backends = wired
-        # Optionally, set action if needed
+        # Set action for dispatcher honeypots
         if hasattr(hp, "action"):
             routes = _load_dispatcher_routes(folder_path)
             hp.action = DataHandler(
