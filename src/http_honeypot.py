@@ -124,6 +124,16 @@ class HTTPHoneypot(BaseHoneypot):
                             )
                         except OSError:
                             resp.headers["Set-Cookie"] = pending
+                    # Log dispatcher
+                    self.log_data(
+                        HoneypotSession({"session_id": sid}),
+                        {
+                            "type": "Dispatcher",
+                            "name": self.name or "HTTP Dispatcher",
+                            "method": ctx.get("method", "UNKNOWN"),
+                            "command": ctx.get("path", "UNKNOWN"),
+                        },
+                    )
                     return resp
                 except Exception as e:
                     logger.error(
