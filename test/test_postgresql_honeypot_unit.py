@@ -4,6 +4,8 @@ import socket
 import struct
 import time
 from typing import Generator
+import psycopg2
+
 
 import pytest
 
@@ -13,7 +15,7 @@ from sql_data_handler import SqlDataHandler
 from infra.chain_honeypot_action import ChainedHoneypotAction
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     pathlib.Path("honeypots/postgres").mkdir(parents=True, exist_ok=True)
@@ -27,13 +29,52 @@ def postgres_honeypot() -> Generator[PostgresHoneypot, None, None]:
         SqlDataHandler(dialect="postgres"),
     )
 
-    honeypot = PostgresHoneypot(port=0, action=action, config={"host": "0.0.0.0"})
+    honeypot = PostgresHoneypot(action=action, config={"name": "TestPostgresHoneypot"})
 
     try:
         honeypot.start()
         yield honeypot
     finally:
         honeypot.stop()
+
+
+def test_connection_to_postgres_honeypot(postgres_honeypot):
+    with psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pw",
+        host="0.0.0.0",
+        port=postgres_honeypot.port,
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            assert cur.fetchone()[0] == 1
+
+
+def test_direct_sql_query(postgres_socket):
+    """
+    Test a direct SQL query without using psycopg2.
+    """
+    send_pg_startup_message(postgres_socket)
+    try:
+        while True:
+            data = postgres_socket.recv(1024)
+            if b"Z\x00\x00\x00\x05I" in data:  # ReadyForQuery
+                break
+    except socket.timeout:
+        pass
+
+    query = b"Q\x00\x00\x00\x0cSELECT 1\x00"
+    postgres_socket.sendall(query)
+
+    responses = b""
+    try:
+        for _ in range(5):
+            responses += postgres_socket.recv(1024)
+    except socket.timeout:
+        pass
+
+    assert b"" in responses, "No DataRow message in response"
 
 
 @pytest.fixture

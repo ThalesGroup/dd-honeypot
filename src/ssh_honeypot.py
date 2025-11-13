@@ -16,12 +16,42 @@ from infra.interfaces import HoneypotAction
 from infra.prompt_utils import render_prompt
 
 
-class SuppressEOFErrorFilter(logging.Filter):
+class EnhancedParamikoFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self.seen_errors = set()
+        self.tracebacks_in_progress = False
+
     def filter(self, record):
-        return "EOFError" not in record.getMessage()
+        message = record.getMessage()
+        if "EOFError" in message:
+            return False
+
+        if "Error reading SSH protocol banner" in message:
+            # Only log the initial error message, not the traceback
+            if not self.tracebacks_in_progress:
+                self.seen_errors.add("SSH banner error")
+            return False
+
+        if "Socket exception: Connection reset by peer" in message:
+            return False
+
+        # Skip tracebacks
+        if "Traceback (most recent call last)" in message:
+            self.tracebacks_in_progress = True
+            return False
+
+        # If we're in a traceback, continue skipping
+        if self.tracebacks_in_progress:
+            # Check end of the traceback
+            if message.strip() == "":
+                self.tracebacks_in_progress = False
+            return False
+        return True
 
 
-logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
+paramiko_logger = logging.getLogger("paramiko.transport")
+paramiko_logger.addFilter(EnhancedParamikoFilter())
 
 
 class SSHServerInterface(paramiko.ServerInterface):
@@ -171,8 +201,15 @@ class SSHServerInterface(paramiko.ServerInterface):
                 logging.getLogger(f"Failed to start honeypot: {e}")
                 raise
         finally:
-            channel.shutdown_write()
-            channel.close()
+            try:
+                channel.shutdown_write()
+            except (EOFError, OSError):
+                pass
+
+            try:
+                channel.close()
+            except (EOFError, OSError):
+                pass
 
     def check_channel_exec_request(self, channel, command):
         command_str = command.decode().strip()
@@ -206,17 +243,28 @@ class SSHServerInterface(paramiko.ServerInterface):
 
             channel.sendall((output.strip()).encode())
             channel.send_exit_status(0)
-            threading.Timer(0.1, lambda: channel.shutdown_write()).start()
+            def safe_shutdown():
+                try:
+                    channel.shutdown_write()
+                except (EOFError, OSError):
+                    pass
+
+            threading.Timer(0.1, safe_shutdown).start()
             return True
 
         except (SSHException, OSError) as e:
             logging.error(f"Error executing command: {e}")
             try:
                 channel.send_exit_status(1)
-                threading.Timer(0.1, lambda: channel.shutdown_write()).start()
+                def safe_shutdown():
+                    try:
+                        channel.shutdown_write()
+                    except (EOFError, OSError):
+                        pass
+
+                threading.Timer(0.1, safe_shutdown).start()
             except (SSHException, OSError) as e:
-                logging.getLogger(f"Failed to start honeypot: {e}")
-                raise
+                logging.error(f"Error sending exit status: {e}")
             return False
 
     def check_channel_pty_request(
@@ -306,7 +354,10 @@ class SSHServerInterface(paramiko.ServerInterface):
         except (SSHException, OSError) as e:
             logging.error(f"Shell error: {e}")
         finally:
-            channel.close()
+            try:
+                channel.close()
+            except (EOFError, OSError):
+                pass
 
 
 class SSHHoneypot(BaseHoneypot):
@@ -363,8 +414,12 @@ class SSHHoneypot(BaseHoneypot):
             except ConnectionAbortedError:
                 break
             except OSError as e:
-                logging.getLogger(f"Failed to start honeypot: {e}")
-                raise
+                # Handle "Invalid argument" error when shutting down
+                if e.errno == 22 and not self.running:
+                    break
+                logging.error(f"Socket error in _listen: {e}")
+                if self.running:
+                    time.sleep(0.1)
 
     def _handle_client(self, client_socket, addr):
         transport = None
@@ -391,7 +446,10 @@ class SSHHoneypot(BaseHoneypot):
             logging.error(f"SSH error: {e}")
         finally:
             if transport:
-                transport.close()
+                try:
+                    transport.close()
+                except (EOFError, OSError):
+                    pass
 
     def stop(self):
         self.running = False
@@ -400,5 +458,10 @@ class SSHHoneypot(BaseHoneypot):
                 self.server_socket.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
-            self.server_socket.close()
+
+            try:
+                self.server_socket.close()
+            except OSError:
+                pass
+
         logging.info("SSH Honeypot stopped")

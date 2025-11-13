@@ -219,3 +219,195 @@ def test_is_json_true(text):
 )
 def test_is_json_false(text):
     assert is_json(text) is False
+
+
+def debug_session(client, url):
+    print(f"\nSending request to {url}")
+    print(f"Client cookies before request: {client.cookies}")
+
+    resp = client.get(url, allow_redirects=False)
+
+    sid = None
+    for cookie in client.cookies:
+        if cookie.name == "hp_session":
+            sid = cookie.value
+
+    print(f"Response status: {resp.status_code}")
+    print(f"Response cookies: {resp.cookies}")
+    print(f"Client cookies after request: {client.cookies}")
+    print(f"Session ID from cookies: {sid}")
+    print(f"Response body: {resp.text[:50]}...")
+
+    return resp
+
+
+def request(self, info, session):
+    result = self._data_store.search(info)
+    if result:
+        print(f"DataHandler.request: Found cached response for {info}: {result}")
+        return {"response": result}
+
+    print(f"DataHandler.request: Making LLM call for {info}")
+    invoked, response = self.invoke_llm_with_limit("Test input")
+    print(f"DataHandler.request: LLM response: {response}")
+
+    if invoked:
+        print(f"DataHandler.request: Storing response in cache: {info} -> {response}")
+        self._data_store.store(info, response)
+
+    return {"response": response}
+
+
+def add_session_logging(honeypot):
+    original_dispatch = honeypot.dispatch
+
+    def logged_dispatch(ctx):
+        sid = ctx.get("session_id")
+        print(f"\nDISPATCH: session_id={sid}")
+        print(f"DISPATCH: Current _session_map={getattr(honeypot, '_session_map', {})}")
+
+        pinned = getattr(honeypot, "_session_map", {}).get(sid)
+        if pinned:
+            print(f"DISPATCH: Found pinned backend {pinned} for session {sid}")
+
+        result = original_dispatch(ctx)
+
+        updated_pinned = getattr(honeypot, "_session_map", {}).get(sid)
+        print(f"DISPATCH: Updated _session_map={getattr(honeypot, '_session_map', {})}")
+        if updated_pinned != pinned:
+            print(f"DISPATCH: Session mapping changed: {pinned} -> {updated_pinned}")
+
+        return result
+
+    honeypot.dispatch = logged_dispatch
+
+
+def test_dispatcher_session_consistency_and_logging(monkeypatch, capsys):
+    """
+    Test that the dispatcher chooses a backend once per session and logs in dd-honeypot format.
+    """
+    import tempfile
+    import os
+    from infra.data_handler import DataHandler
+    import time
+
+    llm_calls = []
+
+    def fake_llm_with_limit(*args, **kwargs):
+        llm_calls.append(1)
+        return "App_A"
+
+    monkeypatch.setattr("infra.data_handler.invoke_llm", fake_llm_with_limit)
+
+    class TestDataHandler(DataHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._session_backends = {}
+            print("TestDataHandler initialized")
+
+        def dispatch(self, query_input, session):
+            session_id = session.get("session_id")
+            print(f"TestDataHandler.dispatch called with session_id: {session_id}")
+            print(f"Current session_backends: {self._session_backends}")
+
+            if session_id and session_id in self._session_backends:
+                backend = self._session_backends[session_id]
+                print(f"Using cached backend {backend} for session {session_id}")
+                return backend
+
+            info = {
+                "command": "dispatcher-route",
+                "path": query_input.get("routing_key", "/"),
+            }
+
+            cached = self._data_store.search(info)
+            if cached:
+                print(f"Found cached dispatch result: {cached}")
+
+            result = self.request(info, session)
+            backend_choice = result.get("output", "UNKNOWN")
+
+            if session_id:
+                print(f"Storing backend {backend_choice} for session {session_id}")
+                self._session_backends[session_id] = backend_choice
+
+            return backend_choice
+
+    with tempfile.NamedTemporaryFile(mode="w+", delete=False) as data_file:
+        data_file.write(
+            '{"command":"dispatcher-route","path":"/","response":"App_A"}\n'
+        )
+        data_file.flush()
+        data_file_path = data_file.name
+        print(f"Created data file at {data_file_path}")
+
+    try:
+        handler = TestDataHandler(
+            data_file=data_file_path,
+            system_prompt="Test prompt",
+            model_id="test-model",
+            structure={"command": "TEXT", "path": "TEXT"},
+            routes=None,
+        )
+
+        honeypot = HTTPHoneypot(
+            action=handler,
+            config={
+                "name": "TestHTTPDispatcher",
+                "is_dispatcher": True,
+            },
+        )
+
+        honeypot.session = HoneypotSession({"session_id": "test-session-id"})
+        add_session_logging(honeypot)
+
+        try:
+            honeypot.start()
+
+            time.sleep(1)
+
+            client = requests.Session()
+            url = f"http://127.0.0.1:{honeypot.port}/"
+
+            print("\n=== First Request ===")
+            response1 = debug_session(client, url)
+            backend1 = response1.text
+
+            time.sleep(0.5)
+
+            print("\n=== Second Request ===")
+            response2 = debug_session(client, url)
+            backend2 = response2.text
+
+            print(f"\n=== Test Results ===")
+            print(f"First backend response: {backend1[:50]}...")
+            print(f"Second backend response: {backend2[:50]}...")
+            print(f"LLM calls made: {len(llm_calls)}")
+            print(f"Session ID in cookies: {client.cookies.get('hp_session')}")
+            print(f"Session map in honeypot: {getattr(honeypot, '_session_map', {})}")
+            print(
+                f"Session backends in handler: {getattr(handler, '_session_backends', {})}"
+            )
+
+            assert (
+                backend1 == backend2
+            ), f"ERROR: Backend responses don't match!\nFirst: {backend1}\nSecond: {backend2}"
+
+            assert len(llm_calls) <= 1, f"ERROR: Too many LLM calls: {len(llm_calls)}"
+
+            out, _ = capsys.readouterr()
+            assert '"dd-honeypot": true' in out, "Missing dd-honeypot flag in logs"
+            assert (
+                '"name": "TestHTTPDispatcher"' in out
+            ), "Missing dispatcher name in logs"
+
+        finally:
+            honeypot.stop()
+            time.sleep(1)
+
+    finally:
+        try:
+            os.unlink(data_file_path)
+            print(f"Deleted data file {data_file_path}")
+        except Exception as e:
+            print(f"Error deleting data file: {e}")

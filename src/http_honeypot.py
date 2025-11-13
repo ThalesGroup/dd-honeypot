@@ -50,9 +50,8 @@ class HTTPHoneypot(BaseHoneypot):
         port: int = None,
         action: HoneypotAction = None,
         config: dict = None,
-        inprocess_backends=None,
     ):
-        super().__init__(port, config, inprocess_backends)
+        super().__init__(port, config)
         self.app = Flask(__name__)
         self.app.secret_key = "your_secret_key"
         self._thread = None
@@ -125,6 +124,16 @@ class HTTPHoneypot(BaseHoneypot):
                             )
                         except OSError:
                             resp.headers["Set-Cookie"] = pending
+                    # Log dispatcher
+                    self.log_data(
+                        HoneypotSession({"session_id": sid}),
+                        {
+                            "type": "Dispatcher",
+                            "name": self.name or "HTTP Dispatcher",
+                            "method": ctx.get("method", "UNKNOWN"),
+                            "command": ctx.get("path", "UNKNOWN"),
+                        },
+                    )
                     return resp
                 except Exception as e:
                     logger.error(

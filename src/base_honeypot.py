@@ -36,7 +36,6 @@ class BaseHoneypot(ABC):
         self,
         port: int = None,
         config: dict = None,
-        inprocess_backends: Optional[dict] = None,
     ):
         super().__init__()
         self._action = None
@@ -44,11 +43,6 @@ class BaseHoneypot(ABC):
         self.__config = config or {}
         self.is_dispatcher = bool(self.config.get("is_dispatcher"))
         self._session_map: dict[str, str] = {}
-        self._inprocess_backends: Optional[dict[str, "BaseHoneypot"]] = (
-            {k: v for k, v in (inprocess_backends or {}).items()}
-            if inprocess_backends
-            else None
-        )
 
     @property
     def action(self) -> "HoneypotAction":
@@ -141,14 +135,6 @@ class BaseHoneypot(ABC):
         print(json.dumps(data_to_log))
 
     def forward_to_backend(self, backend_name: str, ctx: dict):
-        if self._inprocess_backends:
-            backend = self._inprocess_backends.get(backend_name)
-            if not backend:
-                if self._inprocess_backends:
-                    backend = random.choice(list(self._inprocess_backends.values()))
-                else:
-                    return 502, {"Content-Type": "text/plain"}, b"Bad Gateway"
-            return backend.handle_request(ctx)
         try:
             handler = BaseHoneypot.get_honeypot_by_name(backend_name)
             return handler.handle_request(ctx)
