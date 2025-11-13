@@ -16,12 +16,42 @@ from infra.interfaces import HoneypotAction
 from infra.prompt_utils import render_prompt
 
 
-class SuppressEOFErrorFilter(logging.Filter):
+class EnhancedParamikoFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self.seen_errors = set()
+        self.tracebacks_in_progress = False
+
     def filter(self, record):
-        return "EOFError" not in record.getMessage()
+        message = record.getMessage()
+        if "EOFError" in message:
+            return False
+
+        if "Error reading SSH protocol banner" in message:
+            # Only log the initial error message, not the traceback
+            if not self.tracebacks_in_progress:
+                self.seen_errors.add("SSH banner error")
+            return False
+
+        if "Socket exception: Connection reset by peer" in message:
+            return False
+
+        # Skip tracebacks
+        if "Traceback (most recent call last)" in message:
+            self.tracebacks_in_progress = True
+            return False
+
+        # If we're in a traceback, continue skipping
+        if self.tracebacks_in_progress:
+            # Check end of the traceback
+            if message.strip() == "":
+                self.tracebacks_in_progress = False
+            return False
+        return True
 
 
-logging.getLogger("paramiko.transport").addFilter(SuppressEOFErrorFilter())
+paramiko_logger = logging.getLogger("paramiko.transport")
+paramiko_logger.addFilter(EnhancedParamikoFilter())
 
 
 class SSHServerInterface(paramiko.ServerInterface):
