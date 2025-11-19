@@ -104,6 +104,7 @@ class HTTPHoneypot(BaseHoneypot):
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(f"CATCH_ALL: calling dispatch with ctx={ctx}")
                     sid = _extract_session_id(ctx)
+                    target_honeypot_name = None
                     ctx["session_id"] = sid
                     ctx["routing_key"] = (ctx.get("path") or "/").lower()
                     ctx["meta"] = _extract_meta(ctx)
@@ -124,12 +125,17 @@ class HTTPHoneypot(BaseHoneypot):
                             )
                         except OSError:
                             resp.headers["Set-Cookie"] = pending
+                    if not target_honeypot_name:
+                        target_honeypot_name = self._session_map.get(sid)
+
+                    if not target_honeypot_name:
+                        target_honeypot_name = "UNKNOWN"
                     # Log dispatcher
                     self.log_data(
                         HoneypotSession({"session_id": sid}),
                         {
-                            "type": "Dispatcher",
-                            "name": self.name or "HTTP Dispatcher",
+                            "type": self.honeypot_type(),
+                            "name": target_honeypot_name,
                             "method": ctx.get("method", "UNKNOWN"),
                             "command": ctx.get("path", "UNKNOWN"),
                         },
