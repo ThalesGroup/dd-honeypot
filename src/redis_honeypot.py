@@ -71,11 +71,11 @@ class RedisHoneypot(BaseHoneypot):
 
                 # Process commands (simple RESP parser)
                 while b"\n" in buffer:
-                    decoded = buffer.decode('utf-8', errors='ignore')
-                    
-                    if not decoded.endswith('\n'):
-                         # Wait for more data if we don't have a newline
-                         pass
+                    decoded = buffer.decode("utf-8", errors="ignore")
+
+                    if not decoded.endswith("\n"):
+                        # Wait for more data if we don't have a newline
+                        pass
 
                     # Reset buffer for next command - initial approach
                     command_str = self._extract_command(decoded)
@@ -102,7 +102,7 @@ class RedisHoneypot(BaseHoneypot):
         """
         Extracts a human-readable command from RESP or inline format.
         """
-        lines = [line.strip() for line in data.strip().split('\n') if line.strip()]
+        lines = [line.strip() for line in data.strip().split("\n") if line.strip()]
         if not lines:
             return None
 
