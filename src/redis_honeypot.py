@@ -73,6 +73,7 @@ class RedisHoneypot(BaseHoneypot):
                 # Process commands (simple RESP parser)
                 while b"\n" in buffer:
                     decoded = buffer.decode("utf-8", errors="ignore")
+                    logger.info(f"DEBUG: Received buffer: {decoded!r}")
 
                     if not decoded.endswith("\n"):
                         # Wait for more data if we don't have a newline
@@ -89,6 +90,7 @@ class RedisHoneypot(BaseHoneypot):
                         )
 
                         response = self._process_command(command_str, session)
+                        logger.info(f"DEBUG: Sending response: {response!r}")
                         client_socket.sendall(response)
                     else:
                         # if we can't parse, we assume its garbage or incomplete
@@ -136,16 +138,24 @@ class RedisHoneypot(BaseHoneypot):
             value = " ".join(cmd_parts[2:])
             self.data_store[key] = value
             return b"+OK\r\n"
-        
+
         elif cmd == "GET" and len(cmd_parts) >= 2:
             key = cmd_parts[1]
             if key in self.data_store:
                 val = self.data_store[key]
                 return f"${len(val)}\r\n{val}\r\n".encode()
 
+        elif cmd == "COMMAND":
+            # Return empty array to satisfy redis-cli introspection
+            return b"*0\r\n"
+
         if self.action:
             result = self.action.query(command, session)
             output = result["output"] if isinstance(result, dict) else str(result)
+
+            # Unescape literal \r\n from JSON dataset
+            if isinstance(output, str):
+                output = output.replace("\\r", "\r").replace("\\n", "\n")
 
             # If the output looks like RESP, return it directly
             if (
@@ -153,6 +163,7 @@ class RedisHoneypot(BaseHoneypot):
                 or output.startswith("-")
                 or output.startswith("$")
                 or output.startswith(":")
+                or output.startswith("*")
             ):
                 return output.encode() if isinstance(output, str) else output
 
