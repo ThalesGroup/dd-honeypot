@@ -16,6 +16,7 @@ class RedisHoneypot(BaseHoneypot):
         self.server_socket = None
         self.running = False
         self.action = action
+        self.data_store = {}  # In-memory store for stateful simulation
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -128,6 +129,19 @@ class RedisHoneypot(BaseHoneypot):
             return b"-ERR unknown command\r\n"
 
         cmd = cmd_parts[0].upper()
+
+        # Handle stateful commands first
+        if cmd == "SET" and len(cmd_parts) >= 3:
+            key = cmd_parts[1]
+            value = " ".join(cmd_parts[2:])
+            self.data_store[key] = value
+            return b"+OK\r\n"
+        
+        elif cmd == "GET" and len(cmd_parts) >= 2:
+            key = cmd_parts[1]
+            if key in self.data_store:
+                val = self.data_store[key]
+                return f"${len(val)}\r\n{val}\r\n".encode()
 
         if self.action:
             result = self.action.query(command, session)

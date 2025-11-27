@@ -62,3 +62,21 @@ def test_redis_inline_newline(redis_honeypot):
         client_socket.sendall(b"PING\n")
         response = client_socket.recv(1024)
         assert response == b"+PONG\r\n"
+
+def test_redis_stateful_set_get(redis_honeypot):
+    """Test that the honeypot remembers values set in the session"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+        client_socket.settimeout(3)
+        client_socket.connect(("0.0.0.0", redis_honeypot.port))
+        
+        # Set a dynamic value
+        client_socket.sendall(b"SET my_dynamic_key dynamic_value\r\n")
+        response = client_socket.recv(1024)
+        assert response == b"+OK\r\n"
+        
+        # Get it back
+        client_socket.sendall(b"GET my_dynamic_key\r\n")
+        response = client_socket.recv(1024)
+        # Expecting bulk string response
+        expected = b"$13\r\ndynamic_value\r\n"
+        assert response == expected
