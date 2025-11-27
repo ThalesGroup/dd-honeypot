@@ -13,8 +13,9 @@ To run the Redis honeypot, you need a folder containing a `config.json` and a `d
   "name": "redis_honeypot",
   "type": "redis",
   "port": 6379,
-  "dataset": "data.jsonl",
-  "system_prompt": "You are a Redis server. Respond to commands in the Redis Serialization Protocol (RESP) format. For example, for a simple string response, start with '+', for an error '-', for an integer ':', and for bulk strings '$'. If the user asks for keys or data that doesn't exist, return a null bulk string '$-1\\r\\n'. Mimic a standard Redis instance."
+  "data_file": "data.jsonl",
+  "system_prompt": "You are a Redis server. Respond to commands in the Redis Serialization Protocol (RESP) format. For example, for a simple string response, start with '+', for an error '-', for an integer ':', and for bulk strings '$'. If the user asks for keys or data that doesn't exist, return a null bulk string '$-1\\r\\n'. Mimic a standard Redis instance.",
+  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0"
 }
 ```
 
