@@ -22,20 +22,32 @@ def wait_for_port(port: int, retries: int = 10):
 
 
 def connect_and_run_ssh_commands(
-    port, username, password, commands, prompt_regex=r"\$ "
+    port, username, password, commands, prompt_regex=r"[#$>] "
 ):
     client = SSHClient()
     client.set_missing_host_key_policy(AutoAddPolicy())
     client.connect("127.0.0.1", port=port, username=username, password=password)
     shell = client.invoke_shell()
-    shell.settimeout(5.0)
+    shell.settimeout(15.0)  # Increased timeout
 
     # Read initial prompt
     buffer = ""
+    start = time.time()
     while True:
-        buffer += shell.recv(1024).decode()
-        if re.search(prompt_regex, buffer):
-            break
+        try:
+            chunk = shell.recv(1024).decode()
+            if not chunk:
+                break
+            buffer += chunk
+            if re.search(prompt_regex, buffer):
+                break
+            if time.time() - start > 15:
+                print("Buffer before initial prompt timeout:", repr(buffer))
+                raise TimeoutError("Timeout waiting for initial prompt")
+        except Exception as e:
+            print("Exception while reading initial prompt:", e)
+            print("Buffer:", repr(buffer))
+            raise
 
     results = []
     for cmd in commands:
@@ -44,11 +56,20 @@ def connect_and_run_ssh_commands(
         start = time.time()
         # Read until we see the prompt again
         while True:
-            buffer += shell.recv(1024).decode()
-            if re.search(prompt_regex, buffer):
-                break
-            if time.time() - start > 5:
-                raise TimeoutError(f"Timeout waiting for prompt after {cmd}")
+            try:
+                chunk = shell.recv(1024).decode()
+                if not chunk:
+                    break
+                buffer += chunk
+                if re.search(prompt_regex, buffer):
+                    break
+                if time.time() - start > 15:
+                    print(f"Buffer before prompt timeout after {cmd}:", repr(buffer))
+                    raise TimeoutError(f"Timeout waiting for prompt after {cmd}")
+            except Exception as e:
+                print(f"Exception while reading prompt after {cmd}:", e)
+                print("Buffer:", repr(buffer))
+                raise
         # Strip off the final prompt from buffer
         output = re.sub(rf".*{re.escape(cmd)}\r\n", "", buffer)
         output = re.sub(prompt_regex + r".*$", "", output).strip()
