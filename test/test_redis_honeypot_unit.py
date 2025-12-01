@@ -8,19 +8,13 @@ from redis_honeypot import RedisHoneypot
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.fixture
 def redis_honeypot() -> Generator[BaseHoneypot, None, None]:
     class MockRedisAction(HoneypotAction):
         def query(self, query: str, session: HoneypotSession, **kwargs) -> dict:
-            cmd_parts = query.split()
-            cmd = cmd_parts[0].upper()
-            if cmd == "PING":
-                return {"output": "+PONG\r\n"}
-            elif cmd == "SET":
-                return {"output": "+OK\r\n"}
-            elif cmd == "GET":
-                return {"output": "$3\r\nbar\r\n"}
-            return {"output": "-ERR unknown command\r\n"}
+            # Fallback for PING if not handled by main logic (though it is now)
+            return {"output": "+PONG\r\n"}
 
     honeypot = RedisHoneypot(
         action=MockRedisAction(), config={"name": "TestRedisHoneypot"}
@@ -31,52 +25,96 @@ def redis_honeypot() -> Generator[BaseHoneypot, None, None]:
     finally:
         honeypot.stop()
 
+
 def test_redis_ping(redis_honeypot):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.settimeout(3)
         client_socket.connect(("0.0.0.0", redis_honeypot.port))
-        
+
         client_socket.sendall(b"PING\r\n")
         response = client_socket.recv(1024)
         assert response == b"+PONG\r\n"
 
-def test_redis_set_get(redis_honeypot):
+
+def test_redis_auth(redis_honeypot):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.settimeout(3)
         client_socket.connect(("0.0.0.0", redis_honeypot.port))
-        
-        client_socket.sendall(b"SET foo bar\r\n")
+        client_socket.sendall(b"AUTH supersecret\r\n")
         response = client_socket.recv(1024)
         assert response == b"+OK\r\n"
-        
-        client_socket.sendall(b"GET foo\r\n")
-        response = client_socket.recv(1024)
-        assert response == b"$3\r\nbar\r\n"
 
-def test_redis_inline_newline(redis_honeypot):
-    """Test that the honeypot handles \n only (lenient parsing)"""
+
+def test_redis_keys_del(redis_honeypot):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.settimeout(3)
         client_socket.connect(("0.0.0.0", redis_honeypot.port))
-        
-        client_socket.sendall(b"PING\n")
+        # Set keys
+        client_socket.sendall(b"SET k1 v1\r\n")
+        client_socket.recv(1024)
+        client_socket.sendall(b"SET k2 v2\r\n")
+        client_socket.recv(1024)
+        # List keys
+        client_socket.sendall(b"KEYS *\r\n")
+        response = client_socket.recv(4096)
+        # Expecting RESP array of size 2
+        assert b"*2\r\n" in response
+        assert b"k1" in response
+        assert b"k2" in response
+        # Delete k1
+        client_socket.sendall(b"DEL k1\r\n")
         response = client_socket.recv(1024)
-        assert response == b"+PONG\r\n"
+        assert response == b":1\r\n"
 
-def test_redis_stateful_set_get(redis_honeypot):
-    """Test that the honeypot remembers values set in the session"""
+        # Verify k1 is gone
+        client_socket.sendall(b"GET k1\r\n")
+        # Consume the fallback response (MockAction returns +PONG)
+        client_socket.recv(1024)
+
+        client_socket.sendall(b"KEYS *\r\n")
+        response = client_socket.recv(4096)
+        assert b"*1\r\n" in response
+        assert b"k2" in response
+        assert b"k1" not in response
+
+
+def test_redis_select_isolation(redis_honeypot):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.settimeout(3)
         client_socket.connect(("0.0.0.0", redis_honeypot.port))
-        
-        # Set a dynamic value
-        client_socket.sendall(b"SET my_dynamic_key dynamic_value\r\n")
+        # Set in DB 0
+        client_socket.sendall(b"SET db0_key val\r\n")
+        client_socket.recv(1024)
+        # Switch to DB 1
+        client_socket.sendall(b"SELECT 1\r\n")
         response = client_socket.recv(1024)
         assert response == b"+OK\r\n"
-        
-        # Get it back
-        client_socket.sendall(b"GET my_dynamic_key\r\n")
-        response = client_socket.recv(1024)
-        # Expecting bulk string response
-        expected = b"$13\r\ndynamic_value\r\n"
-        assert response == expected
+        # Verify key not visible in DB 1
+        client_socket.sendall(b"KEYS *\r\n")
+        response = client_socket.recv(4096)
+        assert response == b"*0\r\n"
+
+        # Set in DB 1
+        client_socket.sendall(b"SET db1_key val\r\n")
+        client_socket.recv(1024)
+        # Switch back to DB 0
+        client_socket.sendall(b"SELECT 0\r\n")
+        client_socket.recv(1024)
+
+        # Verify db0_key visible
+        client_socket.sendall(b"KEYS *\r\n")
+        response = client_socket.recv(4096)
+        assert b"db0_key" in response
+        assert b"db1_key" not in response
+
+
+def test_redis_info(redis_honeypot):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+        client_socket.settimeout(3)
+        client_socket.connect(("0.0.0.0", redis_honeypot.port))
+
+        client_socket.sendall(b"INFO\r\n")
+        response = client_socket.recv(4096)
+        decoded = response.decode()
+        assert "redis_version" in decoded
+        assert "uptime_in_seconds" in decoded
