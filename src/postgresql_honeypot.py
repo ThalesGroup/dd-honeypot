@@ -743,6 +743,7 @@ class PostgresHoneypot(BaseHoneypot):
         logging.info(
             f"Postgresql honeypot: user={session.get('user')}, db={session.get('database')}, query={query}"
         )
+        self.log_data(session, {"query": query})
         if self.action and hasattr(self.action, "log_data"):
             self.action.log_data(session, {"query": query})
 

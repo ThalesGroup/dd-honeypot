@@ -1,0 +1,3 @@
+{"command": "PING", "response": "+PONG\\r\\n"}
+{"command": "SET test 123", "response": "+OK\\r\\n"}
+{"command": "GET test", "response": "$3\\r\\n123\\r\\n"}

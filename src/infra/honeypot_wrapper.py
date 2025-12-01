@@ -101,6 +101,10 @@ def create_honeypot(config: dict) -> BaseHoneypot:
         honeypot_cls = MySQLHoneypot if honeypot_type == "mysql" else PostgresHoneypot
         hp = honeypot_cls(port=port, action=chained_action, config=config)
         return hp
+    elif honeypot_type == "redis":
+        from redis_honeypot import RedisHoneypot
+        hp = RedisHoneypot(port=port, action=action, config=config)
+        return hp
     else:
         raise ValueError(f"Unsupported honeypot type: {honeypot_type}")
 
