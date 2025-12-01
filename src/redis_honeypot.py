@@ -2,6 +2,7 @@ import logging
 import socket
 import threading
 import time
+from collections import defaultdict
 from typing import Optional
 
 from base_honeypot import BaseHoneypot, HoneypotSession
@@ -16,7 +17,9 @@ class RedisHoneypot(BaseHoneypot):
         self.server_socket = None
         self.running = False
         self.action = action
-        self.data_store = {}  # In-memory store for stateful simulation
+        # In-memory store: {db_index: {key: value}}
+        self.data_store = defaultdict(dict)
+        self.start_time = time.time()
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -61,6 +64,8 @@ class RedisHoneypot(BaseHoneypot):
         logger.info(f"New connection from {addr}")
         session = HoneypotSession()
         session["client_ip"] = addr[0]
+        # Track current database index for this connection (default 0)
+        session["current_db"] = 0
 
         try:
             buffer = b""
@@ -131,19 +136,96 @@ class RedisHoneypot(BaseHoneypot):
             return b"-ERR unknown command\r\n"
 
         cmd = cmd_parts[0].upper()
+        current_db = session.get("current_db", 0)
 
-        # Handle stateful commands first
-        if cmd == "SET" and len(cmd_parts) >= 3:
+        if cmd == "AUTH":
+            # Log the password attempt
+            password = cmd_parts[1] if len(cmd_parts) > 1 else ""
+            logger.info(f"AUTH attempt with password: {password}")
+            # Always accept
+            return b"+OK\r\n"
+
+        elif cmd == "SELECT" and len(cmd_parts) >= 2:
+            try:
+                db_index = int(cmd_parts[1])
+                session["current_db"] = db_index
+                return b"+OK\r\n"
+            except ValueError:
+                return b"-ERR invalid DB index\r\n"
+
+        elif cmd == "SET" and len(cmd_parts) >= 3:
             key = cmd_parts[1]
             value = " ".join(cmd_parts[2:])
-            self.data_store[key] = value
+            self.data_store[current_db][key] = value
             return b"+OK\r\n"
 
         elif cmd == "GET" and len(cmd_parts) >= 2:
             key = cmd_parts[1]
-            if key in self.data_store:
-                val = self.data_store[key]
+            val = self.data_store[current_db].get(key)
+            if val is not None:
                 return f"${len(val)}\r\n{val}\r\n".encode()
+            pass
+
+        elif cmd == "DEL" and len(cmd_parts) >= 2:
+            count = 0
+            for key in cmd_parts[1:]:
+                if key in self.data_store[current_db]:
+                    del self.data_store[current_db][key]
+                    count += 1
+            return f":{count}\r\n".encode()
+
+        elif cmd == "KEYS":
+            pattern = cmd_parts[1] if len(cmd_parts) > 1 else "*"
+            # Simple implementation: only support * or exact match for now
+            if pattern == "*":
+                keys = list(self.data_store[current_db].keys())
+            else:
+                keys = [k for k in self.data_store[current_db].keys() if k == pattern]
+
+            # Construct RESP array
+            resp = f"*{len(keys)}\r\n"
+            for k in keys:
+                resp += f"${len(k)}\r\n{k}\r\n"
+            return resp.encode()
+
+        elif cmd == "FLUSHDB":
+            self.data_store[current_db].clear()
+            return b"+OK\r\n"
+
+        elif cmd == "FLUSHALL":
+            self.data_store.clear()
+            return b"+OK\r\n"
+
+        elif cmd == "INFO":
+            uptime = int(time.time() - self.start_time)
+            info = (
+                "# Server\r\n"
+                "redis_version:6.2.6\r\n"
+                "os:Linux\r\n"
+                "arch_bits:64\r\n"
+                "multiplexing_api:epoll\r\n"
+                f"uptime_in_seconds:{uptime}\r\n"
+                "uptime_in_days:0\r\n"
+                "# Clients\r\n"
+                "connected_clients:1\r\n"
+                "# Memory\r\n"
+                "used_memory:1024000\r\n"
+                "used_memory_human:1.00M\r\n"
+                "# Persistence\r\n"
+                "loading:0\r\n"
+                "# Stats\r\n"
+                "total_connections_received:1\r\n"
+                "total_commands_processed:1\r\n"
+                "# Replication\r\n"
+                "role:master\r\n"
+                "connected_slaves:0\r\n"
+                "# CPU\r\n"
+                "used_cpu_sys:0.50\r\n"
+                "used_cpu_user:0.50\r\n"
+                "# Keyspace\r\n"
+                f"db{current_db}:keys={len(self.data_store[current_db])},expires=0,avg_ttl=0\r\n"
+            )
+            return f"${len(info)}\r\n{info}\r\n".encode()
 
         elif cmd == "COMMAND":
             # Return empty array to satisfy redis-cli introspection
@@ -176,13 +258,6 @@ class RedisHoneypot(BaseHoneypot):
         # Fallback hardcoded responses if no action/dataset match
         if cmd == "PING":
             return b"+PONG\r\n"
-        elif cmd == "SET":
-            return b"+OK\r\n"
-        elif cmd == "GET":
-            return b"$-1\r\n"  # Null bulk string (key not found)
-        elif cmd == "INFO":
-            info = "# Server\r\nredis_version:6.2.6\r\nos:Linux\r\n"
-            return f"${len(info)}\r\n{info}\r\n".encode()
 
         return b"+OK\r\n"
 
