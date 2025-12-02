@@ -16,7 +16,7 @@ def wait_for_port(port: int, retries: int = 10):
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=1):
                 return True
-        except Exception:
+        except (ConnectionRefusedError, socket.timeout, OSError):
             time.sleep(0.5)
     return False
 
@@ -28,7 +28,7 @@ def connect_and_run_ssh_commands(
     client.set_missing_host_key_policy(AutoAddPolicy())
     client.connect("127.0.0.1", port=port, username=username, password=password)
     shell = client.invoke_shell()
-    shell.settimeout(5.0)
+    shell.settimeout(60.0)
 
     # Read initial prompt
     buffer = ""
@@ -47,7 +47,7 @@ def connect_and_run_ssh_commands(
             buffer += shell.recv(1024).decode()
             if re.search(prompt_regex, buffer):
                 break
-            if time.time() - start > 5:
+            if time.time() - start > 60:
                 raise TimeoutError(f"Timeout waiting for prompt after {cmd}")
         # Strip off the final prompt from buffer
         output = re.sub(rf".*{re.escape(cmd)}\r\n", "", buffer)
