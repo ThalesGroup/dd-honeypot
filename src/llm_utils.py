@@ -30,7 +30,10 @@ def _invoke_bedrock_model(prompt_body: dict, model_id: str) -> dict:
     bedrock_client = boto3.client(
         service_name="bedrock-runtime",
         region_name=region,
-        config=Config(read_timeout=300),
+        config=Config(
+            read_timeout=300,
+            retries={"max_attempts": 10, "mode": "adaptive"},
+        ),
     )
     response = bedrock_client.invoke_model(
         body=json.dumps(prompt_body),
