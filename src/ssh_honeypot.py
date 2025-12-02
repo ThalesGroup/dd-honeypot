@@ -442,6 +442,8 @@ class SSHHoneypot(BaseHoneypot):
                 if channel:
                     channel.event.wait()
 
+        except EOFError:
+            logging.warning(f"Client {addr[0]} disconnected unexpectedly")
         except (SSHException, OSError) as e:
             logging.error(f"SSH error: {e}")
         finally:
