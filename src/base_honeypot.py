@@ -130,6 +130,7 @@ class BaseHoneypot(ABC):
             "session-id": session.get("session_id"),
             "type": self.honeypot_type(),
             "name": self.name,
+            "client_ip": session.get("client_ip"),
         }
         data_to_log.update(data)
         print(json.dumps(data_to_log))
