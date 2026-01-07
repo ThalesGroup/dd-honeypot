@@ -133,7 +133,8 @@ class BaseHoneypot(ABC):
             "client_ip": session.get("client_ip"),
         }
         data_to_log.update(data)
-        print(json.dumps(data_to_log))
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            print(json.dumps(data_to_log))
 
     def forward_to_backend(self, backend_name: str, ctx: dict):
         try:

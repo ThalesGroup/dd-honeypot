@@ -78,7 +78,8 @@ class RedisHoneypot(BaseHoneypot):
                 # Process commands (simple RESP parser)
                 while b"\n" in buffer:
                     decoded = buffer.decode("utf-8", errors="ignore")
-                    logger.debug(f"DEBUG: Received buffer: {decoded!r}")
+                    if logging.getLogger().isEnabledFor(logging.DEBUG):
+                        logger.debug(f"DEBUG: Received buffer: {decoded!r}")
 
                     if not decoded.endswith("\n"):
                         # Wait for more data if we don't have a newline
@@ -90,12 +91,11 @@ class RedisHoneypot(BaseHoneypot):
 
                     if command_str:
                         logger.info(f"Redis command: {command_str}")
-                        self.log_data(
-                            session, {"command": command_str}
-                        )
+                        self.log_data(session, {"command": command_str})
 
                         response = self._process_command(command_str, session)
-                        logger.debug(f"DEBUG: Sending response: {response!r}")
+                        if logging.getLogger().isEnabledFor(logging.DEBUG):
+                            logger.debug(f"DEBUG: Sending response: {response!r}")
                         client_socket.sendall(response)
                     else:
                         # if we can't parse, we assume its garbage or incomplete
