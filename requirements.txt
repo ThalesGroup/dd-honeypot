@@ -5,4 +5,4 @@ requests==2.33.0
 sqlglot==27.0.0
 sqlite-utils==3.38
 telnetlib3==2.0.4
-Flask==3.1.1
+Flask==3.1.3
