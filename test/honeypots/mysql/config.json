@@ -9,7 +9,7 @@
   "Do not include any text outside the JSON array. No introductions, explanations, formatting, or markdown.",
   "Your response should match what a real MySQL server would return, but structured as pure JSON."
 ],
-  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "model_id": "anthropic.claude-sonnet-4-5-20250929-v1:0",
   "data_file": "honeypots/mysql/data.jsonl",
   "port": 3306,
   "dialect": "mysql"

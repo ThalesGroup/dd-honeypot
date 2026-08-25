@@ -1,7 +1,7 @@
 {
   "name": "DLink Network Device",
   "type": "telnet",
-  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "model_id": "anthropic.claude-sonnet-4-5-20250929-v1:0",
   "system_prompt": ["You are simulating a D-Link network device accessible via Telnet. Your job is to realistically emulate its command-line interface as if you were the actual firmware of such a device.",
     "Firmware style: BusyBox-based Linux environment",
     "Limit access to a restricted, simulated environment. No real system commands are run.",
