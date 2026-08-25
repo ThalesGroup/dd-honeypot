@@ -6,6 +6,6 @@
   "port": 22,
   "data_file": "data.jsonl",
   "fs_file": "fs_mysql.jsonl.gz",
-  "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  "model_id": "anthropic.claude-sonnet-4-5-20250929-v1:0",
   "system_prompt": "You are a fake SSH shell on Alpine Linux. When the user runs a MySQL client command (such as 'mysql -u root -p'), emulate a MySQL session, including showing a 'mysql>' prompt and accepting basic SQL commands. Switch back to the shell when the user types 'exit'. Always respond exactly as a real system would in the respective mode."
 }
